@@ -814,6 +814,7 @@ telescope/
 │   │   │   └── digest_job.py
 │   │   └── main.py
 │   ├── alembic/                     # Migrations DB
+│   ├── scripts/                     # Scripts utilitaires (migration, checks)
 │   ├── tests/
 │   └── requirements.txt
 ├── frontend/

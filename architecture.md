@@ -53,8 +53,8 @@
 | Collecteur Telegram | Telethon + **retry backoff** | `backend/app/services/telegram_collector.py` | **Amélioré** |
 | Collecteur temps réel | Telethon + **auto-reconnect** | `backend/app/services/realtime_collector.py` | **Amélioré** |
 | Retry Utilities | **Décorateur @telegram_retry** | `backend/app/utils/retry.py` | **Nouveau** |
-| Traduction | Google Translate (deep-translator) | `backend/app/services/translator.py` | - |
-| Déduplication | SequenceMatcher (O(n²)) | `backend/app/services/deduplicator.py` | - |
+| Traduction | GPT-4o-mini + fallback Google Translate | `backend/app/services/llm_translator.py` | **Nouveau** |
+| Déduplication | Pinecone (cosine) | `backend/app/services/deduplicator.py` | **Nouveau** |
 | Résumés | Service interne | `backend/app/services/summarizer.py` | - |
 | API REST | FastAPI + **Auth obligatoire** | `backend/app/main.py` | **Amélioré** |
 | Frontend | React 18 | `frontend/` | - |
@@ -91,8 +91,10 @@ backend/
 │   ├── services/
 │   │   ├── telegram_collector.py  # Collecte + @telegram_retry
 │   │   ├── realtime_collector.py  # Temps réel + auto-reconnect
-│   │   ├── translator.py          # Traduction Google
-│   │   ├── deduplicator.py        # Déduplication O(n²)
+│   │   ├── translator.py          # Facade traduction LLM
+│   │   ├── llm_translator.py      # GPT-4o-mini + fallback
+│   │   ├── vector_store.py        # Pinecone + embeddings
+│   │   ├── deduplicator.py        # Déduplication vectorielle
 │   │   └── summarizer.py          # Génération résumés
 │   ├── utils/                  # [NOUVEAU] Utilitaires
 │   │   ├── __init__.py
@@ -103,6 +105,9 @@ backend/
 │   ├── config.py               # Configuration (PostgreSQL, JWT, Telegram)
 │   ├── database.py             # Connexion PostgreSQL/SQLite
 │   └── main.py                 # Application FastAPI + auth router
+├── scripts/                    # Scripts utilitaires
+│   ├── check_postgres.py        # Vérif connexion + tables
+│   └── migrate_sqlite_to_postgres.py  # Migration SQLite → PostgreSQL
 └── requirements.txt            # Dépendances mises à jour
 ```
 
@@ -111,8 +116,8 @@ backend/
 | Limitation | Impact | Composant | Statut |
 |------------|--------|-----------|--------|
 | ~~SQLite single-writer~~ | ~~Pas de scaling horizontal~~ | `database.py` | **RÉSOLU** - PostgreSQL 16 |
-| Déduplication O(n²) | Lenteur à 10K+ messages | `deduplicator.py` | À faire - Pinecone |
-| Google Translate | Instable, pas de contexte OSINT | `translator.py` | À faire - GPT-4o-mini |
+| ~~Déduplication O(n²)~~ | ~~Lenteur à 10K+ messages~~ | `deduplicator.py` | **RÉSOLU** - Pinecone |
+| ~~Google Translate~~ | ~~Instable, pas de contexte OSINT~~ | `translator.py` | **RÉSOLU** - GPT-4o-mini |
 | ~~Telethon lock global~~ | ~~Collecte sérialisée~~ | `telegram_collector.py` | **AMÉLIORÉ** - retry + semaphore |
 | ~~Pas d'authentification~~ | ~~Données accessibles à tous~~ | - | **RÉSOLU** - JWT + RBAC |
 | Pas de logs d'audit | Non conforme RGPD | - | À faire |
@@ -217,8 +222,8 @@ backend/
 | Base relationnelle | SQLite | **PostgreSQL 16** | Multi-writer, JSONB, extensions |
 | Base vectorielle | - | **Pinecone** | Déduplication O(log n), recherche sémantique |
 | Cache/Queue | Mémoire | **Redis 7** | Persistance, sessions, rate limiting |
-| Traduction | Google Translate | **GPT-4o-mini** | Contexte OSINT, coût réduit |
-| Embeddings | - | **text-embedding-3-small** | Déduplication sémantique |
+| Traduction | **GPT-4o-mini + fallback** | **GPT-4o-mini** | Contexte OSINT, coût réduit |
+| Embeddings | **sentence-transformers/all-MiniLM-L6-v2** | **sentence-transformers/all-MiniLM-L6-v2** | Déduplication sémantique |
 | Task Queue | - | **ARQ** (ou Celery) | Jobs distribués, retry, monitoring |
 | Auth | - | **FastAPI-Users + JWT** | OAuth2, sessions, RBAC |
 
@@ -314,6 +319,7 @@ async def fetch_with_backoff(channel_id: int, limit: int = 100):
     └── [x] SQLite → PostgreSQL 16 (schéma v2 avec UUID, JSONB)
     └── [x] Alembic configuré pour migrations async
     └── [x] Fallback SQLite pour développement local
+    └── [x] Script migration SQLite → PostgreSQL (`backend/scripts/migrate_sqlite_to_postgres.py`)
 
 Étape 2: Authentification ✅ FAIT
     └── [x] FastAPI-Users + JWT
@@ -332,21 +338,45 @@ async def fetch_with_backoff(channel_id: int, limit: int = 100):
     └── [ ] Sessions utilisateur
     └── [ ] Rate limiting distribué
 
-Étape 5: Base Vectorielle ⏳ À FAIRE
-    └── [ ] Pinecone setup
-    └── [ ] Migration embeddings
-    └── [ ] Déduplication sémantique
+Étape 5: Base Vectorielle ✅ FAIT
+    └── [x] Pinecone setup (code)
+    └── [x] Migration embeddings (au fil de l'eau)
+    └── [x] Déduplication sémantique
 
-Étape 6: Traduction LLM ⏳ À FAIRE
-    └── [ ] GPT-4o-mini integration
-    └── [ ] Prompts OSINT spécialisés
+Étape 6: Traduction LLM ✅ FAIT
+    └── [x] GPT-4o-mini integration
+    └── [x] Prompts OSINT spécialisés
 
 Étape 7: Tâches de Fond ⏳ À FAIRE
     └── [ ] ARQ ou Celery
     └── [ ] Jobs de collecte/digest distribués
 ```
 
-### 4.2 Structure Cible des Fichiers
+### 4.2 Runbook Migration SQLite → PostgreSQL
+
+1) Démarrer PostgreSQL (Docker)
+```
+docker compose up -d
+```
+
+2) Appliquer les migrations Alembic
+```
+cd backend
+alembic upgrade head
+```
+
+3) Migrer les données SQLite (optionnel)
+```
+python3 scripts/migrate_sqlite_to_postgres.py --dry-run
+python3 scripts/migrate_sqlite_to_postgres.py
+```
+
+4) Vérifier la connexion et le schéma
+```
+python3 scripts/check_postgres.py
+```
+
+### 4.3 Structure Cible des Fichiers
 
 ```
 telescope/

@@ -22,8 +22,8 @@
 | Fonctionnalité | Statut | Notes |
 |----------------|--------|-------|
 | Collecte Telegram | OK | Via Telethon, single-thread |
-| Traduction automatique | OK | Google Translate (deep-translator) |
-| Déduplication messages | OK | SequenceMatcher, O(n²) |
+| Traduction automatique | OK | GPT-4o-mini + fallback Google Translate |
+| Déduplication messages | OK | Pinecone (cosine) + embeddings |
 | Résumés automatiques | OK | Service interne |
 | API REST | OK | FastAPI |
 | Interface utilisateur | OK | React 18 + Vite |
@@ -36,8 +36,8 @@
 | SQLite single-writer | Pas de scaling | P0 | ✅ Résolu (PostgreSQL) |
 | Pas d'authentification | Données publiques | P0 | ✅ Résolu (JWT) |
 | Pas de gestion FloodWait | Ban Telegram | P0 | ✅ Résolu (backoff) |
-| Déduplication O(n²) | Lent à 10K+ messages | P0 | 🔲 En attente (Pinecone) |
-| Google Translate générique | Traductions imprécises | P1 | 🔲 En attente (GPT-4o-mini) |
+| ~~Déduplication O(n²)~~ | ~~Lent à 10K+ messages~~ | P0 | ✅ Résolu (Pinecone) |
+| ~~Google Translate générique~~ | ~~Traductions imprécises~~ | P1 | ✅ Résolu (GPT-4o-mini) |
 | Cache mémoire volatile | Perte au redémarrage | P1 | 🔲 En attente (Redis) |
 | Pas d'audit logs | Non conforme RGPD | P2 | 🔲 En attente |
 
@@ -56,10 +56,10 @@ Remplacer SQLite par PostgreSQL 16 pour permettre le scaling horizontal et prép
 | Configurer PostgreSQL local | **Fait** | Via docker ou installation locale |
 | Adapter le schéma de données | **Fait** | UUID, BigInteger, JSONB |
 | Configurer Alembic (migrations) | **Fait** | `backend/alembic/` configuré |
-| Migrer les données existantes | A faire | Script à exécuter après déploiement |
+| Migrer les données existantes | **Fait (script)** | `backend/scripts/migrate_sqlite_to_postgres.py` |
 | Adapter les requêtes SQLAlchemy | **Fait** | Endpoints mis à jour |
 | Tests de régression | A faire | - |
-| Mise à jour docker-compose | A faire | - |
+| Mise à jour docker-compose | **Fait** | `docker-compose.yml` ajouté |
 
 ### 2.3 Critères d'acceptation
 
@@ -80,7 +80,7 @@ Migration    Authentification    Traduction    Base         Daily
 PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
    │              │                 │             │             │
    ▼              ▼                 ▼             ▼             ▼
-  [FAIT]        [FAIT]         [A FAIRE]    [A FAIRE]     [A FAIRE]
+  [FAIT]        [FAIT]         [FAIT]       [FAIT]       [A FAIRE]
 ```
 
 ### 3.2 Fonctionnalités M1
@@ -90,9 +90,9 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 | Migration PostgreSQL | P0 | ✅ **Fait** | - |
 | Authentification JWT | P0 | ✅ **Fait** | PostgreSQL |
 | Flood Wait handling | P0 | ✅ **Fait** | - |
-| Traduction LLM (GPT-4o-mini) | P0 | 🔲 A faire | - |
-| Base vectorielle (Pinecone) | P0 | 🔲 A faire | - |
-| Déduplication sémantique | P0 | 🔲 A faire | Pinecone |
+| Traduction LLM (GPT-4o-mini) | P0 | ✅ **Fait (code)** | - |
+| Base vectorielle (Pinecone) | P0 | ✅ **Fait (code)** | - |
+| Déduplication sémantique | P0 | ✅ **Fait (code)** | Pinecone |
 | Daily Digests v2 | P1 | 🔲 A faire | Traduction LLM |
 | Collections de canaux | P1 | 🔲 A faire | PostgreSQL |
 | Dashboard KPIs | P1 | 🔲 A faire | PostgreSQL |
@@ -114,8 +114,8 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Créer migration initiale
 - [x] Tester avec SQLite (`USE_SQLITE=true`)
 - [ ] Tester avec PostgreSQL réel
-- [ ] Script migration données SQLite → PostgreSQL
-- [ ] Mettre à jour docker-compose
+- [x] Script migration données SQLite → PostgreSQL (`backend/scripts/migrate_sqlite_to_postgres.py`)
+- [x] Mettre à jour docker-compose (`docker-compose.yml`)
 
 #### 🔐 Authentification JWT (FastAPI-Users)
 - [x] Ajouter dépendances `fastapi-users[sqlalchemy]`, `passlib`, `python-jose`
@@ -146,33 +146,33 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [ ] Vérifier logs FloodWait après 24h de collecte
 
 #### 🌐 Traduction LLM (GPT-4o-mini)
-- [ ] Ajouter dépendance `openai`
-- [ ] Configurer clé API OpenAI dans `.env`
-- [ ] Créer service `LLMTranslator` (`services/llm_translator.py`)
-- [ ] Implémenter prompt optimisé pour contexte OSINT
-- [ ] Ajouter cache traductions (éviter re-traduction)
-- [ ] Fallback vers Google Translate si erreur
-- [ ] Remplacer deep-translator par LLM dans pipeline
+- [x] Ajouter dépendance `openai`
+- [x] Configurer clé API OpenAI dans `.env` (exemple)
+- [x] Créer service `LLMTranslator` (`services/llm_translator.py`)
+- [x] Implémenter prompt optimisé pour contexte OSINT
+- [x] Ajouter cache traductions (éviter re-traduction)
+- [x] Fallback vers Google Translate si erreur
+- [x] Remplacer deep-translator par LLM dans pipeline
 - [ ] Tester qualité traductions RU → FR
 - [ ] Monitoring coûts API
 
 #### 🔍 Base vectorielle (Pinecone)
 - [ ] Créer compte Pinecone (free tier)
-- [ ] Ajouter dépendances `pinecone-client`, `sentence-transformers`
-- [ ] Configurer index Pinecone dans `.env`
-- [ ] Créer service `VectorStore` (`services/vector_store.py`)
-- [ ] Implémenter génération embeddings
-- [ ] Implémenter upsert/query Pinecone
-- [ ] Stocker `embedding_id` dans table messages
+- [x] Ajouter dépendances `pinecone-client`, `sentence-transformers`
+- [x] Configurer index Pinecone dans `.env` (exemple)
+- [x] Créer service `VectorStore` (`services/vector_store.py`)
+- [x] Implémenter génération embeddings
+- [x] Implémenter upsert/query Pinecone
+- [x] Stocker `embedding_id` dans table messages
 - [ ] Tester recherche sémantique
 
 #### 🔄 Déduplication sémantique
-- [ ] Implémenter calcul similarité cosinus via Pinecone
-- [ ] Définir seuil de similarité (ex: 0.85)
-- [ ] Marquer messages dupliqués (`is_duplicate=True`)
-- [ ] Grouper duplicats (`duplicate_group_id`)
-- [ ] Calculer `originality_score`
-- [ ] Remplacer SequenceMatcher par déduplication vectorielle
+- [x] Implémenter calcul similarité cosinus via Pinecone
+- [x] Définir seuil de similarité (ex: 0.85)
+- [x] Marquer messages dupliqués (`is_duplicate=True`)
+- [x] Grouper duplicats (`duplicate_group_id`)
+- [x] Calculer `originality_score`
+- [x] Remplacer SequenceMatcher par déduplication vectorielle
 - [ ] Tester avec corpus de messages similaires
 
 #### 📰 Daily Digests v2
