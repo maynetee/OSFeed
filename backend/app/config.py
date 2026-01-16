@@ -65,12 +65,16 @@ class Settings(BaseSettings):
     telegram_jitter: bool = True
     telegram_concurrent_channels: int = 3  # max parallel channel fetches
 
-    # Pinecone Vector Store
-    pinecone_api_key: str = ""
-    pinecone_environment: str = "us-east-1"
-    pinecone_index_name: str = "telescope-embeddings"
-    pinecone_namespace: str = "messages"
-    pinecone_metric: str = "cosine"
+    # Qdrant Vector Store
+    qdrant_url: str = ""
+    qdrant_api_key: str = ""
+    qdrant_collection_name: str = "telescope-embeddings"
+    qdrant_distance: str = "cosine"
+    qdrant_timeout_seconds: float = 5.0
+
+    # Redis Cache
+    redis_url: str = ""
+    redis_cache_ttl_seconds: int = 86400
 
     # Embeddings
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -91,7 +95,8 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),
-        case_sensitive=False
+        case_sensitive=False,
+        extra="ignore",
     )
 
 

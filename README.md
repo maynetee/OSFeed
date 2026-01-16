@@ -6,10 +6,11 @@ TeleScope is a Telegram-first OSINT platform for collection, translation, dedupl
 
 - Telegram collection with flood-wait handling
 - LLM translation (OpenAI GPT-4o-mini) with fallback
-- Vector deduplication (Pinecone) + semantic search hooks
+- Vector deduplication (Qdrant) + semantic search hooks
 - Daily digests v2 (HTML + PDF export + key entities)
 - Collections to group channels and filter digests
 - KPI dashboard (messages, channels, duplicates) with CSV export
+- Redis cache for translations (persistent)
 - Audit logs for sensitive actions (RGPD)
 - Refresh tokens + session rotation
 - API usage tracking (LLM cost monitoring)
@@ -30,8 +31,9 @@ TeleScope is a Telegram-first OSINT platform for collection, translation, dedupl
 
 The first run copies `.env.example` to `.env` if missing. Update `.env` with:
 - PostgreSQL credentials
-- OpenAI / Pinecone keys
+- OpenAI / Qdrant settings
 - Telegram API credentials
+- Redis settings (optional but recommended for translation cache)
 - Optional settings:
   - `SCHEDULER_ENABLED` (default `true`)
   - `AUDIT_LOG_RETENTION_DAYS` (default `365`)
@@ -78,6 +80,6 @@ python3 scripts/check_postgres.py
 
 ## Requirements
 
-- Python 3.11-3.13
+- Python 3.11-3.13 (3.14 not supported by Pydantic yet)
 - Node.js
-- Docker + Docker Compose (for PostgreSQL)
+- Docker + Docker Compose (PostgreSQL, Qdrant, Redis)

@@ -13,6 +13,10 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 #### Tests et validation
 - Test de déduplication avec vector store simulé
 - Tests auth refresh compatibles `httpx` récent
+#### Cache Redis
+- Cache persistant pour les traductions (Redis)
+- Service cache centralisé (`app/services/cache.py`)
+- Variables d'environnement `REDIS_URL` et `REDIS_CACHE_TTL_SECONDS`
 
 #### Migration PostgreSQL 16
 - Support PostgreSQL 16 avec driver async `asyncpg`
@@ -51,20 +55,22 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 #### Traduction LLM + Déduplication vectorielle
 - Traduction via GPT-4o-mini avec fallback Google Translate
 - Service `LLMTranslator` + facade `translator`
-- Base vectorielle Pinecone + embeddings `sentence-transformers`
+- Base vectorielle Qdrant + embeddings `sentence-transformers`
 - Déduplication sémantique (cosine) avec `embedding_id` stocké en base
-- Variables d'environnement OpenAI/Pinecone ajoutées
+- Variables d'environnement OpenAI/Qdrant ajoutées
 
 ### Modifié
-- `app/services/vector_store.py` - migration vers le SDK Pinecone actuel + import lazy des embeddings
+- `app/services/vector_store.py` - intégration Qdrant + import lazy des embeddings
 - `app/schemas/*` - passage à `ConfigDict` pour Pydantic v2
-- `requirements.txt` - remplacement `pinecone-client` par `pinecone`
+- `requirements.txt` - ajout de `qdrant-client`, `redis`
 - `config.py` - Ajout de toutes les configurations (PostgreSQL, JWT, Telegram rate limiting)
 - `database.py` - Support dual SQLite/PostgreSQL avec engine factory
 - Modèles Channel, Message, Summary - Adaptation UUID et types PostgreSQL
 - Endpoints channels, messages, summaries - Protection JWT obligatoire
 - `telegram_collector.py` - Décorateur retry sur toutes les méthodes
 - `realtime_collector.py` - Boucle auto-reconnect avec gestion des erreurs
+- `docker-compose.yml` - Ajout Redis + Qdrant aligné sur le client
+- `config.py` - Ignore les variables `.env` non utilisées pour éviter les erreurs Alembic
 
 ### Corrigé
 - Migration initiale Alembic réécrite pour une création clean du schéma

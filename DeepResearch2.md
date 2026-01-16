@@ -3,6 +3,8 @@
 
 ---
 
+**Note** : Document de recherche stratégique (statique), indépendant de l’état du code.
+
 ## Executive Summary
 
 Un agrégateur de canaux Telegram enrichi par l’IA répond à des besoins croissants en **veille** et en **OSINT**, portés par la popularité grandissante de Telegram comme source d’information. Le marché global de la veille média et de l’OSINT est en forte expansion, offrant une opportunité commerciale notable. Toutefois, la concurrence existe déjà (outils d’analytics Telegram, plateformes OSINT, solutions de social listening), et des obstacles techniques et juridiques (accès API, conformité) sont à prévoir.

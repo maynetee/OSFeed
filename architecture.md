@@ -1,7 +1,7 @@
 # TeleScope - Architecture Technique
 
 **Version:** 1.0
-**Dernière mise à jour:** 2026-01-16
+**Dernière mise à jour:** 2026-01-16 17:40
 
 ---
 
@@ -54,7 +54,8 @@
 | Collecteur temps réel | Telethon + **auto-reconnect** | `backend/app/services/realtime_collector.py` | **Amélioré** |
 | Retry Utilities | **Décorateur @telegram_retry** | `backend/app/utils/retry.py` | **Nouveau** |
 | Traduction | GPT-4o-mini + fallback Google Translate | `backend/app/services/llm_translator.py` | **Nouveau** |
-| Déduplication | Pinecone (cosine) | `backend/app/services/deduplicator.py` | **Nouveau** |
+| Cache | Redis (traductions persistantes) | `backend/app/services/cache.py` | **Nouveau** |
+| Déduplication | Qdrant (cosine) | `backend/app/services/deduplicator.py` | **Nouveau** |
 | Résumés | Service interne | `backend/app/services/summarizer.py` | - |
 | API REST | FastAPI + **Auth obligatoire** | `backend/app/main.py` | **Amélioré** |
 | Frontend | React 18 | `frontend/` | - |
@@ -93,7 +94,8 @@ backend/
 │   │   ├── realtime_collector.py  # Temps réel + auto-reconnect
 │   │   ├── translator.py          # Facade traduction LLM
 │   │   ├── llm_translator.py      # GPT-4o-mini + fallback
-│   │   ├── vector_store.py        # Pinecone + embeddings
+│   │   ├── cache.py               # Cache Redis (traductions)
+│   │   ├── vector_store.py        # Qdrant + embeddings
 │   │   ├── deduplicator.py        # Déduplication vectorielle
 │   │   └── summarizer.py          # Génération résumés
 │   ├── utils/                  # [NOUVEAU] Utilitaires
@@ -116,12 +118,12 @@ backend/
 | Limitation | Impact | Composant | Statut |
 |------------|--------|-----------|--------|
 | ~~SQLite single-writer~~ | ~~Pas de scaling horizontal~~ | `database.py` | **RÉSOLU** - PostgreSQL 16 |
-| ~~Déduplication O(n²)~~ | ~~Lenteur à 10K+ messages~~ | `deduplicator.py` | **RÉSOLU** - Pinecone |
+| ~~Déduplication O(n²)~~ | ~~Lenteur à 10K+ messages~~ | `deduplicator.py` | **RÉSOLU** - Qdrant |
 | ~~Google Translate~~ | ~~Instable, pas de contexte OSINT~~ | `translator.py` | **RÉSOLU** - GPT-4o-mini |
 | ~~Telethon lock global~~ | ~~Collecte sérialisée~~ | `telegram_collector.py` | **AMÉLIORÉ** - retry + semaphore |
 | ~~Pas d'authentification~~ | ~~Données accessibles à tous~~ | - | **RÉSOLU** - JWT + RBAC |
 | Pas de logs d'audit | Non conforme RGPD | - | **PARTIEL** - audit_logs + endpoints |
-| Cache en mémoire | Perdu au redémarrage | `translator.py` | À faire - Redis |
+| Cache en mémoire | Perdu au redémarrage | `translator.py` | **RÉSOLU** - Redis |
 
 ---
 
@@ -178,7 +180,7 @@ backend/
 │  │ └──────────────────────────────────────────────────────┘                  │    │
 │  │                                                                           │    │
 │  │ ┌──────────────────────────────────────────────────────┐                  │    │
-│  │ │                     Pinecone                          │                  │    │
+│  │ │                      Qdrant                           │                  │    │
 │  │ │  - Embeddings vectoriels (déduplication O(log n))    │                  │    │
 │  │ │  - Index de recherche sémantique                     │                  │    │
 │  │ └──────────────────────────────────────────────────────┘                  │    │
@@ -220,7 +222,7 @@ backend/
 | Composant | Actuel | Cible | Justification |
 |-----------|--------|-------|---------------|
 | Base relationnelle | SQLite | **PostgreSQL 16** | Multi-writer, JSONB, extensions |
-| Base vectorielle | - | **Pinecone** | Déduplication O(log n), recherche sémantique |
+| Base vectorielle | - | **Qdrant** | Déduplication O(log n), recherche sémantique |
 | Cache/Queue | Mémoire | **Redis 7** | Persistance, sessions, rate limiting |
 | Traduction | **GPT-4o-mini + fallback** | **GPT-4o-mini** | Contexte OSINT, coût réduit |
 | Embeddings | **sentence-transformers/all-MiniLM-L6-v2** | **sentence-transformers/all-MiniLM-L6-v2** | Déduplication sémantique |
@@ -231,7 +233,7 @@ backend/
 
 | Aspect | Avant | Après |
 |--------|-------|-------|
-| Déduplication | O(n²) - SequenceMatcher | O(log n) - Index vectoriel Pinecone |
+| Déduplication | O(n²) - SequenceMatcher | O(log n) - Index vectoriel Qdrant |
 | Scaling | Single-writer SQLite | Multi-writer PostgreSQL |
 | Traduction | Google (générique) | GPT-4o-mini (contexte OSINT) |
 | Cache | Mémoire (volatile) | Redis (persistant) |
@@ -268,7 +270,7 @@ backend/
 │                                 ▼                                       │
 │                         ┌───────────────┐         ┌───────────────┐    │
 │                         │               │         │               │    │
-│                         │ Embedding     │────────▶│ Pinecone      │    │
+│                         │ Embedding     │────────▶│ Qdrant        │    │
 │                         │ text-embed-3  │         │ (vecteurs)    │    │
 │                         │               │         │               │    │
 │                         └───────┬───────┘         └───────────────┘    │
@@ -339,7 +341,7 @@ async def fetch_with_backoff(channel_id: int, limit: int = 100):
     └── [ ] Rate limiting distribué
 
 Étape 5: Base Vectorielle ✅ FAIT
-    └── [x] Pinecone setup (code)
+    └── [x] Qdrant setup (code)
     └── [x] Migration embeddings (au fil de l'eau)
     └── [x] Déduplication sémantique
 

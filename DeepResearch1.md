@@ -3,6 +3,8 @@
 
 ---
 
+**Note** : Document de recherche stratégique (statique), indépendant de l’état du code.
+
 ## 1. Synthèse Exécutive et Verdict Stratégique
 
 L'écosystème numérique mondial traverse une phase de **fragmentation accélérée** où les plateformes de messagerie instantanée, et en particulier **Telegram**, se substituent progressivement aux réseaux sociaux traditionnels et aux flux d'actualités conventionnels.

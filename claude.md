@@ -10,8 +10,9 @@ Transformer TeleScope en **outil de renseignement opérationnel** destiné aux j
 |-----------|-------------|
 | Backend API | FastAPI |
 | Base de données | PostgreSQL 16 |
-| Base vectorielle | Pinecone |
+| Base vectorielle | Qdrant |
 | LLM | GPT-4o-mini |
+| Cache | Redis |
 | Frontend | React 18 |
 | Tâches de fond | ARQ ou Celery |
 

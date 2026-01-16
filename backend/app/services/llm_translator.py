@@ -3,6 +3,7 @@ from langdetect import detect, LangDetectException
 from openai import AsyncOpenAI
 from app.config import get_settings
 from app.services.usage import record_api_usage
+from app.services.cache import get_redis_client
 from typing import Optional
 import asyncio
 import hashlib
@@ -17,6 +18,7 @@ class LLMTranslator:
         self.model = settings.openai_model
         self.cache = {}
         self._client = None
+        self._redis = get_redis_client()
 
     @property
     def client(self) -> Optional[AsyncOpenAI]:
@@ -113,6 +115,13 @@ class LLMTranslator:
             return text, source_lang
 
         cache_key = self._cache_key(text, source_lang, target_lang)
+        if self._redis is not None:
+            try:
+                cached = await self._redis.get(cache_key)
+                if cached:
+                    return cached, source_lang
+            except Exception:
+                pass
         if cache_key in self.cache:
             return self.cache[cache_key], source_lang
 
@@ -126,7 +135,17 @@ class LLMTranslator:
                 print(f"Fallback translation failed: {fallback_error}")
                 return text, source_lang
 
-        self.cache[cache_key] = translated_text
+        if self._redis is not None:
+            try:
+                await self._redis.set(
+                    cache_key,
+                    translated_text,
+                    ex=settings.redis_cache_ttl_seconds,
+                )
+            except Exception:
+                self.cache[cache_key] = translated_text
+        else:
+            self.cache[cache_key] = translated_text
         return translated_text, source_lang
 
 

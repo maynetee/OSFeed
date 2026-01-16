@@ -2,8 +2,8 @@
 ## Renseignement Opérationnel pour Telegram
 
 **Version:** 1.0
-**Date:** 2026-01-16
-**Statut:** Phase 1 - Plan
+**Date:** 2026-01-16 17:40
+**Statut:** Phase 1 - Build M1
 
 ---
 
@@ -144,7 +144,7 @@ Message : {original_text}
 | **Algorithme** | 1. Embedding via text-embedding-3-small <br> 2. Recherche de similarité cosinus > 0.85 <br> 3. Clustering des duplicatas |
 | **Output** | Score d'originalité (0-100), groupe de duplicatas, source primaire |
 | **Performance cible** | O(log n) via index vectoriel vs O(n²) actuel |
-| **Stockage** | Base vectorielle (Pinecone/Milvus) + métadonnées PostgreSQL |
+| **Stockage** | Base vectorielle (Qdrant) + métadonnées PostgreSQL |
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -318,7 +318,7 @@ Message : {original_text}
 │  │ └──────────────────────────────────────────────────────┘                  │    │
 │  │                                                                           │    │
 │  │ ┌──────────────────────────────────────────────────────┐                  │    │
-│  │ │                 Pinecone / Milvus                     │                  │    │
+│  │ │                       Qdrant                          │                  │    │
 │  │ │  • Embeddings vectoriels (déduplication)             │                  │    │
 │  │ │  • Index de recherche sémantique                     │                  │    │
 │  │ └──────────────────────────────────────────────────────┘                  │    │
@@ -363,7 +363,7 @@ Message : {original_text}
 |-----------|-------------|---------------|
 | Framework API | **FastAPI** (conservé) | Performant, async, bien maîtrisé |
 | Base relationnelle | **PostgreSQL 16** | Multi-writer, JSONB, extensions |
-| Base vectorielle | **Pinecone** (starter) | Managed, gratuit jusqu'à 100K vecteurs |
+| Base vectorielle | **Qdrant** | Open-source, auto-hébergé |
 | Cache/Queue | **Redis 7** | Cache, sessions, rate limiting, queues |
 | Task Queue | **Celery** ou **ARQ** | Jobs distribués, retry, monitoring |
 | Auth | **FastAPI-Users** + JWT | OAuth2, sessions, RBAC |
@@ -399,7 +399,7 @@ Message : {original_text}
 | Compute | **Railway** ou **Render** | ~$20/mois |
 | PostgreSQL | **Neon** ou **Supabase** | Gratuit → $25/mois |
 | Redis | **Upstash** | Gratuit jusqu'à 10K commands/jour |
-| Vectoriel | **Pinecone** | Gratuit jusqu'à 100K vecteurs |
+| Vectoriel | **Qdrant** | Auto-hébergé (VPS) |
 | Storage | **Cloudflare R2** | Gratuit 10GB |
 
 **Coût infrastructure MVP estimé : $50-100/mois**
@@ -496,7 +496,7 @@ CREATE TABLE messages (
     is_duplicate BOOLEAN DEFAULT false,
     originality_score SMALLINT, -- 0-100
     duplicate_group_id UUID,
-    embedding_id VARCHAR(255), -- ID dans Pinecone
+    embedding_id VARCHAR(255), -- ID dans Qdrant
 
     -- NER
     entities JSONB, -- {"persons": [], "locations": [], "organizations": []}
@@ -638,7 +638,7 @@ class TelegramCollectorV2:
 │                                 ▼                                       │
 │                         ┌───────────────┐         ┌───────────────┐    │
 │                         │               │         │               │    │
-│                         │ Embedding     │────────▶│ Pinecone      │    │
+│                         │ Embedding     │────────▶│ Qdrant        │    │
 │                         │ Génération    │         │ (vecteurs)    │    │
 │                         │               │         │               │    │
 │                         └───────┬───────┘         └───────────────┘    │
@@ -768,7 +768,7 @@ async def audit_middleware(request: Request, call_next):
 | Migration PostgreSQL | P0 | Moyenne | Remplacer SQLite, schéma v2 |
 | Authentification JWT | P0 | Moyenne | Login/register, sessions |
 | Traduction LLM | P0 | Haute | GPT-4o-mini avec prompt OSINT |
-| Base vectorielle | P0 | Haute | Pinecone, embeddings, dédup |
+| Base vectorielle | P0 | Haute | Qdrant, embeddings, dédup |
 | Daily Digests v2 | P1 | Moyenne | Structurés par thème/région |
 | Collections de canaux | P1 | Basse | Groupes thématiques |
 | Dashboard KPIs | P1 | Basse | Stats, tendances |
@@ -807,7 +807,7 @@ telescope/
 │   │   │   │   └── prompts.py       # Prompt templates
 │   │   │   ├── vector/
 │   │   │   │   ├── embedder.py      # text-embedding-3-small
-│   │   │   │   └── deduplicator.py  # Pinecone search
+│   │   │   │   └── deduplicator.py  # Qdrant search
 │   │   │   └── audit.py             # RGPD logging
 │   │   ├── jobs/
 │   │   │   ├── collector_job.py
@@ -831,7 +831,7 @@ telescope/
 │   │   ├── lib/                     # Utils, API client
 │   │   └── pages/                   # Route pages
 │   └── package.json
-├── docker-compose.yml               # PostgreSQL, Redis, Pinecone
+├── docker-compose.yml               # PostgreSQL, Redis, Qdrant
 ├── .env.example
 └── README.md
 ```
@@ -872,7 +872,7 @@ telescope/
 |--------|-------------|--------|------------|
 | **Ban compte Telegram** | Haute | Critique | Multi-comptes, proxy rotation, rate limiting strict |
 | **Coûts LLM explosent** | Moyenne | Haute | Monitoring usage, cache agressif, fallback modèles locaux |
-| **Pinecone pricing** | Moyenne | Moyenne | Migration Milvus self-hosted si nécessaire |
+| **Coût/ops Qdrant** | Moyenne | Moyenne | Scaling vertical + monitoring VPS |
 | **Changement API Telegram** | Basse | Haute | Abstraction layer, monitoring changelog |
 | **Concurrence (Palantir, etc.)** | Haute | Moyenne | Niche (Telegram-first), prix accessible |
 | **Complexité RGPD** | Moyenne | Moyenne | DPO consultant, privacy by design |
@@ -896,7 +896,7 @@ telescope/
 - [Telegram API Documentation](https://core.telegram.org/api)
 - [Telethon Documentation](https://docs.telethon.dev/)
 - [OpenAI API Pricing](https://openai.com/pricing)
-- [Pinecone Documentation](https://docs.pinecone.io/)
+- [Qdrant Documentation](https://qdrant.tech/documentation/)
 - [RGPD - CNIL](https://www.cnil.fr/fr/rgpd-de-quoi-parle-t-on)
 
 ### 6.3 Contacts
