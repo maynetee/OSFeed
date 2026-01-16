@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 20% 98%;
+  --background-subtle: 210 20% 96%;
+  --background-muted: 214 20% 92%;
+  --foreground: 222 47% 11%;
+  --foreground-muted: 215 16% 47%;
+
+  --primary: 210 100% 35%;
+  --primary-foreground: 0 0% 100%;
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+  --danger: 0 84% 60%;
+  --info: 199 89% 48%;
+  --duplicate: 262 83% 58%;
+  --translated: 172 66% 50%;
+
+  --border: 214 16% 82%;
+  --muted: 210 30% 94%;
+  --ring: 210 100% 40%;
+
+  --font-sans: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+.dark {
+  --background: 222 47% 11%;
+  --background-subtle: 217 33% 17%;
+  --background-muted: 217 28% 15%;
+  --foreground: 210 40% 98%;
+  --foreground-muted: 217 10% 70%;
+
+  --primary: 210 100% 55%;
+  --primary-foreground: 222 47% 11%;
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+  --danger: 0 84% 60%;
+  --info: 199 89% 48%;
+  --duplicate: 262 83% 58%;
+  --translated: 172 66% 50%;
+
+  --border: 217 19% 28%;
+  --muted: 217 21% 19%;
+  --ring: 210 100% 60%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    background-image: radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 45%),
+      radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.12), transparent 35%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(240, 245, 255, 0.6));
+    background-attachment: fixed;
+  }
+
+  .dark body {
+    background-image: radial-gradient(circle at top left, rgba(59, 130, 246, 0.22), transparent 45%),
+      radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.18), transparent 35%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.95));
+  }
+
+  code, pre {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer utilities {
+  .bg-app {
+    background-image: linear-gradient(130deg, rgba(255, 255, 255, 0.8), rgba(238, 242, 255, 0.9));
+  }
+
+  .bg-auth {
+    background-image: radial-gradient(circle at top, rgba(59, 130, 246, 0.2), transparent 50%),
+      linear-gradient(180deg, rgba(248, 250, 255, 0.95), rgba(255, 255, 255, 0.8));
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.2s ease-out;
+  }
+
+  .animate-rise-in {
+    animation: rise-in 0.5s ease-out;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

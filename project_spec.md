@@ -2,7 +2,7 @@
 ## Renseignement Opérationnel pour Telegram
 
 **Version:** 1.0
-**Date:** 2026-01-16 17:40
+**Date:** 2026-01-16 18:40
 **Statut:** Phase 1 - Build M1
 
 ---
@@ -819,17 +819,14 @@ telescope/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── auth/                # Login, Register
-│   │   │   ├── dashboard/           # KPIs, charts
-│   │   │   ├── feed/                # Message list
-│   │   │   ├── channels/            # Channel management
-│   │   │   ├── collections/         # Collection management
-│   │   │   ├── digests/             # Daily digest view
-│   │   │   └── export/              # Export buttons
+│   │   ├── app/                     # Providers + router
+│   │   ├── components/              # UI + layout + domain
+│   │   ├── features/                # Pages par feature
 │   │   ├── hooks/                   # Custom hooks
 │   │   ├── lib/                     # Utils, API client
-│   │   └── pages/                   # Route pages
+│   │   ├── stores/                  # Zustand stores
+│   │   └── styles/                  # Global styles
+│   ├── components.json              # shadcn/ui config
 │   └── package.json
 ├── docker-compose.yml               # PostgreSQL, Redis, Qdrant
 ├── .env.example

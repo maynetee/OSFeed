@@ -10,6 +10,13 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+#### Frontend refonte
+- Nouvelle architecture frontend (app/providers/router, features, stores, styles)
+- AppShell (sidebar + header), command palette (cmdk) et raccourcis clavier
+- Pages core refondues (dashboard, feed, channels, collections, search, digests, exports, settings)
+- Virtualisation du feed + lazy-loading routes
+- PWA (manifest + service worker)
+- Tests E2E Playwright (smoke login)
 #### Tests et validation
 - Test de déduplication avec vector store simulé
 - Tests auth refresh compatibles `httpx` récent

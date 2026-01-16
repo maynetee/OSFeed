@@ -1,7 +1,7 @@
 # TeleScope - Architecture Technique
 
 **Version:** 1.0
-**Dernière mise à jour:** 2026-01-16 17:40
+**Dernière mise à jour:** 2026-01-16 18:40
 
 ---
 
@@ -58,7 +58,7 @@
 | Déduplication | Qdrant (cosine) | `backend/app/services/deduplicator.py` | **Nouveau** |
 | Résumés | Service interne | `backend/app/services/summarizer.py` | - |
 | API REST | FastAPI + **Auth obligatoire** | `backend/app/main.py` | **Amélioré** |
-| Frontend | React 18 | `frontend/` | - |
+| Frontend | React 18 + Vite 5 + Tailwind | `frontend/` | **Refonte UI** |
 
 ### 1.3 Structure des Fichiers Backend
 
@@ -113,7 +113,31 @@ backend/
 └── requirements.txt            # Dépendances mises à jour
 ```
 
-### 1.4 Limitations Identifiées (Mises à jour)
+### 1.4 Frontend Refonte (Vite + React)
+
+```
+frontend/
+├── src/
+│   ├── app/                 # Providers + routing
+│   ├── components/          # UI + layout + domain components
+│   ├── features/            # Pages par feature
+│   ├── hooks/               # Hooks globaux
+│   ├── lib/                 # API client + utils
+│   ├── stores/              # Zustand stores
+│   └── styles/              # Global styles + theme
+├── public/                  # PWA assets
+├── vite.config.ts
+└── components.json          # config shadcn/ui
+```
+
+**Points clés** :
+- React Router 6 + routes lazy-load
+- Zustand (UI / filters / user)
+- TanStack Query (server state)
+- Command palette (cmdk) + raccourcis clavier
+- Virtualisation du feed + PWA + tests E2E (Playwright)
+
+### 1.5 Limitations Identifiées (Mises à jour)
 
 | Limitation | Impact | Composant | Statut |
 |------------|--------|-----------|--------|

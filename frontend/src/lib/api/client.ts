@@ -112,7 +112,7 @@ export const messagesApi = {
     api.post(`/api/messages/fetch-historical/${channelId}?days=${days}`),
   translate: (targetLanguage: string, channelId?: string) =>
     api.post('/api/messages/translate', null, {
-      params: { target_language: targetLanguage, channel_id: channelId }
+      params: { target_language: targetLanguage, channel_id: channelId },
     }),
 }
 
@@ -129,8 +129,10 @@ export const collectionsApi = {
   list: () => api.get<Collection[]>('/api/collections'),
   create: (payload: { name: string; description?: string; channel_ids?: string[] }) =>
     api.post<Collection>('/api/collections', payload),
-  update: (id: string, payload: { name?: string; description?: string; channel_ids?: string[] }) =>
-    api.put<Collection>(`/api/collections/${id}`, payload),
+  update: (
+    id: string,
+    payload: { name?: string; description?: string; channel_ids?: string[] },
+  ) => api.put<Collection>(`/api/collections/${id}`, payload),
   delete: (id: string) => api.delete(`/api/collections/${id}`),
 }
 
@@ -139,7 +141,9 @@ export const statsApi = {
   messagesByDay: (days: number = 7) =>
     api.get<MessagesByDay[]>('/api/stats/messages-by-day', { params: { days } }),
   messagesByChannel: (limit: number = 10) =>
-    api.get<MessagesByChannel[]>('/api/stats/messages-by-channel', { params: { limit } }),
+    api.get<MessagesByChannel[]>('/api/stats/messages-by-channel', {
+      params: { limit },
+    }),
   exportCsv: (days: number = 7) =>
     api.get('/api/stats/export/csv', { params: { days }, responseType: 'blob' }),
 }

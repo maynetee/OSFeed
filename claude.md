@@ -16,6 +16,13 @@ Transformer TeleScope en **outil de renseignement opérationnel** destiné aux j
 | Frontend | React 18 |
 | Tâches de fond | ARQ ou Celery |
 
+## Frontend (refonte)
+
+- Vite 5 + React 18 + React Router 6
+- Tailwind CSS + shadcn/ui + cmdk
+- Zustand (state client) + TanStack Query (state serveur)
+- PWA + tests E2E (Playwright)
+
 ## Règles de Dépôt
 
 - **Ne jamais pousser directement sur `main`** - Toute modification doit passer par une Pull Request
@@ -29,6 +36,7 @@ Transformer TeleScope en **outil de renseignement opérationnel** destiné aux j
 - [architecture.md](./architecture.md) - Architecture technique actuelle et cible
 - [project_status.md](./project_status.md) - État d'avancement du projet
 - [changelog.md](./changelog.md) - Historique des modifications
+- [FRONTEND_REFONTE.md](./FRONTEND_REFONTE.md) - Plan de refonte frontend
 - [api.md](./api.md) - Documentation API (à créer)
 
 ## Mise à Jour de la Documentation

@@ -1,6 +1,6 @@
 # TeleScope - État du Projet
 
-**Dernière mise à jour:** 2026-01-16 17:40
+**Dernière mise à jour:** 2026-01-16 18:40
 
 ---
 
@@ -29,6 +29,7 @@
 | Interface utilisateur | OK | React 18 + Vite |
 | Persistance données | OK | PostgreSQL 16 (+ SQLite fallback) |
 | Cache traductions | OK | Redis (optionnel) |
+| Frontend refonte | OK | AppShell, feed virtualise, cmd palette, PWA |
 
 ### 1.2 Limitations connues
 
@@ -99,6 +100,7 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 | Dashboard KPIs | P1 | ✅ **Fait** | PostgreSQL |
 | Export CSV/PDF | P2 | ✅ **Fait** | - |
 | Audit logs RGPD | P2 | 🟡 **Partiel** | PostgreSQL |
+| Frontend refonte | P0 | ✅ **Fait** | Pages core + features |
 
 ---
 
