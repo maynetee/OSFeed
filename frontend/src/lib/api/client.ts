@@ -123,6 +123,13 @@ export interface CollectionStats {
   languages: Record<string, number>
 }
 
+export interface TrustStats {
+  primary_sources_rate: number
+  propaganda_rate: number
+  verified_channels: number
+  total_messages_24h: number
+}
+
 export interface Alert {
   id: string
   collection_id: string
@@ -334,6 +341,8 @@ export const statsApi = {
     api.get<MessagesByChannel[]>('/api/stats/messages-by-channel', {
       params: { limit },
     }),
+  trust: (params?: { channel_ids?: string[] }) =>
+    api.get<TrustStats>('/api/stats/trust', { params: params ? buildParams(params) : undefined }),
   exportCsv: (days: number = 7) =>
     api.get('/api/stats/export/csv', { params: { days }, responseType: 'blob' }),
 }

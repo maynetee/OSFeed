@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, or_
 from datetime import datetime, timedelta
 import csv
 from io import StringIO
+from uuid import UUID
 
 from app.database import get_db
 from app.models.message import Message
@@ -108,6 +109,59 @@ async def export_stats_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.get("/trust")
+async def get_trust_stats(
+    channel_ids: list[UUID] | None = Query(None),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    now = datetime.utcnow()
+    day_ago = now - timedelta(days=1)
+
+    filters = [Message.published_at >= day_ago]
+    if channel_ids:
+        filters.append(Message.channel_id.in_(channel_ids))
+
+    total_result = await db.execute(
+        select(func.count()).select_from(Message).where(*filters)
+    )
+    total_messages = total_result.scalar() or 0
+
+    primary_result = await db.execute(
+        select(func.count())
+        .select_from(Message)
+        .where(*filters)
+        .where(Message.is_duplicate == False)
+        .where(or_(Message.originality_score.is_(None), Message.originality_score >= 90))
+    )
+    propaganda_result = await db.execute(
+        select(func.count())
+        .select_from(Message)
+        .where(*filters)
+        .where(Message.is_duplicate == True)
+        .where(Message.originality_score <= 20)
+    )
+    verified_result = await db.execute(
+        select(func.count(func.distinct(Message.channel_id)))
+        .select_from(Message)
+        .where(*filters)
+    )
+
+    primary_count = primary_result.scalar() or 0
+    propaganda_count = propaganda_result.scalar() or 0
+    verified_channels = verified_result.scalar() or 0
+
+    primary_rate = round((primary_count / total_messages) * 100, 1) if total_messages else 0.0
+    propaganda_rate = round((propaganda_count / total_messages) * 100, 1) if total_messages else 0.0
+
+    return {
+        "primary_sources_rate": primary_rate,
+        "propaganda_rate": propaganda_rate,
+        "verified_channels": verified_channels,
+        "total_messages_24h": total_messages,
+    }
 
 
 @router.get("/api-usage")

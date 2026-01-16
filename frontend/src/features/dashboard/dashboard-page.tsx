@@ -3,14 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { KpiCard } from '@/components/stats/kpi-card'
 import { TrendChart } from '@/components/stats/trend-chart'
 import { ChannelRanking } from '@/components/stats/channel-ranking'
 import { EmptyState } from '@/components/common/empty-state'
-import { statsApi, channelsApi, collectionsApi } from '@/lib/api/client'
+import { statsApi, channelsApi, collectionsApi, summariesApi } from '@/lib/api/client'
 
 export function DashboardPage() {
   const { t } = useTranslation()
@@ -53,12 +52,13 @@ export function DashboardPage() {
   const channels = channelsQuery.data ?? []
   const overview = overviewQuery.data
   const collectionStats = collectionStatsQuery.data
-  const hasNoChannels = !channelsQuery.isLoading && channels.length === 0
+  const hasNoChannels = channelsQuery.isSuccess && channels.length === 0
+  const hasNoCollectionChannels = selectedCollection !== 'all'
+    && collectionStatsQuery.isSuccess
+    && (collectionStats?.channel_count ?? 0) === 0
 
-  const digestItems = t('dashboard.digestItems', { returnObjects: true }) as string[]
-
-  // Show empty state when no channels are configured
-  if (hasNoChannels) {
+  // Show empty state when no sources are configured.
+  if (hasNoChannels || hasNoCollectionChannels) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <EmptyState
@@ -95,6 +95,51 @@ export function DashboardPage() {
     () => collectionsQuery.data ?? [],
     [collectionsQuery.data],
   )
+  const selectedCollectionData = useMemo(
+    () => collectionOptions.find((collection) => collection.id === selectedCollection) ?? null,
+    [collectionOptions, selectedCollection],
+  )
+  const selectedChannelIds = selectedCollectionData?.channel_ids ?? []
+
+  const digestQuery = useQuery({
+    queryKey: ['dashboard', 'digest', selectedCollection],
+    queryFn: async () => {
+      try {
+        if (selectedCollection === 'all') {
+          const response = await summariesApi.getDaily()
+          return response.data
+        }
+        const response = await collectionsApi.digests(selectedCollection, { limit: 1, offset: 0 })
+        return response.data.summaries[0] ?? null
+      } catch (error) {
+        return null
+      }
+    },
+    enabled: selectedCollection === 'all'
+      ? (channelsQuery.data?.length ?? 0) > 0
+      : selectedChannelIds.length > 0,
+    retry: false,
+  })
+
+  const trustQuery = useQuery({
+    queryKey: ['dashboard', 'trust', selectedCollection, selectedChannelIds],
+    queryFn: async () => {
+      const params = selectedCollection === 'all' ? undefined : { channel_ids: selectedChannelIds }
+      const response = await statsApi.trust(params)
+      return response.data
+    },
+    enabled: selectedCollection === 'all'
+      ? (channelsQuery.data?.length ?? 0) > 0
+      : selectedChannelIds.length > 0,
+  })
+
+  const digest = digestQuery.data
+  const digestLines = (digest?.content ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+  const trustStats = trustQuery.data
 
   return (
     <div className="flex flex-col gap-8">
@@ -121,20 +166,14 @@ export function DashboardPage() {
         <KpiCard
           label={t('dashboard.kpiMessages')}
           value={Number.isFinite(kpiMessages) ? kpiMessages.toLocaleString() : '--'}
-          delta="+23%"
-          trend="up"
         />
         <KpiCard
           label={t('dashboard.kpiDuplicates')}
           value={Number.isFinite(kpiDuplicates) ? `${kpiDuplicates}%` : '--'}
-          delta="-4%"
-          trend="down"
         />
         <KpiCard
           label={t('dashboard.kpiChannels')}
           value={Number.isFinite(kpiChannels) ? kpiChannels.toLocaleString() : '--'}
-          delta="+11%"
-          trend="up"
         />
       </section>
 
@@ -148,15 +187,32 @@ export function DashboardPage() {
             <Button variant="outline">{t('dashboard.digestAction')}</Button>
           </CardHeader>
           <CardContent className="space-y-4">
-            {digestItems.map((item) => (
-              <div key={item} className="flex items-start justify-between gap-4 rounded-lg bg-muted/40 p-4">
-                <div>
-                  <p className="text-sm font-semibold">{item}</p>
-                  <p className="text-xs text-foreground/60">{t('dashboard.digestItemMeta')}</p>
-                </div>
-                <Badge variant="outline">{t('dashboard.digestSignal')}</Badge>
+            {digestQuery.isLoading ? (
+              <p className="text-sm text-foreground/60">{t('digests.loading')}</p>
+            ) : digest ? (
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                <p className="text-sm font-semibold">
+                  {digest.title ?? t('digests.title')}
+                </p>
+                <p className="text-xs text-foreground/60">
+                  {t('digests.cardMeta', {
+                    messages: digest.message_count,
+                    duplicates: digest.duplicates_filtered ?? 0,
+                  })}
+                </p>
+                {digestLines.length ? (
+                  <div className="mt-3 space-y-2 text-sm text-foreground/70">
+                    {digestLines.map((line, index) => (
+                      <p key={`${digest.id}-${index}`}>{line}</p>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            ))}
+            ) : (
+              <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-4 text-sm text-foreground/60">
+                {t('digests.emptyDescription')}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -168,15 +224,27 @@ export function DashboardPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span>{t('dashboard.trustPrimary')}</span>
-              <span className="font-semibold">68%</span>
+              <span className="font-semibold">
+                {typeof trustStats?.primary_sources_rate === 'number'
+                  ? `${trustStats.primary_sources_rate}%`
+                  : '--'}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>{t('dashboard.trustPropaganda')}</span>
-              <span className="font-semibold text-warning">12%</span>
+              <span className="font-semibold text-warning">
+                {typeof trustStats?.propaganda_rate === 'number'
+                  ? `${trustStats.propaganda_rate}%`
+                  : '--'}
+              </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>{t('dashboard.trustVerified')}</span>
-              <span className="font-semibold">31</span>
+              <span className="font-semibold">
+                {typeof trustStats?.verified_channels === 'number'
+                  ? trustStats.verified_channels.toLocaleString()
+                  : '--'}
+              </span>
             </div>
             <Button className="w-full" variant="secondary">
               {t('dashboard.trustAction')}
