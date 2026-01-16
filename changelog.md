@@ -10,6 +10,9 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+#### Tests et validation
+- Test de déduplication avec vector store simulé
+- Tests auth refresh compatibles `httpx` récent
 
 #### Migration PostgreSQL 16
 - Support PostgreSQL 16 avec driver async `asyncpg`
@@ -53,12 +56,23 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Variables d'environnement OpenAI/Pinecone ajoutées
 
 ### Modifié
+- `app/services/vector_store.py` - migration vers le SDK Pinecone actuel + import lazy des embeddings
+- `app/schemas/*` - passage à `ConfigDict` pour Pydantic v2
+- `requirements.txt` - remplacement `pinecone-client` par `pinecone`
 - `config.py` - Ajout de toutes les configurations (PostgreSQL, JWT, Telegram rate limiting)
 - `database.py` - Support dual SQLite/PostgreSQL avec engine factory
 - Modèles Channel, Message, Summary - Adaptation UUID et types PostgreSQL
 - Endpoints channels, messages, summaries - Protection JWT obligatoire
 - `telegram_collector.py` - Décorateur retry sur toutes les méthodes
 - `realtime_collector.py` - Boucle auto-reconnect avec gestion des erreurs
+
+### Corrigé
+- Migration initiale Alembic réécrite pour une création clean du schéma
+- Comparaison timezone-safe des refresh tokens
+- Champs `metadata` renommés côté ORM (`metadata_json`) pour éviter les conflits SQLAlchemy
+
+### Supprimé
+- Fichier SQLite local versionné par erreur (`backend/data/telescope.db` et WAL/SHM)
 
 ### Sécurité
 - Authentification JWT obligatoire sur tous les endpoints

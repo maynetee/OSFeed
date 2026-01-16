@@ -1,7 +1,5 @@
-from sentence_transformers import SentenceTransformer
 from app.config import get_settings
-from typing import Optional
-import pinecone
+from typing import Optional, Any
 import time
 import uuid
 import hashlib
@@ -28,21 +26,31 @@ class VectorStore:
             return
 
         try:
-            pinecone.init(api_key=self.api_key, environment=self.environment)
-            existing = pinecone.list_indexes()
-            if self.index_name not in existing:
-                pinecone.create_index(
+            from pinecone import Pinecone, ServerlessSpec
+        except Exception as e:
+            print(f"Vector store init failed: {e}")
+            return
+
+        try:
+            client = Pinecone(api_key=self.api_key)
+            existing = client.list_indexes()
+            existing_names = existing.names() if hasattr(existing, "names") else existing
+            if self.index_name not in existing_names:
+                client.create_index(
                     name=self.index_name,
                     dimension=self.dimension,
                     metric=self.metric,
+                    spec=ServerlessSpec(cloud="aws", region=self.environment),
                 )
                 while True:
-                    status = pinecone.describe_index(self.index_name).status
-                    if status.get("ready"):
+                    description = client.describe_index(self.index_name)
+                    status = description.status if hasattr(description, "status") else description.get("status", {})
+                    ready = status.get("ready") if isinstance(status, dict) else getattr(status, "ready", False)
+                    if ready:
                         break
                     time.sleep(1)
 
-            self._index = pinecone.Index(self.index_name)
+            self._index = client.Index(self.index_name)
             self._ready = True
         except Exception as e:
             print(f"Vector store init failed: {e}")
@@ -51,8 +59,9 @@ class VectorStore:
     def is_ready(self) -> bool:
         return self._ready and self._index is not None
 
-    def _get_embedder(self) -> SentenceTransformer:
+    def _get_embedder(self) -> Any:
         if self._embedder is None:
+            from sentence_transformers import SentenceTransformer
             self._embedder = SentenceTransformer(self.model_name)
         return self._embedder
 

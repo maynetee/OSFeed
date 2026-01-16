@@ -1,4 +1,5 @@
 import os
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -24,3 +25,12 @@ def _ensure_test_db_dir(sqlite_db_path: Path) -> None:
     sqlite_db_path.parent.mkdir(parents=True, exist_ok=True)
     if sqlite_db_path.exists():
         sqlite_db_path.unlink()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _dispose_engine() -> None:
+    yield
+    from app.database import engine
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(engine.dispose())
+    loop.close()

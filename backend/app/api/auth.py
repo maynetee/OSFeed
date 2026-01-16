@@ -95,7 +95,10 @@ async def refresh_access_token(
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
-    if not user.refresh_token_expires_at or user.refresh_token_expires_at < datetime.now(timezone.utc):
+    refresh_expires_at = user.refresh_token_expires_at
+    if refresh_expires_at and refresh_expires_at.tzinfo is None:
+        refresh_expires_at = refresh_expires_at.replace(tzinfo=timezone.utc)
+    if not refresh_expires_at or refresh_expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
 
     access_token = await strategy.write_token(user)

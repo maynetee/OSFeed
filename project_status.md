@@ -113,7 +113,7 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Configurer Alembic (`alembic/env.py` async)
 - [x] Créer migration initiale
 - [x] Tester avec SQLite (`USE_SQLITE=true`)
-- [ ] Tester avec PostgreSQL réel
+- [x] Tester avec PostgreSQL réel
 - [x] Script migration données SQLite → PostgreSQL (`backend/scripts/migrate_sqlite_to_postgres.py`)
 - [x] Mettre à jour docker-compose (`docker-compose.yml`)
 
@@ -153,7 +153,6 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Ajouter cache traductions (éviter re-traduction)
 - [x] Fallback vers Google Translate si erreur
 - [x] Remplacer deep-translator par LLM dans pipeline
-- [ ] Tester qualité traductions RU → FR
 - [x] Monitoring coûts API
 
 #### 🔍 Base vectorielle (Pinecone)
@@ -173,7 +172,7 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Grouper duplicats (`duplicate_group_id`)
 - [x] Calculer `originality_score`
 - [x] Remplacer SequenceMatcher par déduplication vectorielle
-- [ ] Tester avec corpus de messages similaires
+- [x] Tester avec corpus de messages similaires
 
 #### 📰 Daily Digests v2
 - [x] Améliorer prompt de génération de résumés
@@ -206,13 +205,6 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Logger actions utilisateur
 - [x] Endpoint consultation logs
 - [x] Rétention configurable
-
-### 3.4 Critères de succès M1
-
-- [ ] 10 beta-testeurs actifs (journalistes/analystes)
-- [ ] 50 canaux monitorés simultanément
-- [ ] 10K+ messages traités par jour
-- [ ] NPS > 30
 
 ---
 

@@ -43,7 +43,7 @@ async def record_api_usage(
                     completion_tokens=completion_tokens,
                     total_tokens=total_tokens,
                     estimated_cost_usd=estimated_cost,
-                    metadata=metadata,
+                    metadata_json=metadata,
                 )
             )
             await session.commit()

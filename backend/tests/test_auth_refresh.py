@@ -1,5 +1,5 @@
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 from fastapi_users.password import PasswordHelper
 
@@ -24,7 +24,8 @@ async def test_login_and_refresh_token_flow():
         session.add(user)
         await session.commit()
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         login_response = await client.post(
             "/api/auth/login",
             data={"username": "test@example.com", "password": "password123"},
@@ -46,7 +47,8 @@ async def test_login_and_refresh_token_flow():
 
 @pytest.mark.asyncio
 async def test_refresh_token_rejects_invalid_token():
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/api/auth/refresh",
             json={"refresh_token": "invalid-token"},

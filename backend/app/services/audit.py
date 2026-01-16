@@ -17,6 +17,6 @@ def record_audit_event(
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
-            metadata=metadata,
+            metadata_json=metadata,
         )
     )
