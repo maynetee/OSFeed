@@ -131,8 +131,8 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Tester inscription utilisateur
 - [x] Tester login et génération token
 - [x] Tester rejet requêtes sans token
-- [ ] Tester refresh token
-- [ ] Tests unitaires auth
+- [x] Tester refresh token
+- [x] Tests unitaires auth
 
 #### ⏱️ Gestion Flood Waits Telegram
 - [x] Ajouter dépendance `tenacity`
@@ -154,7 +154,7 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Fallback vers Google Translate si erreur
 - [x] Remplacer deep-translator par LLM dans pipeline
 - [ ] Tester qualité traductions RU → FR
-- [ ] Monitoring coûts API
+- [x] Monitoring coûts API
 
 #### 🔍 Base vectorielle (Pinecone)
 - [ ] Créer compte Pinecone (free tier)
@@ -205,7 +205,7 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [x] Créer modèle `AuditLog`
 - [x] Logger actions utilisateur
 - [x] Endpoint consultation logs
-- [ ] Rétention configurable
+- [x] Rétention configurable
 
 ### 3.4 Critères de succès M1
 

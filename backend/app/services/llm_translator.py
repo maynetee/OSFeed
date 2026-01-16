@@ -2,6 +2,7 @@ from deep_translator import GoogleTranslator
 from langdetect import detect, LangDetectException
 from openai import AsyncOpenAI
 from app.config import get_settings
+from app.services.usage import record_api_usage
 from typing import Optional
 import asyncio
 import hashlib
@@ -77,6 +78,15 @@ class LLMTranslator:
                 temperature=0.2,
             )
             translated_chunks.append(response.choices[0].message.content.strip())
+            if response.usage:
+                await record_api_usage(
+                    provider="openai",
+                    model=self.model,
+                    purpose="translation",
+                    prompt_tokens=response.usage.prompt_tokens or 0,
+                    completion_tokens=response.usage.completion_tokens or 0,
+                    metadata={"chunk_length": len(chunk)},
+                )
 
         return "".join(translated_chunks)
 

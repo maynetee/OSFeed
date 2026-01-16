@@ -31,6 +31,10 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc))
 
+    # Refresh token (hashed)
+    refresh_token_hash = Column(String(128), nullable=True)
+    refresh_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+
     # Relationships
     summaries = relationship("Summary", backref="user", passive_deletes=True)
 

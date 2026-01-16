@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60  # 1 hour
     refresh_token_expire_days: int = 7
+    scheduler_enabled: bool = True
 
     # Telegram Rate Limiting / Flood Wait Management
     telegram_max_retries: int = 5
@@ -78,6 +79,15 @@ class Settings(BaseSettings):
     # Deduplication
     dedup_similarity_threshold: float = 0.85
     dedup_top_k: int = 5
+
+    # Audit Logs
+    audit_log_retention_days: int = 365
+    audit_log_purge_time: str = "02:30"
+
+    # API Usage Tracking
+    api_usage_tracking_enabled: bool = True
+    llm_cost_input_per_1k: float = 0.0
+    llm_cost_output_per_1k: float = 0.0
 
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),

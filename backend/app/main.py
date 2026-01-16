@@ -9,6 +9,7 @@ from app.database import init_db
 from app.api import channels, messages, summaries, auth, collections, audit_logs, stats
 from app.jobs.collect_messages import collect_messages_job
 from app.jobs.generate_summaries import generate_summaries_job
+from app.jobs.purge_audit_logs import purge_audit_logs_job
 
 # Configure logging
 logging.basicConfig(
@@ -28,20 +29,26 @@ async def lifespan(app: FastAPI):
     print("Database initialized")
 
     # Start background jobs
-    # Collect messages every 2 minutes (job takes ~90 seconds to complete)
-    scheduler.add_job(collect_messages_job, 'interval', minutes=2, id='collect_messages')
+    if settings.scheduler_enabled:
+        # Collect messages every 2 minutes (job takes ~90 seconds to complete)
+        scheduler.add_job(collect_messages_job, 'interval', minutes=2, id='collect_messages')
 
-    # Generate daily summary at configured time
-    hour, minute = map(int, settings.summary_time.split(':'))
-    scheduler.add_job(generate_summaries_job, 'cron', hour=hour, minute=minute, id='daily_summary')
+        # Generate daily summary at configured time
+        hour, minute = map(int, settings.summary_time.split(':'))
+        scheduler.add_job(generate_summaries_job, 'cron', hour=hour, minute=minute, id='daily_summary')
 
-    scheduler.start()
-    print("Background jobs scheduled (collecting every 2 minutes)")
+        # Purge audit logs based on retention settings
+        purge_hour, purge_minute = map(int, settings.audit_log_purge_time.split(':'))
+        scheduler.add_job(purge_audit_logs_job, 'cron', hour=purge_hour, minute=purge_minute, id='purge_audit_logs')
+
+        scheduler.start()
+        print("Background jobs scheduled (collecting every 2 minutes)")
 
     yield
 
     # Shutdown
-    scheduler.shutdown()
+    if settings.scheduler_enabled:
+        scheduler.shutdown()
     print("Shutting down...")
 
 

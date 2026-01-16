@@ -11,6 +11,8 @@ TeleScope is a Telegram-first OSINT platform for collection, translation, dedupl
 - Collections to group channels and filter digests
 - KPI dashboard (messages, channels, duplicates) with CSV export
 - Audit logs for sensitive actions (RGPD)
+- Refresh tokens + session rotation
+- API usage tracking (LLM cost monitoring)
 
 ## Quickstart (local)
 
@@ -30,6 +32,13 @@ The first run copies `.env.example` to `.env` if missing. Update `.env` with:
 - PostgreSQL credentials
 - OpenAI / Pinecone keys
 - Telegram API credentials
+- Optional settings:
+  - `SCHEDULER_ENABLED` (default `true`)
+  - `AUDIT_LOG_RETENTION_DAYS` (default `365`)
+  - `AUDIT_LOG_PURGE_TIME` (default `02:30`)
+  - `API_USAGE_TRACKING_ENABLED` (default `true`)
+  - `LLM_COST_INPUT_PER_1K` (default `0.0`)
+  - `LLM_COST_OUTPUT_PER_1K` (default `0.0`)
 
 ## PostgreSQL setup
 
@@ -58,6 +67,14 @@ python3 scripts/migrate_sqlite_to_postgres.py --dry-run
 python3 scripts/migrate_sqlite_to_postgres.py
 python3 scripts/check_postgres.py
 ```
+
+## API notes
+
+- Auth refresh flow:
+  - `POST /api/auth/login` returns `access_token` + `refresh_token`
+  - `POST /api/auth/refresh` rotates refresh token and returns a new access token
+- API usage stats:
+  - `GET /api/stats/api-usage?days=7`
 
 ## Requirements
 

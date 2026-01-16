@@ -1,20 +1,23 @@
 """Authentication API routes for TeleScope."""
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 
-from app.auth.users import auth_backend, fastapi_users, current_active_user
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi_users.manager import BaseUserManager
+from fastapi_users.router.common import ErrorCode
+from fastapi_users.authentication import Strategy
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
+
+from app.auth.users import auth_backend, fastapi_users, current_active_user, get_user_manager
+from app.auth.refresh import generate_refresh_token, hash_refresh_token, refresh_token_expiry
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.models.user import User
 from app.database import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-# Include FastAPI-Users routers
-router.include_router(
-    fastapi_users.get_auth_router(auth_backend),
-    prefix="",
-)
 
 router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
@@ -36,6 +39,82 @@ router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
 )
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+@router.post("/login")
+async def login(
+    request: Request,
+    credentials: OAuth2PasswordRequestForm = Depends(),
+    user_manager: BaseUserManager = Depends(get_user_manager),
+    strategy: Strategy = Depends(auth_backend.get_strategy),
+):
+    user = await user_manager.authenticate(credentials)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ErrorCode.LOGIN_BAD_CREDENTIALS,
+        )
+    access_token = await strategy.write_token(user)
+    refresh_token = generate_refresh_token()
+    refresh_expires_at = refresh_token_expiry()
+    await user_manager.user_db.update(
+        user,
+        {
+            "refresh_token_hash": hash_refresh_token(refresh_token),
+            "refresh_token_expires_at": refresh_expires_at,
+        },
+    )
+
+    response = JSONResponse(
+        {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "refresh_token": refresh_token,
+            "refresh_expires_at": refresh_expires_at.isoformat(),
+        }
+    )
+    await user_manager.on_after_login(user, request, response)
+    return response
+
+
+@router.post("/refresh")
+async def refresh_access_token(
+    payload: RefreshRequest,
+    user_manager: BaseUserManager = Depends(get_user_manager),
+    strategy: Strategy = Depends(auth_backend.get_strategy),
+):
+    token_hash = hash_refresh_token(payload.refresh_token)
+    session = user_manager.user_db.session
+    result = await session.execute(select(User).where(User.refresh_token_hash == token_hash))
+    user = result.scalars().first()
+
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    if not user.refresh_token_expires_at or user.refresh_token_expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
+
+    access_token = await strategy.write_token(user)
+    new_refresh_token = generate_refresh_token()
+    refresh_expires_at = refresh_token_expiry()
+    await user_manager.user_db.update(
+        user,
+        {
+            "refresh_token_hash": hash_refresh_token(new_refresh_token),
+            "refresh_token_expires_at": refresh_expires_at,
+        },
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "refresh_token": new_refresh_token,
+        "refresh_expires_at": refresh_expires_at.isoformat(),
+    }
 
 
 @router.get("/me", response_model=UserRead, summary="Get current user profile")

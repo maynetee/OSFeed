@@ -7,6 +7,7 @@ from app.models.message import Message
 from app.models.summary import Summary
 from app.models.channel import Channel
 from app.models.collection import collection_channels
+from app.services.usage import record_api_usage
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 import json
@@ -95,6 +96,15 @@ class SummarizerService:
                 temperature=0.2,
             )
             content = response.choices[0].message.content.strip()
+            if response.usage:
+                await record_api_usage(
+                    provider="openai",
+                    model=self.model,
+                    purpose="summary",
+                    prompt_tokens=response.usage.prompt_tokens or 0,
+                    completion_tokens=response.usage.completion_tokens or 0,
+                    metadata={"message_count": len(messages)},
+                )
             data = self._extract_json(content)
             if not data:
                 raise ValueError("Failed to parse summary JSON")
