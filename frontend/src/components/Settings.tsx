@@ -29,12 +29,12 @@ export default function Settings() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-700">Translation Service:</span>
-                  <span className="text-sm text-gray-900">LibreTranslate (running in Docker)</span>
+                  <span className="text-sm text-gray-900">OpenAI (model configurable in .env)</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-700">LLM Service:</span>
                   <span className="text-sm text-gray-900">
-                    OpenRouter (model configurable in .env)
+                    OpenAI (model configurable in .env)
                   </span>
                 </div>
               </div>
@@ -45,7 +45,7 @@ export default function Settings() {
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-700">Message Collection:</span>
-                  <span className="text-sm text-gray-900">Every 5 minutes</span>
+                  <span className="text-sm text-gray-900">Every 2 minutes</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium text-gray-700">Daily Summary:</span>

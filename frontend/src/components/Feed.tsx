@@ -3,7 +3,7 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
 import { messagesApi, channelsApi, Channel } from '../api/client'
 
 export default function Feed() {
-  const [selectedChannel, setSelectedChannel] = useState<number | undefined>()
+  const [selectedChannel, setSelectedChannel] = useState<string | undefined>()
   const loadMoreRef = useRef<HTMLDivElement>(null)
 
   const { data: channels } = useQuery({
@@ -67,7 +67,7 @@ export default function Feed() {
 
   // Create a Map for O(1) channel lookup instead of O(n) find() per message
   const channelsMap = useMemo(() => {
-    const map = new Map<number, Channel>()
+    const map = new Map<string, Channel>()
     channels?.forEach((channel) => map.set(channel.id, channel))
     return map
   }, [channels])
@@ -86,7 +86,7 @@ export default function Feed() {
           <select
             value={selectedChannel || ''}
             onChange={(e) => {
-              setSelectedChannel(e.target.value ? Number(e.target.value) : undefined)
+              setSelectedChannel(e.target.value || undefined)
             }}
             className="mt-1 block w-64 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
           >

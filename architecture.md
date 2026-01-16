@@ -120,7 +120,7 @@ backend/
 | ~~Google Translate~~ | ~~Instable, pas de contexte OSINT~~ | `translator.py` | **RÉSOLU** - GPT-4o-mini |
 | ~~Telethon lock global~~ | ~~Collecte sérialisée~~ | `telegram_collector.py` | **AMÉLIORÉ** - retry + semaphore |
 | ~~Pas d'authentification~~ | ~~Données accessibles à tous~~ | - | **RÉSOLU** - JWT + RBAC |
-| Pas de logs d'audit | Non conforme RGPD | - | À faire |
+| Pas de logs d'audit | Non conforme RGPD | - | **PARTIEL** - audit_logs + endpoints |
 | Cache en mémoire | Perdu au redémarrage | `translator.py` | À faire - Redis |
 
 ---

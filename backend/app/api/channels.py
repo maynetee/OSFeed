@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.channel import ChannelCreate, ChannelResponse
 from app.services.telegram_collector import TelegramCollector
 from app.auth.users import current_active_user
+from app.services.audit import record_audit_event
 from typing import List
 
 router = APIRouter()
@@ -62,6 +63,14 @@ async def add_channel(
             )
 
             db.add(new_channel)
+            record_audit_event(
+                db,
+                user_id=user.id,
+                action="channel.create",
+                resource_type="channel",
+                resource_id=str(new_channel.id),
+                metadata={"username": username},
+            )
             await db.commit()
             await db.refresh(new_channel)
 
@@ -105,6 +114,14 @@ async def delete_channel(
 
     # Soft delete - just deactivate
     channel.is_active = False
+    record_audit_event(
+        db,
+        user_id=user.id,
+        action="channel.delete",
+        resource_type="channel",
+        resource_id=str(channel.id),
+        metadata={"username": channel.username},
+    )
     await db.commit()
 
     return {"message": "Channel deleted successfully"}

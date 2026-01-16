@@ -3,6 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
+from app.models.collection import collection_channels
 import uuid
 
 
@@ -37,6 +38,7 @@ class Channel(Base):
 
     # Relationships
     messages = relationship("Message", back_populates="channel", cascade="all, delete-orphan")
+    collections = relationship("Collection", secondary=collection_channels, back_populates="channels")
 
     # Composite indexes for common queries
     __table_args__ = (

@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     openrouter_api_key: str
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
 
+    # OpenAI API (Translations)
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+
     # Application
     preferred_language: str = "en"
     summary_time: str = "08:00"
@@ -59,6 +63,21 @@ class Settings(BaseSettings):
     telegram_max_delay: float = 300.0  # 5 minutes max
     telegram_jitter: bool = True
     telegram_concurrent_channels: int = 3  # max parallel channel fetches
+
+    # Pinecone Vector Store
+    pinecone_api_key: str = ""
+    pinecone_environment: str = "us-east-1"
+    pinecone_index_name: str = "telescope-embeddings"
+    pinecone_namespace: str = "messages"
+    pinecone_metric: str = "cosine"
+
+    # Embeddings
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_dimension: int = 384
+
+    # Deduplication
+    dedup_similarity_threshold: float = 0.85
+    dedup_top_k: int = 5
 
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),

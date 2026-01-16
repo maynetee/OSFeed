@@ -1,16 +1,26 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { channelsApi } from '../api/client'
+import { channelsApi, collectionsApi } from '../api/client'
 
 export default function ChannelList() {
   const [newChannelUsername, setNewChannelUsername] = useState('')
   const [error, setError] = useState('')
+  const [newCollectionName, setNewCollectionName] = useState('')
+  const [newCollectionDescription, setNewCollectionDescription] = useState('')
+  const [newCollectionChannelIds, setNewCollectionChannelIds] = useState<string[]>([])
+  const [editingCollectionId, setEditingCollectionId] = useState<string | null>(null)
+  const [editingChannelIds, setEditingChannelIds] = useState<string[]>([])
   const queryClient = useQueryClient()
 
   const { data: channels, isLoading } = useQuery({
     queryKey: ['channels'],
     queryFn: () => channelsApi.list().then((res) => res.data),
+  })
+
+  const { data: collections, isLoading: collectionsLoading } = useQuery({
+    queryKey: ['collections'],
+    queryFn: () => collectionsApi.list().then((res) => res.data),
   })
 
   const addChannelMutation = useMutation({
@@ -26,9 +36,37 @@ export default function ChannelList() {
   })
 
   const deleteChannelMutation = useMutation({
-    mutationFn: (id: number) => channelsApi.delete(id),
+    mutationFn: (id: string) => channelsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] })
+    },
+  })
+
+  const createCollectionMutation = useMutation({
+    mutationFn: (payload: { name: string; description?: string; channel_ids?: string[] }) =>
+      collectionsApi.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] })
+      setNewCollectionName('')
+      setNewCollectionDescription('')
+      setNewCollectionChannelIds([])
+    },
+  })
+
+  const updateCollectionMutation = useMutation({
+    mutationFn: (payload: { id: string; channel_ids: string[] }) =>
+      collectionsApi.update(payload.id, { channel_ids: payload.channel_ids }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] })
+      setEditingCollectionId(null)
+      setEditingChannelIds([])
+    },
+  })
+
+  const deleteCollectionMutation = useMutation({
+    mutationFn: (id: string) => collectionsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collections'] })
     },
   })
 
@@ -39,6 +77,30 @@ export default function ChannelList() {
       return
     }
     addChannelMutation.mutate(newChannelUsername.trim())
+  }
+
+  const handleCreateCollection = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCollectionName.trim()) {
+      return
+    }
+    createCollectionMutation.mutate({
+      name: newCollectionName.trim(),
+      description: newCollectionDescription.trim() || undefined,
+      channel_ids: newCollectionChannelIds,
+    })
+  }
+
+  const toggleChannelSelection = (
+    channelId: string,
+    selected: string[],
+    setSelected: (value: string[]) => void
+  ) => {
+    if (selected.includes(channelId)) {
+      setSelected(selected.filter((id) => id !== channelId))
+    } else {
+      setSelected([...selected, channelId])
+    }
   }
 
   return (
@@ -71,6 +133,145 @@ export default function ChannelList() {
         </form>
       </div>
 
+      {/* Collections */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Collections</h3>
+        </div>
+
+        <form onSubmit={handleCreateCollection} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              value={newCollectionName}
+              onChange={(e) => setNewCollectionName(e.target.value)}
+              placeholder="Collection name"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+            <input
+              type="text"
+              value={newCollectionDescription}
+              onChange={(e) => setNewCollectionDescription(e.target.value)}
+              placeholder="Short description (optional)"
+              className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {channels?.map((channel) => (
+              <label key={channel.id} className="flex items-center space-x-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={newCollectionChannelIds.includes(channel.id)}
+                  onChange={() =>
+                    toggleChannelSelection(
+                      channel.id,
+                      newCollectionChannelIds,
+                      setNewCollectionChannelIds
+                    )
+                  }
+                />
+                <span>{channel.title}</span>
+              </label>
+            ))}
+          </div>
+
+          <button
+            type="submit"
+            disabled={createCollectionMutation.isPending}
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {createCollectionMutation.isPending ? 'Creating...' : 'Create Collection'}
+          </button>
+        </form>
+
+        <div className="mt-6 space-y-4">
+          {collectionsLoading ? (
+            <div className="text-gray-500">Loading collections...</div>
+          ) : collections && collections.length > 0 ? (
+            collections.map((collection) => (
+              <div key={collection.id} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900">{collection.name}</h4>
+                    {collection.description && (
+                      <p className="text-sm text-gray-600 mt-1">{collection.description}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      {collection.channel_ids.length} channel(s)
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setEditingCollectionId(collection.id)
+                        setEditingChannelIds(collection.channel_ids)
+                      }}
+                      className="px-3 py-1 border border-gray-300 text-sm rounded-md hover:bg-gray-50"
+                    >
+                      Edit Channels
+                    </button>
+                    <button
+                      onClick={() => deleteCollectionMutation.mutate(collection.id)}
+                      className="px-3 py-1 border border-red-300 text-sm rounded-md text-red-700 hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                {editingCollectionId === collection.id && (
+                  <div className="mt-4 space-y-3">
+                    <div className="flex flex-wrap gap-3">
+                      {channels?.map((channel) => (
+                        <label key={channel.id} className="flex items-center space-x-2 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={editingChannelIds.includes(channel.id)}
+                            onChange={() =>
+                              toggleChannelSelection(
+                                channel.id,
+                                editingChannelIds,
+                                setEditingChannelIds
+                              )
+                            }
+                          />
+                          <span>{channel.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() =>
+                          updateCollectionMutation.mutate({
+                            id: collection.id,
+                            channel_ids: editingChannelIds,
+                          })
+                        }
+                        className="px-3 py-1 border border-transparent text-sm rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingCollectionId(null)
+                          setEditingChannelIds([])
+                        }}
+                        className="px-3 py-1 border border-gray-300 text-sm rounded-md hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="text-gray-500">No collections yet.</div>
+          )}
+        </div>
+      </div>
+
       {/* Channels List */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
@@ -100,7 +301,7 @@ export default function ChannelList() {
                     )}
                     <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
                       <span>{channel.subscriber_count.toLocaleString()} subscribers</span>
-                      {channel.language && <span>Language: {channel.language}</span>}
+                      {channel.detected_language && <span>Language: {channel.detected_language}</span>}
                       {channel.last_fetched_at && (
                         <span>
                           Last fetched: {new Date(channel.last_fetched_at).toLocaleString()}

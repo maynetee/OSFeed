@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, update
 from uuid import UUID
@@ -9,13 +10,17 @@ from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse
 from app.services.translator import translator
+from app.config import get_settings
 from app.services.telegram_collector import TelegramCollector
 from app.auth.users import current_active_user
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import json
+import csv
+from io import StringIO
 
 router = APIRouter()
+settings = get_settings()
 
 
 @router.get("", response_model=MessageListResponse)
@@ -131,9 +136,11 @@ async def fetch_and_store_messages(channel_id: UUID, username: str, days: int):
                 'original_text': msg_data['text'],
                 'translated_text': translated_text,
                 'source_language': source_lang,
+                'target_language': settings.preferred_language,
                 'media_type': msg_data.get('media_type'),
                 'media_urls': json.dumps(msg_data.get('media_urls', [])),
                 'published_at': msg_data['date'],
+                'translated_at': datetime.now(timezone.utc),
             })
 
         # Step 4: Save to DB (short DB session)
@@ -145,9 +152,11 @@ async def fetch_and_store_messages(channel_id: UUID, username: str, days: int):
                     original_text=msg['original_text'],
                     translated_text=msg['translated_text'],
                     source_language=msg['source_language'],
+                    target_language=msg['target_language'],
                     media_type=msg['media_type'],
                     media_urls=msg['media_urls'],
                     published_at=msg['published_at'],
+                    translated_at=msg['translated_at'],
                 )
                 db.add(message)
 
@@ -209,12 +218,68 @@ async def translate_messages(
                 .where(Message.id == trans['id'])
                 .values(
                     translated_text=trans['translated_text'],
-                    source_language=trans['source_language']
+                    source_language=trans['source_language'],
+                    target_language=target_language,
+                    translated_at=datetime.now(timezone.utc),
                 )
             )
         await db.commit()
 
     return {"message": f"Translated {len(translations)} messages to {target_language}"}
+
+
+@router.get("/export/csv")
+async def export_messages_csv(
+    channel_id: Optional[UUID] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(Message, Channel).join(Channel)
+    if channel_id:
+        query = query.where(Message.channel_id == channel_id)
+    if start_date:
+        query = query.where(Message.published_at >= start_date)
+    if end_date:
+        query = query.where(Message.published_at <= end_date)
+
+    result = await db.execute(query.order_by(desc(Message.published_at)))
+    rows = result.all()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "message_id",
+        "channel_title",
+        "channel_username",
+        "published_at",
+        "original_text",
+        "translated_text",
+        "source_language",
+        "target_language",
+        "is_duplicate",
+    ])
+    for message, channel in rows:
+        writer.writerow([
+            str(message.id),
+            channel.title,
+            channel.username,
+            message.published_at,
+            message.original_text or "",
+            message.translated_text or "",
+            message.source_language or "",
+            message.target_language or "",
+            message.is_duplicate,
+        ])
+
+    output.seek(0)
+    filename = "telescope-messages.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/{message_id}", response_model=MessageResponse)

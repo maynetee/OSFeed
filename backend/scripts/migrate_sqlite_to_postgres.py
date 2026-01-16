@@ -132,10 +132,11 @@ async def migrate(sqlite_path, postgres_dsn, dry_run):
             (
                 uuid.uuid4(),
                 None,
-                summary.get("summary_type") or "daily",
+                summary.get("digest_type") or summary.get("summary_type") or "daily",
                 None,
                 summary.get("content"),
                 None,
+                {"persons": [], "locations": [], "organizations": []},
                 summary.get("message_count") or 0,
                 0,
                 0,
@@ -182,10 +183,10 @@ async def migrate(sqlite_path, postgres_dsn, dry_run):
                 await conn.executemany(
                     """
                     INSERT INTO summaries (
-                        id, user_id, digest_type, title, content, content_html, message_count, channels_covered,
+                        id, user_id, digest_type, title, content, content_html, entities, message_count, channels_covered,
                         duplicates_filtered, period_start, period_end, filters, generated_at
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                     """,
                     summary_rows,
                 )

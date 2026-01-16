@@ -11,6 +11,7 @@ class SummaryResponse(BaseModel):
     title: Optional[str] = None
     content: str
     content_html: Optional[str] = None
+    entities: Optional[Dict[str, List[str]]] = None
     message_count: int = 0
     channels_covered: int = 0
     duplicates_filtered: int = 0
@@ -24,5 +25,5 @@ class SummaryResponse(BaseModel):
 
 
 class SummaryGenerateRequest(BaseModel):
-    summary_type: str = "daily"
+    digest_type: str = "daily"
     filters: Optional[Dict[str, List[str]]] = None

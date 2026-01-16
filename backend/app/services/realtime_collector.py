@@ -14,6 +14,7 @@ from app.models.message import Message
 from app.services.translator import translator
 from app.services.telegram_collector import _telegram_lock
 from sqlalchemy import select
+from datetime import datetime, timezone
 import asyncio
 import os
 import json
@@ -198,9 +199,11 @@ class RealtimeCollector:
                     original_text=event.message.text,
                     translated_text=translated_text,
                     source_language=source_lang,
+                    target_language=settings.preferred_language,
                     media_type=media_type,
                     media_urls=media_urls,
                     published_at=event.message.date,
+                    translated_at=datetime.now(timezone.utc),
                 )
                 db.add(message)
                 await db.commit()

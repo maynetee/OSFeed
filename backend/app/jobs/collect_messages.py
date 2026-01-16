@@ -1,13 +1,17 @@
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.models.channel import Channel
 from app.models.message import Message
 from app.services.telegram_collector import TelegramCollector
 from app.services.translator import translator
 from app.services.deduplicator import deduplicator
 from app.database import AsyncSessionLocal
+from app.config import get_settings
 import json
+
+
+settings = get_settings()
 
 
 async def collect_messages_job():
@@ -75,9 +79,11 @@ async def collect_messages_job():
                     'original_text': msg_data['text'],
                     'translated_text': translated_text,
                     'source_language': source_lang,
+                    'target_language': settings.preferred_language,
                     'media_type': msg_data.get('media_type'),
                     'media_urls': json.dumps(msg_data.get('media_urls', [])),
                     'published_at': msg_data['date'],
+                    'translated_at': datetime.now(timezone.utc),
                 })
 
             # Step 5: Save translated messages to DB (short DB session)
@@ -89,9 +95,11 @@ async def collect_messages_job():
                         original_text=msg['original_text'],
                         translated_text=msg['translated_text'],
                         source_language=msg['source_language'],
+                        target_language=msg['target_language'],
                         media_type=msg['media_type'],
                         media_urls=msg['media_urls'],
                         published_at=msg['published_at'],
+                        translated_at=msg['translated_at'],
                     )
                     db.add(message)
 
@@ -114,7 +122,7 @@ async def collect_messages_job():
     # Step 6: Run cross-channel deduplication (separate short DB sessions)
     if total_new_messages > 0:
         print("Running cross-channel deduplication...")
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
         async with AsyncSessionLocal() as db:
             all_recent = await db.execute(
@@ -125,7 +133,7 @@ async def collect_messages_job():
             recent_messages = list(all_recent.scalars().all())
 
             if recent_messages:
-                deduplicator.mark_duplicates(recent_messages)
+                deduplicator.mark_duplicates(recent_messages, cutoff_time=cutoff_time)
                 await db.commit()
                 print(f"Deduplication completed for {len(recent_messages)} messages")
 

@@ -11,20 +11,20 @@ export const api = axios.create({
 
 // Types
 export interface Channel {
-  id: number
+  id: string
   telegram_id: string
   username: string
   title: string
   description: string | null
-  language: string | null
+  detected_language?: string | null
   subscriber_count: number
   created_at: string
   last_fetched_at: string | null
 }
 
 export interface Message {
-  id: number
-  channel_id: number
+  id: string
+  channel_id: string
   telegram_message_id: number
   original_text: string
   translated_text: string | null
@@ -45,34 +45,72 @@ export interface MessageListResponse {
 }
 
 export interface Summary {
-  id: number
-  summary_type: string
+  id: string
+  digest_type: string
+  title?: string
   content: string
+  content_html?: string | null
+  entities?: {
+    persons: string[]
+    locations: string[]
+    organizations: string[]
+  } | null
   message_count: number
+  channels_covered?: number
+  duplicates_filtered?: number
   generated_at: string
   period_start: string
   period_end: string
+}
+
+export interface Collection {
+  id: string
+  user_id: string
+  name: string
+  description?: string | null
+  channel_ids: string[]
+  created_at: string
+  updated_at?: string | null
+}
+
+export interface StatsOverview {
+  total_messages: number
+  active_channels: number
+  messages_last_24h: number
+  duplicates_last_24h: number
+  summaries_total: number
+}
+
+export interface MessagesByDay {
+  date: string
+  count: number
+}
+
+export interface MessagesByChannel {
+  channel_id: string
+  channel_title: string
+  count: number
 }
 
 // API functions
 export const channelsApi = {
   list: () => api.get<Channel[]>('/api/channels'),
   add: (username: string) => api.post<Channel>('/api/channels', { username }),
-  delete: (id: number) => api.delete(`/api/channels/${id}`),
+  delete: (id: string) => api.delete(`/api/channels/${id}`),
 }
 
 export const messagesApi = {
   list: (params?: {
-    channel_id?: number
+    channel_id?: string
     limit?: number
     offset?: number
     start_date?: string
     end_date?: string
   }) => api.get<MessageListResponse>('/api/messages', { params }),
-  get: (id: number) => api.get<Message>(`/api/messages/${id}`),
-  fetchHistorical: (channelId: number, days: number = 7) =>
+  get: (id: string) => api.get<Message>(`/api/messages/${id}`),
+  fetchHistorical: (channelId: string, days: number = 7) =>
     api.post(`/api/messages/fetch-historical/${channelId}?days=${days}`),
-  translate: (targetLanguage: string, channelId?: number) =>
+  translate: (targetLanguage: string, channelId?: string) =>
     api.post('/api/messages/translate', null, {
       params: { target_language: targetLanguage, channel_id: channelId }
     }),
@@ -80,7 +118,34 @@ export const messagesApi = {
 
 export const summariesApi = {
   getDaily: () => api.get<Summary>('/api/summaries/daily'),
-  generate: () => api.post<Summary>('/api/summaries/generate', { summary_type: 'daily' }),
+  generate: (filters?: Record<string, string[]>) =>
+    api.post<Summary>('/api/summaries/generate', { digest_type: 'daily', filters }),
+  exportHtml: (id: string) => api.get(`/api/summaries/${id}/export/html`),
+  exportPdf: (id: string) =>
+    api.get(`/api/summaries/${id}/export/pdf`, { responseType: 'blob' }),
+}
+
+export const collectionsApi = {
+  list: () => api.get<Collection[]>('/api/collections'),
+  create: (payload: { name: string; description?: string; channel_ids?: string[] }) =>
+    api.post<Collection>('/api/collections', payload),
+  update: (id: string, payload: { name?: string; description?: string; channel_ids?: string[] }) =>
+    api.put<Collection>(`/api/collections/${id}`, payload),
+  delete: (id: string) => api.delete(`/api/collections/${id}`),
+}
+
+export const statsApi = {
+  overview: () => api.get<StatsOverview>('/api/stats/overview'),
+  messagesByDay: (days: number = 7) =>
+    api.get<MessagesByDay[]>('/api/stats/messages-by-day', { params: { days } }),
+  messagesByChannel: (limit: number = 10) =>
+    api.get<MessagesByChannel[]>('/api/stats/messages-by-channel', { params: { limit } }),
+  exportCsv: (days: number = 7) =>
+    api.get('/api/stats/export/csv', { params: { days }, responseType: 'blob' }),
+}
+
+export const exportsApi = {
+  messagesCsv: () => api.get('/api/messages/export/csv', { responseType: 'blob' }),
 }
 
 // Language options

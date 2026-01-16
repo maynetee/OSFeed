@@ -22,6 +22,11 @@ class Summary(Base):
     # Content
     content = Column(Text)  # Plain text summary
     content_html = Column(Text, nullable=True)  # HTML formatted version
+    entities = Column(
+        JSON,
+        default={"persons": [], "locations": [], "organizations": []},
+        nullable=True,
+    )
 
     # Statistics
     message_count = Column(Integer, default=0)

@@ -6,7 +6,7 @@ import logging
 
 from app.config import get_settings
 from app.database import init_db
-from app.api import channels, messages, summaries, auth
+from app.api import channels, messages, summaries, auth, collections, audit_logs, stats
 from app.jobs.collect_messages import collect_messages_job
 from app.jobs.generate_summaries import generate_summaries_job
 
@@ -66,6 +66,9 @@ app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(channels.router, prefix="/api/channels", tags=["channels"])
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
 app.include_router(summaries.router, prefix="/api/summaries", tags=["summaries"])
+app.include_router(collections.router, prefix="/api/collections", tags=["collections"])
+app.include_router(audit_logs.router, prefix="/api/audit-logs", tags=["audit-logs"])
+app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 
 
 @app.get("/")

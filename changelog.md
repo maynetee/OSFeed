@@ -45,6 +45,13 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
   - `TELEGRAM_MAX_RETRIES`, `TELEGRAM_BASE_DELAY`, `TELEGRAM_MAX_DELAY`
   - `TELEGRAM_JITTER`, `TELEGRAM_CONCURRENT_CHANNELS`
 
+#### Traduction LLM + Déduplication vectorielle
+- Traduction via GPT-4o-mini avec fallback Google Translate
+- Service `LLMTranslator` + facade `translator`
+- Base vectorielle Pinecone + embeddings `sentence-transformers`
+- Déduplication sémantique (cosine) avec `embedding_id` stocké en base
+- Variables d'environnement OpenAI/Pinecone ajoutées
+
 ### Modifié
 - `config.py` - Ajout de toutes les configurations (PostgreSQL, JWT, Telegram rate limiting)
 - `database.py` - Support dual SQLite/PostgreSQL avec engine factory

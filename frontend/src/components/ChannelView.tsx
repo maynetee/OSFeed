@@ -12,7 +12,7 @@ export default function ChannelView() {
     queryFn: () => channelsApi.list().then((res) => res.data),
   })
 
-  const channel = channels?.find((c) => c.id === Number(channelId))
+  const channel = channels?.find((c) => c.id === channelId)
 
   const {
     data,
@@ -24,7 +24,7 @@ export default function ChannelView() {
     queryKey: ['channel-messages', channelId],
     queryFn: async ({ pageParam = 0 }) => {
       const res = await messagesApi.list({
-        channel_id: Number(channelId),
+        channel_id: channelId,
         limit: 20,
         offset: pageParam,
       })
@@ -41,7 +41,7 @@ export default function ChannelView() {
   })
 
   const fetchHistoricalMutation = useMutation({
-    mutationFn: (days: number) => messagesApi.fetchHistorical(Number(channelId), days),
+    mutationFn: (days: number) => messagesApi.fetchHistorical(channelId || '', days),
   })
 
   // Infinite scroll observer

@@ -39,7 +39,7 @@
 | ~~Déduplication O(n²)~~ | ~~Lent à 10K+ messages~~ | P0 | ✅ Résolu (Pinecone) |
 | ~~Google Translate générique~~ | ~~Traductions imprécises~~ | P1 | ✅ Résolu (GPT-4o-mini) |
 | Cache mémoire volatile | Perte au redémarrage | P1 | 🔲 En attente (Redis) |
-| Pas d'audit logs | Non conforme RGPD | P2 | 🔲 En attente |
+| Pas d'audit logs | Non conforme RGPD | P2 | 🟡 Partiel (audit_logs + endpoints) |
 
 ---
 
@@ -80,7 +80,7 @@ Migration    Authentification    Traduction    Base         Daily
 PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
    │              │                 │             │             │
    ▼              ▼                 ▼             ▼             ▼
-  [FAIT]        [FAIT]         [FAIT]       [FAIT]       [A FAIRE]
+  [FAIT]        [FAIT]         [FAIT]       [FAIT]       [FAIT]
 ```
 
 ### 3.2 Fonctionnalités M1
@@ -93,11 +93,11 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 | Traduction LLM (GPT-4o-mini) | P0 | ✅ **Fait (code)** | - |
 | Base vectorielle (Pinecone) | P0 | ✅ **Fait (code)** | - |
 | Déduplication sémantique | P0 | ✅ **Fait (code)** | Pinecone |
-| Daily Digests v2 | P1 | 🔲 A faire | Traduction LLM |
-| Collections de canaux | P1 | 🔲 A faire | PostgreSQL |
-| Dashboard KPIs | P1 | 🔲 A faire | PostgreSQL |
-| Export CSV/PDF | P2 | 🔲 A faire | - |
-| Audit logs RGPD | P2 | 🔲 A faire | PostgreSQL |
+| Daily Digests v2 | P1 | ✅ **Fait** | Traduction LLM |
+| Collections de canaux | P1 | ✅ **Fait** | PostgreSQL |
+| Dashboard KPIs | P1 | ✅ **Fait** | PostgreSQL |
+| Export CSV/PDF | P2 | ✅ **Fait** | - |
+| Audit logs RGPD | P2 | 🟡 **Partiel** | PostgreSQL |
 
 ---
 
@@ -176,35 +176,35 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 - [ ] Tester avec corpus de messages similaires
 
 #### 📰 Daily Digests v2
-- [ ] Améliorer prompt de génération de résumés
-- [ ] Utiliser GPT-4o-mini pour synthèse
-- [ ] Filtrer duplicats avant génération
-- [ ] Ajouter section "entités clés" (personnes, lieux)
-- [ ] Générer version HTML pour email
-- [ ] Scheduler génération quotidienne (08:00)
-- [ ] Associer digests aux utilisateurs
+- [x] Améliorer prompt de génération de résumés
+- [x] Utiliser GPT-4o-mini pour synthèse
+- [x] Filtrer duplicats avant génération
+- [x] Ajouter section "entités clés" (personnes, lieux)
+- [x] Générer version HTML pour email
+- [x] Scheduler génération quotidienne (08:00)
+- [x] Associer digests aux utilisateurs
 
 #### 📁 Collections de canaux (P1)
-- [ ] Créer modèle `Collection`
-- [ ] Créer endpoints CRUD collections
-- [ ] Permettre filtrage par collection dans digests
-- [ ] UI pour gérer collections
+- [x] Créer modèle `Collection`
+- [x] Créer endpoints CRUD collections
+- [x] Permettre filtrage par collection dans digests
+- [x] UI pour gérer collections
 
 #### 📊 Dashboard KPIs (P1)
-- [ ] Endpoint stats globales (messages/jour, canaux actifs)
-- [ ] Endpoint stats par canal
-- [ ] UI dashboard avec graphiques
-- [ ] Export métriques
+- [x] Endpoint stats globales (messages/jour, canaux actifs)
+- [x] Endpoint stats par canal
+- [x] UI dashboard avec graphiques
+- [x] Export métriques
 
 #### 📤 Export CSV/PDF (P2)
-- [ ] Endpoint export messages CSV
-- [ ] Endpoint export digest PDF
-- [ ] UI boutons export
+- [x] Endpoint export messages CSV
+- [x] Endpoint export digest PDF
+- [x] UI boutons export
 
 #### 📋 Audit logs RGPD (P2)
-- [ ] Créer modèle `AuditLog`
-- [ ] Logger actions utilisateur
-- [ ] Endpoint consultation logs
+- [x] Créer modèle `AuditLog`
+- [x] Logger actions utilisateur
+- [x] Endpoint consultation logs
 - [ ] Rétention configurable
 
 ### 3.4 Critères de succès M1
