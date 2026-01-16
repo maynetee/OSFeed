@@ -122,6 +122,14 @@ class VectorStore:
                         )
                     )
                     continue
+                if "$in" in condition:
+                    conditions.append(
+                        qmodels.FieldCondition(
+                            key=key,
+                            match=qmodels.MatchAny(any=condition["$in"]),
+                        )
+                    )
+                    continue
 
                 range_kwargs = {}
                 if "$gte" in condition:

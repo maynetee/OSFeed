@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from io import BytesIO
 from fpdf import FPDF
 
 from app.database import get_db
 from app.models.summary import Summary
 from app.models.user import User
-from app.schemas.summary import SummaryResponse, SummaryGenerateRequest
+from app.schemas.summary import SummaryResponse, SummaryGenerateRequest, SummaryListResponse
 from app.services.summarizer import generate_daily_summary
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
@@ -57,6 +57,44 @@ async def get_daily_summary(
     return summary
 
 
+@router.get("", response_model=SummaryListResponse)
+async def list_summaries(
+    digest_type: str = "daily",
+    limit: int = 10,
+    offset: int = 0,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List summaries with pagination.
+
+    Requires authentication.
+    """
+    query = (
+        select(Summary)
+        .where(Summary.user_id == user.id)
+        .where(Summary.digest_type == digest_type)
+        .order_by(desc(Summary.generated_at))
+    )
+    count_query = (
+        select(func.count())
+        .select_from(Summary)
+        .where(Summary.user_id == user.id)
+        .where(Summary.digest_type == digest_type)
+    )
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    result = await db.execute(query.limit(limit).offset(offset))
+    summaries = result.scalars().all()
+
+    return SummaryListResponse(
+        summaries=summaries,
+        total=total,
+        page=offset // limit + 1,
+        page_size=limit,
+    )
+
+
 @router.post("/generate", response_model=SummaryResponse)
 async def generate_summary(
     request: SummaryGenerateRequest,
@@ -80,6 +118,21 @@ async def generate_summary(
         return summary
     else:
         raise HTTPException(status_code=400, detail="Unsupported summary type")
+
+
+@router.get("/{summary_id}", response_model=SummaryResponse)
+async def get_summary(
+    summary_id: str,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Summary).where(Summary.id == summary_id))
+    summary = result.scalar_one_or_none()
+    if not summary:
+        raise HTTPException(status_code=404, detail="Summary not found")
+    if summary.user_id and summary.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to access this summary")
+    return summary
 
 
 @router.get("/{summary_id}/export/html")

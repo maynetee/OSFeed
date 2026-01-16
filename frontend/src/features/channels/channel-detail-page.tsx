@@ -4,9 +4,11 @@ import { useQuery } from '@tanstack/react-query'
 import { channelsApi, messagesApi } from '@/lib/api/client'
 import { MessageFeed } from '@/components/messages/message-feed'
 import { Card, CardContent } from '@/components/ui/card'
+import { useTranslation } from 'react-i18next'
 
 export function ChannelDetailPage() {
   const { id } = useParams()
+  const { t } = useTranslation()
 
   const channelQuery = useQuery({
     queryKey: ['channels', id],
@@ -25,9 +27,9 @@ export function ChannelDetailPage() {
       <Card>
         <CardContent className="py-6">
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-foreground/60">Canal</p>
+            <p className="text-sm text-foreground/60">{t('channels.channelLabel')}</p>
             <h2 className="text-2xl font-semibold">
-              {channelQuery.data?.title ?? 'Chargement...'}
+              {channelQuery.data?.title ?? t('common.loading')}
             </h2>
             <p className="text-sm text-foreground/60">{channelQuery.data?.username}</p>
           </div>

@@ -1,7 +1,7 @@
 # TeleScope - Architecture Technique
 
 **Version:** 1.0
-**Dernière mise à jour:** 2026-01-16 18:40
+**Dernière mise à jour:** 2026-01-16 20:10
 
 ---
 
@@ -58,7 +58,7 @@
 | Déduplication | Qdrant (cosine) | `backend/app/services/deduplicator.py` | **Nouveau** |
 | Résumés | Service interne | `backend/app/services/summarizer.py` | - |
 | API REST | FastAPI + **Auth obligatoire** | `backend/app/main.py` | **Amélioré** |
-| Frontend | React 18 + Vite 5 + Tailwind | `frontend/` | **Refonte UI** |
+| Frontend | React 18 + Vite 5 + Tailwind | `frontend/` | **Refonte UI + i18n** |
 
 ### 1.3 Structure des Fichiers Backend
 
@@ -73,8 +73,8 @@ backend/
 │   ├── api/
 │   │   ├── auth.py             # [NOUVEAU] Endpoints authentification
 │   │   ├── channels.py         # Endpoints canaux (protégé JWT)
-│   │   ├── messages.py         # Endpoints messages (protégé JWT)
-│   │   └── summaries.py        # Endpoints résumés (protégé JWT)
+│   │   ├── messages.py         # Endpoints messages + search/export (protégé JWT)
+│   │   └── summaries.py        # Endpoints résumés + listing (protégé JWT)
 │   ├── auth/                   # [NOUVEAU] Package authentification
 │   │   ├── __init__.py
 │   │   ├── users.py            # Configuration FastAPI-Users
@@ -135,6 +135,9 @@ frontend/
 - Zustand (UI / filters / user)
 - TanStack Query (server state)
 - Command palette (cmdk) + raccourcis clavier
+- Recherche full-text + sémantique (Qdrant)
+- Vue "messages similaires" + trust indicators (duplicata/score/source)
+- Export messages CSV/PDF/HTML + historique digests paginé
 - Virtualisation du feed + PWA + tests E2E (Playwright)
 
 ### 1.5 Limitations Identifiées (Mises à jour)

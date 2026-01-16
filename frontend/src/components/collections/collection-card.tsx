@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { Collection } from '@/lib/api/client'
+import { useTranslation } from 'react-i18next'
 
 interface CollectionCardProps {
   collection: Collection
@@ -10,13 +11,15 @@ interface CollectionCardProps {
 }
 
 export function CollectionCard({ collection, onView, onEdit, onDelete }: CollectionCardProps) {
+  const { t } = useTranslation()
+
   return (
-    <Card>
+    <Card className="animate-rise-in">
       <CardContent className="flex flex-col gap-4 py-6">
         <div>
           <p className="text-sm font-semibold">{collection.name}</p>
           <p className="text-xs text-foreground/60">
-            {collection.channel_ids.length} canaux
+            {t('collections.channelsCount', { count: collection.channel_ids.length })}
           </p>
         </div>
         {collection.description ? (
@@ -24,13 +27,13 @@ export function CollectionCard({ collection, onView, onEdit, onDelete }: Collect
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => onView?.(collection.id)}>
-            Voir feed
+            {t('collections.viewFeed')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onEdit?.(collection)}>
-            Modifier
+            {t('collections.edit')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onDelete?.(collection.id)}>
-            Supprimer
+            {t('collections.delete')}
           </Button>
         </div>
       </CardContent>

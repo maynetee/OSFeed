@@ -9,23 +9,27 @@ import {
   Settings,
   Sparkles,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { cn } from '@/lib/cn'
 import { useUiStore } from '@/stores/ui-store'
 
 const navItems = [
-  { label: 'Dashboard', to: '/', icon: LayoutDashboard },
-  { label: 'Feed', to: '/feed', icon: Radio },
-  { label: 'Search', to: '/search', icon: Search },
-  { label: 'Digests', to: '/digests', icon: BookOpenText },
-  { label: 'Channels', to: '/channels', icon: Newspaper },
-  { label: 'Collections', to: '/collections', icon: Layers },
-  { label: 'Exports', to: '/exports', icon: Sparkles },
-  { label: 'Settings', to: '/settings', icon: Settings },
+  { key: 'dashboard', to: '/', icon: LayoutDashboard },
+  { key: 'feed', to: '/feed', icon: Radio },
+  { key: 'search', to: '/search', icon: Search },
+  { key: 'digests', to: '/digests', icon: BookOpenText },
+  { key: 'channels', to: '/channels', icon: Newspaper },
+  { key: 'collections', to: '/collections', icon: Layers },
+  { key: 'exports', to: '/exports', icon: Sparkles },
+  { key: 'settings', to: '/settings', icon: Settings },
 ]
 
 export function Sidebar() {
   const collapsed = useUiStore((state) => state.sidebarCollapsed)
+  const { t } = useTranslation()
+  const statusMessages = 2847
+  const statusDuplicates = 42
 
   return (
     <aside
@@ -43,7 +47,7 @@ export function Sidebar() {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground/60">
               TeleScope
             </p>
-            <p className="text-xs text-foreground/50">Intelligence, pas bruit</p>
+            <p className="text-xs text-foreground/50">{t('branding.tagline')}</p>
           </div>
         )}
       </div>
@@ -67,7 +71,7 @@ export function Sidebar() {
               }
             >
               <Icon className="h-4 w-4" />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && <span>{t(`navigation.${item.key}`)}</span>}
             </NavLink>
           )
         })}
@@ -75,11 +79,14 @@ export function Sidebar() {
 
       <div className={cn('mt-auto rounded-xl border border-border/60 bg-muted/50 p-4', collapsed && 'p-3')}>
         <p className={cn('text-xs font-semibold uppercase text-foreground/50', collapsed && 'text-center')}>
-          Status
+          {t('sidebar.status')}
         </p>
         {!collapsed && (
           <p className="mt-2 text-xs text-foreground/60">
-            42% duplicatas filtres, 2,847 messages aujourd'hui.
+            {t('sidebar.statusSummary', {
+              duplicates: statusDuplicates,
+              messages: statusMessages.toLocaleString(),
+            })}
           </p>
         )}
       </div>

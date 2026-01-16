@@ -13,6 +13,10 @@ TeleScope is a Telegram-first OSINT platform for collection, translation, dedupl
 - Frontend refonte (React 18 + Vite + Tailwind + Zustand + React Query)
 - Command palette (⌘K) + global shortcuts
 - Virtualized message feed + lazy-loaded routes
+- Full-text + semantic search with similar-message view
+- Message exports CSV/PDF/HTML + digests history pagination
+- Trust indicators (duplicate score, primary source)
+- i18n FR/EN
 - PWA (offline install ready)
 - Redis cache for translations (persistent)
 - Audit logs for sensitive actions (RGPD)

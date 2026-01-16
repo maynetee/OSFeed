@@ -2,8 +2,8 @@
 ## Renseignement Opérationnel pour Telegram
 
 **Version:** 1.0
-**Date:** 2026-01-16 18:40
-**Statut:** Phase 1 - Build M1
+**Date:** 2026-01-16 20:10
+**Statut:** Phase 2 - Stabilisation M1
 
 ---
 
@@ -27,6 +27,13 @@ Transformer TeleScope d'un prototype personnel en une plateforme de **renseignem
 > "Du chaos informationnel à l'intelligence actionnable en 24h"
 
 TeleScope résout le problème fondamental des professionnels de l'OSINT : **la surcharge cognitive** face aux milliers de messages quotidiens sur Telegram, dans des langues qu'ils ne maîtrisent pas, mélangés de propagande et de duplicatas.
+
+### État actuel (M1)
+- Frontend refonte complète (dashboard, feed, search, digests, exports, settings)
+- Recherche full-text + sémantique, vue "messages similaires"
+- Exports messages CSV/PDF/HTML + historique digests paginé
+- Trust indicators (duplicata, score, source primaire) + entités (NER)
+- i18n FR/EN, PWA, tests E2E Playwright
 
 ### Décisions Stratégiques (validées)
 | Décision | Choix | Justification |

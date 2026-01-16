@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 import { AppShell } from '@/components/layout/app-shell'
 
@@ -19,8 +20,10 @@ const RegisterPage = lazy(() => import('@/features/auth/register-page').then((m)
 const AuthGuard = lazy(() => import('@/features/auth/auth-guard').then((m) => ({ default: m.AuthGuard })))
 
 export function AppRouter() {
+  const { t } = useTranslation()
+
   return (
-    <Suspense fallback={<div className="p-8 text-sm text-foreground/60">Chargement...</div>}>
+    <Suspense fallback={<div className="p-8 text-sm text-foreground/60">{t('common.loading')}</div>}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

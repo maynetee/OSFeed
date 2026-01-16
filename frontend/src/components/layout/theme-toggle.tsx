@@ -1,17 +1,19 @@
 import { Moon, SunMedium, Monitor } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { useUiStore, type ThemeMode } from '@/stores/ui-store'
 
-const themeOptions: { value: ThemeMode; icon: typeof SunMedium; label: string }[] = [
-  { value: 'light', icon: SunMedium, label: 'Light' },
-  { value: 'dark', icon: Moon, label: 'Dark' },
-  { value: 'system', icon: Monitor, label: 'System' },
-]
-
 export function ThemeToggle() {
   const theme = useUiStore((state) => state.theme)
   const setTheme = useUiStore((state) => state.setTheme)
+  const { t } = useTranslation()
+
+  const themeOptions: { value: ThemeMode; icon: typeof SunMedium; label: string }[] = [
+    { value: 'light', icon: SunMedium, label: t('theme.light') },
+    { value: 'dark', icon: Moon, label: t('theme.dark') },
+    { value: 'system', icon: Monitor, label: t('theme.system') },
+  ]
 
   return (
     <div className="flex items-center gap-1 rounded-full border border-border/60 bg-background/80 p-1">

@@ -6,11 +6,13 @@ import { CollectionCard } from '@/components/collections/collection-card'
 import { CollectionManager } from '@/components/collections/collection-manager'
 import { EmptyState } from '@/components/common/empty-state'
 import { collectionsApi, type Collection } from '@/lib/api/client'
+import { useTranslation } from 'react-i18next'
 
 export function CollectionsPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [editing, setEditing] = useState<Collection | null>(null)
+  const { t } = useTranslation()
 
   const collectionsQuery = useQuery({
     queryKey: ['collections'],
@@ -40,8 +42,8 @@ export function CollectionsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-foreground/60">Organisez vos sources</p>
-          <h2 className="text-2xl font-semibold">Collections</h2>
+          <p className="text-sm text-foreground/60">{t('collections.subtitle')}</p>
+          <h2 className="text-2xl font-semibold">{t('collections.title')}</h2>
         </div>
         <CollectionManager
           collection={editing}
@@ -57,8 +59,8 @@ export function CollectionsPage() {
       </div>
       {collections.length === 0 && !collectionsQuery.isLoading ? (
         <EmptyState
-          title="Aucune collection"
-          description="Regroupez vos canaux par thematique."
+          title={t('collections.emptyTitle')}
+          description={t('collections.emptyDescription')}
         />
       ) : (
         <div className="space-y-4">

@@ -1,4 +1,5 @@
 import { Command } from 'cmdk'
+import { useTranslation } from 'react-i18next'
 
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { useCommandPalette } from '@/hooks/use-command-palette'
@@ -9,6 +10,7 @@ export function CommandPalette() {
   const open = useUiStore((state) => state.commandPaletteOpen)
   const setOpen = useUiStore((state) => state.setCommandPaletteOpen)
   const { commands, handleSelect } = useCommandPalette()
+  const { t } = useTranslation()
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -17,14 +19,17 @@ export function CommandPalette() {
           <div className="border-b border-border/60 px-4 py-3">
             <Command.Input
               className="w-full bg-transparent text-sm outline-none placeholder:text-foreground/50"
-              placeholder="Tapez une commande..."
+              placeholder={t('commandPalette.placeholder')}
             />
           </div>
           <Command.List className="max-h-80 overflow-y-auto p-2">
             <Command.Empty className="px-4 py-6 text-sm text-foreground/60">
-              Aucun resultat.
+              {t('commandPalette.empty')}
             </Command.Empty>
-            <Command.Group heading="Navigation" className="px-2 py-1 text-xs uppercase text-foreground/40">
+            <Command.Group
+              heading={t('commandPalette.navigation')}
+              className="px-2 py-1 text-xs uppercase text-foreground/40"
+            >
               {commands.map((item) => (
                 <Command.Item
                   key={item.id}

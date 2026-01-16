@@ -1,6 +1,6 @@
 # TeleScope - État du Projet
 
-**Dernière mise à jour:** 2026-01-16 18:40
+**Dernière mise à jour:** 2026-01-16 20:10
 
 ---
 
@@ -8,9 +8,9 @@
 
 | Indicateur | Valeur |
 |------------|--------|
-| **Phase actuelle** | Build M1 |
+| **Phase actuelle** | Stabilisation M1 |
 | **Milestone** | M1 - MVP de Niche |
-| **Prochain jalon** | Tests d'intégration et première migration |
+| **Prochain jalon** | M2 - Durcissement et automatisation |
 | **Blocages** | Aucun |
 
 ---
@@ -29,7 +29,11 @@
 | Interface utilisateur | OK | React 18 + Vite |
 | Persistance données | OK | PostgreSQL 16 (+ SQLite fallback) |
 | Cache traductions | OK | Redis (optionnel) |
-| Frontend refonte | OK | AppShell, feed virtualise, cmd palette, PWA |
+| Frontend refonte | OK | Pages core + features avancées |
+| Recherche sémantique | OK | Full-text + Qdrant + similarité |
+| Exports messages | OK | CSV/PDF/HTML |
+| Historique digests | OK | Pagination |
+| i18n FR/EN | OK | UI + libellés |
 
 ### 1.2 Limitations connues
 
@@ -45,31 +49,27 @@
 
 ---
 
-## 2. Prochain Jalon : Migration PostgreSQL
+## 2. Prochain Jalon : Durcissement M2
 
 ### 2.1 Objectif
 
-Remplacer SQLite par PostgreSQL 16 pour permettre le scaling horizontal et préparer l'intégration des fonctionnalités MVP.
+Stabiliser la plateforme M1, renforcer la qualité (monitoring, observabilité, tests d'intégration) et préparer l'automatisation.
 
 ### 2.2 Tâches
 
 | Tâche | Statut | Notes |
 |-------|--------|-------|
-| Configurer PostgreSQL local | **Fait** | Via docker ou installation locale |
-| Adapter le schéma de données | **Fait** | UUID, BigInteger, JSONB |
-| Configurer Alembic (migrations) | **Fait** | `backend/alembic/` configuré |
-| Migrer les données existantes | **Fait (script)** | `backend/scripts/migrate_sqlite_to_postgres.py` |
-| Adapter les requêtes SQLAlchemy | **Fait** | Endpoints mis à jour |
-| Tests de régression | **Fait** | `pytest` |
-| Mise à jour docker-compose | **Fait** | `docker-compose.yml` ajouté |
+| Tests d'intégration API | **À faire** | Scénarios auth + search + exports |
+| Monitoring & alerting | **À faire** | Logs structurés + métriques |
+| Jobs planifiés | **À faire** | Digests auto + housekeeping |
+| Observabilité LLM | **À faire** | Coûts + latences |
 
 ### 2.3 Critères d'acceptation
 
-- [x] Configuration PostgreSQL 16 prête
-- [x] Schéma de données adapté (UUID, JSONB)
-- [x] Migrations Alembic configurées
-- [x] Tests passent
-- [x] Documentation mise à jour
+- [ ] Tests d'intégration automatisés
+- [ ] Monitoring + métriques en place
+- [ ] Jobs planifiés stables
+- [ ] Documentation M2 complète
 
 ---
 
@@ -98,7 +98,7 @@ PostgreSQL → JWT               → LLM        → Vectorielle → Digests v2
 | Daily Digests v2 | P1 | ✅ **Fait** | Traduction LLM |
 | Collections de canaux | P1 | ✅ **Fait** | PostgreSQL |
 | Dashboard KPIs | P1 | ✅ **Fait** | PostgreSQL |
-| Export CSV/PDF | P2 | ✅ **Fait** | - |
+| Export CSV/PDF/HTML | P2 | ✅ **Fait** | - |
 | Audit logs RGPD | P2 | 🟡 **Partiel** | PostgreSQL |
 | Frontend refonte | P0 | ✅ **Fait** | Pages core + features |
 

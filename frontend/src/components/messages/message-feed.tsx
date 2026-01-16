@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { useTranslation } from 'react-i18next'
 
 import { MessageCard } from '@/components/messages/message-card'
 import { EmptyState } from '@/components/common/empty-state'
@@ -23,6 +24,7 @@ export function MessageFeed({
   onEndReached,
 }: MessageFeedProps) {
   const parentRef = useRef<HTMLDivElement>(null)
+  const { t } = useTranslation()
 
   const rows = useMemo(() => messages, [messages])
 
@@ -36,8 +38,8 @@ export function MessageFeed({
   if (!isLoading && rows.length === 0) {
     return (
       <EmptyState
-        title="Aucun message"
-        description="Lancez une recherche ou ajustez les filtres pour afficher le flux."
+        title={t('messages.noMessagesTitle')}
+        description={t('messages.noMessagesDescription')}
       />
     )
   }
@@ -54,9 +56,11 @@ export function MessageFeed({
           onEndReached()
         }
       }}
+      role="feed"
+      aria-busy={Boolean(isLoading || isFetchingNextPage)}
     >
       {isLoading && rows.length === 0 ? (
-        <div className="py-10 text-sm text-foreground/60">Chargement du flux...</div>
+        <div className="py-10 text-sm text-foreground/60">{t('messages.loadingFeed')}</div>
       ) : null}
       <div
         style={{ height: rowVirtualizer.getTotalSize() }}
@@ -78,7 +82,9 @@ export function MessageFeed({
         })}
       </div>
       {isFetchingNextPage ? (
-        <div className="py-4 text-center text-xs text-foreground/50">Chargement...</div>
+        <div className="py-4 text-center text-xs text-foreground/50">
+          {t('messages.loadingMore')}
+        </div>
       ) : null}
     </div>
   )

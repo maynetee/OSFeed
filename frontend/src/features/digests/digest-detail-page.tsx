@@ -9,8 +9,9 @@ export function DigestDetailPage() {
 
   const digestQuery = useQuery({
     queryKey: ['digest', id],
-    queryFn: async () => (await summariesApi.getDaily()).data,
+    queryFn: async () => (id ? (await summariesApi.get(id)).data : null),
+    enabled: Boolean(id),
   })
 
-  return <DigestViewer digest={digestQuery.data} isLoading={digestQuery.isLoading} />
+  return <DigestViewer digest={digestQuery.data ?? undefined} isLoading={digestQuery.isLoading} />
 }

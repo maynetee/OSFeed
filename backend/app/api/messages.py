@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, update
+from sqlalchemy import select, func, desc, update, or_
 from uuid import UUID
 
 from app.database import get_db, AsyncSessionLocal
@@ -10,6 +10,7 @@ from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse
 from app.services.translator import translator
+from app.services.vector_store import vector_store
 from app.config import get_settings
 from app.services.telegram_collector import TelegramCollector
 from app.auth.users import current_active_user
@@ -23,9 +24,31 @@ router = APIRouter()
 settings = get_settings()
 
 
+def _apply_message_filters(
+    query,
+    channel_id: Optional[UUID],
+    channel_ids: Optional[list[UUID]],
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+):
+    if channel_ids:
+        query = query.where(Message.channel_id.in_(channel_ids))
+    elif channel_id:
+        query = query.where(Message.channel_id == channel_id)
+
+    if start_date:
+        query = query.where(Message.published_at >= start_date)
+
+    if end_date:
+        query = query.where(Message.published_at <= end_date)
+
+    return query
+
+
 @router.get("", response_model=MessageListResponse)
 async def list_messages(
     channel_id: Optional[UUID] = None,
+    channel_ids: Optional[list[UUID]] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     start_date: Optional[datetime] = None,
@@ -40,19 +63,12 @@ async def list_messages(
     # Build query
     query = select(Message)
 
-    if channel_id:
-        query = query.where(Message.channel_id == channel_id)
-
-    if start_date:
-        query = query.where(Message.published_at >= start_date)
-
-    if end_date:
-        query = query.where(Message.published_at <= end_date)
+    query = _apply_message_filters(query, channel_id, channel_ids, start_date, end_date)
 
     # Get total count
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
-    total = total_result.scalar()
+    total = total_result.scalar() or 0
 
     # Get paginated messages
     query = query.order_by(desc(Message.published_at)).limit(limit).offset(offset)
@@ -64,6 +80,93 @@ async def list_messages(
         total=total,
         page=offset // limit + 1,
         page_size=limit
+    )
+
+
+@router.get("/search", response_model=MessageListResponse)
+async def search_messages(
+    q: str = Query(..., min_length=3),
+    channel_ids: Optional[list[UUID]] = Query(None),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search messages via full-text match on original/translated text."""
+    query = select(Message).where(
+        or_(
+            Message.original_text.ilike(f"%{q}%"),
+            Message.translated_text.ilike(f"%{q}%"),
+        )
+    )
+    query = _apply_message_filters(query, None, channel_ids, start_date, end_date)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
+    query = query.order_by(desc(Message.published_at)).limit(limit).offset(offset)
+    result = await db.execute(query)
+    messages = result.scalars().all()
+
+    return MessageListResponse(
+        messages=messages,
+        total=total,
+        page=offset // limit + 1,
+        page_size=limit,
+    )
+
+
+@router.get("/search/semantic", response_model=MessageListResponse)
+async def search_messages_semantic(
+    q: str = Query(..., min_length=3),
+    channel_ids: Optional[list[UUID]] = Query(None),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    top_k: int = Query(20, ge=1, le=100),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Search messages using semantic similarity."""
+    if not vector_store.is_ready:
+        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
+
+    raw_filter: dict = {}
+    if channel_ids:
+        raw_filter["channel_id"] = {"$in": [str(channel_id) for channel_id in channel_ids]}
+
+    if start_date or end_date:
+        ts_filter: dict = {}
+        if start_date:
+            ts_filter["$gte"] = int(start_date.timestamp())
+        if end_date:
+            ts_filter["$lte"] = int(end_date.timestamp())
+        raw_filter["published_at_ts"] = ts_filter
+
+    matches = vector_store.query_similar(text=q, top_k=top_k, filter=raw_filter or None)
+    if not matches:
+        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
+
+    ordered_ids = [match["id"] for match in matches]
+    result = await db.execute(select(Message).where(Message.id.in_(ordered_ids)))
+    messages = result.scalars().all()
+    message_map = {str(message.id): message for message in messages}
+
+    ordered_messages = []
+    for match in matches:
+        message = message_map.get(str(match["id"]))
+        if not message:
+            continue
+        message.similarity_score = match.get("score")
+        ordered_messages.append(message)
+
+    return MessageListResponse(
+        messages=ordered_messages,
+        total=len(ordered_messages),
+        page=1,
+        page_size=top_k,
     )
 
 
@@ -231,18 +334,14 @@ async def translate_messages(
 @router.get("/export/csv")
 async def export_messages_csv(
     channel_id: Optional[UUID] = None,
+    channel_ids: Optional[list[UUID]] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(Message, Channel).join(Channel)
-    if channel_id:
-        query = query.where(Message.channel_id == channel_id)
-    if start_date:
-        query = query.where(Message.published_at >= start_date)
-    if end_date:
-        query = query.where(Message.published_at <= end_date)
+    query = _apply_message_filters(query, channel_id, channel_ids, start_date, end_date)
 
     result = await db.execute(query.order_by(desc(Message.published_at)))
     rows = result.all()
@@ -282,6 +381,96 @@ async def export_messages_csv(
     )
 
 
+@router.get("/export/html")
+async def export_messages_html(
+    channel_id: Optional[UUID] = None,
+    channel_ids: Optional[list[UUID]] = Query(None),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    limit: int = Query(200, ge=1, le=1000),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(Message, Channel).join(Channel)
+    query = _apply_message_filters(query, channel_id, channel_ids, start_date, end_date)
+    result = await db.execute(query.order_by(desc(Message.published_at)).limit(limit))
+    rows = result.all()
+
+    from html import escape
+
+    html_lines = [
+        "<!DOCTYPE html>",
+        "<html lang='fr'>",
+        "<head><meta charset='utf-8'><title>TeleScope - Messages</title>",
+        "<style>body{font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;padding:24px;}h1{font-size:20px;}article{margin:16px 0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;}small{color:#64748b;}</style>",
+        "</head><body>",
+        "<h1>Export messages</h1>",
+    ]
+
+    for message, channel in rows:
+        html_lines.append("<article>")
+        html_lines.append(
+            f"<small>{escape(channel.title)} · {escape(channel.username)} · {message.published_at}</small>"
+        )
+        html_lines.append(f"<p>{escape(message.translated_text or message.original_text or '')}</p>")
+        if message.translated_text and message.original_text:
+            html_lines.append(f"<p><small>Original: {escape(message.original_text)}</small></p>")
+        html_lines.append("</article>")
+
+    html_lines.append("</body></html>")
+    html = "\n".join(html_lines)
+    return StreamingResponse(
+        iter([html]),
+        media_type="text/html",
+        headers={"Content-Disposition": "attachment; filename=telescope-messages.html"},
+    )
+
+
+@router.get("/export/pdf")
+async def export_messages_pdf(
+    channel_id: Optional[UUID] = None,
+    channel_ids: Optional[list[UUID]] = Query(None),
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    limit: int = Query(200, ge=1, le=500),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from io import BytesIO
+    from fpdf import FPDF
+
+    query = select(Message, Channel).join(Channel)
+    query = _apply_message_filters(query, channel_id, channel_ids, start_date, end_date)
+    result = await db.execute(query.order_by(desc(Message.published_at)).limit(limit))
+    rows = result.all()
+
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=14)
+    pdf.cell(0, 10, "TeleScope - Messages", ln=True)
+    pdf.set_font("Helvetica", size=11)
+    for message, channel in rows:
+        header = f"{channel.title} (@{channel.username}) - {message.published_at}"
+        pdf.multi_cell(0, 8, header)
+        pdf.set_font("Helvetica", size=10)
+        pdf.multi_cell(0, 6, message.translated_text or message.original_text or "")
+        if message.translated_text and message.original_text:
+            pdf.set_font("Helvetica", size=9)
+            pdf.multi_cell(0, 6, f"Original: {message.original_text}")
+        pdf.ln(2)
+        pdf.set_font("Helvetica", size=11)
+
+    output = pdf.output(dest="S")
+    pdf_bytes = output.encode("latin-1", errors="ignore") if isinstance(output, str) else output
+    filename = "telescope-messages.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.get("/{message_id}", response_model=MessageResponse)
 async def get_message(
     message_id: UUID,
@@ -299,3 +488,50 @@ async def get_message(
         raise HTTPException(status_code=404, detail="Message not found")
 
     return message
+
+
+@router.get("/{message_id}/similar", response_model=MessageListResponse)
+async def get_similar_messages(
+    message_id: UUID,
+    top_k: int = Query(5, ge=1, le=20),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get similar messages based on semantic vectors."""
+    if not vector_store.is_ready:
+        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
+
+    result = await db.execute(select(Message).where(Message.id == message_id))
+    message = result.scalar_one_or_none()
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    text = message.translated_text or message.original_text or ""
+    if not text:
+        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
+
+    matches = vector_store.query_similar(text=text, top_k=top_k + 1)
+    matches = [match for match in matches if str(match.get("id")) != str(message_id)]
+
+    ordered_ids = [match["id"] for match in matches]
+    if not ordered_ids:
+        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
+
+    result = await db.execute(select(Message).where(Message.id.in_(ordered_ids)))
+    messages = result.scalars().all()
+    message_map = {str(item.id): item for item in messages}
+
+    ordered_messages = []
+    for match in matches:
+        similar_message = message_map.get(str(match["id"]))
+        if not similar_message:
+            continue
+        similar_message.similarity_score = match.get("score")
+        ordered_messages.append(similar_message)
+
+    return MessageListResponse(
+        messages=ordered_messages,
+        total=len(ordered_messages),
+        page=1,
+        page_size=top_k,
+    )

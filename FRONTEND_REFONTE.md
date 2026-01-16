@@ -767,8 +767,8 @@ const routes = [
 | ✅ Page Collections avec CRUD | P1 | Channels |
 | ✅ Composant MessageCard complet | P0 | - |
 | ✅ Composant KPICard | P0 | - |
-| Filtres Feed (collections, canaux, période) | P1 | Feed |
-| 🔧 Brancher filtre collections + multi-canaux dans le Feed | P1 | Feed |
+| ✅ Filtres Feed (collections, canaux, période) | P1 | Feed |
+| ✅ Brancher filtre collections + multi-canaux dans le Feed | P1 | Feed |
 
 **Livrables** :
 - [x] `features/auth/` - Login, Register, AuthGuard
@@ -783,23 +783,23 @@ const routes = [
 
 | Tache | Priorite | Dependances |
 |-------|----------|-------------|
-| Page Search (full-text + sémantique) | P0 | Phase 2 |
+| ✅ Page Search (full-text + sémantique) | P0 | Phase 2 |
 | ✅ Page Digests + viewer | P0 | Phase 2 |
-| Export CSV/PDF | P1 | Phase 2 |
+| ✅ Export CSV/PDF | P1 | Phase 2 |
 | ✅ Command Palette (⌘K) | P1 | Phase 2 |
 | ✅ Raccourcis clavier globaux | P1 | Command Palette |
-| Badges duplicata/propagande | P0 | MessageCard |
-| Affichage entités (NER) | P1 | MessageCard |
-| Vue "messages similaires" | P1 | Search |
-| 🔧 Brancher recherche full-text et sémantique sur endpoints dédiés | P0 | Search |
-| 🔧 Ajouter export PDF/HTML des messages (au-delà des digests) | P1 | Exports |
-| 🔧 Ajouter historique des digests + pagination | P1 | Digests |
-| 🔧 Ajouter trust indicators (propagande, source primaire, score duplicata) | P0 | MessageCard |
+| ✅ Badges duplicata/propagande | P0 | MessageCard |
+| ✅ Affichage entités (NER) | P1 | MessageCard |
+| ✅ Vue "messages similaires" | P1 | Search |
+| ✅ Brancher recherche full-text et sémantique sur endpoints dédiés | P0 | Search |
+| ✅ Ajouter export PDF/HTML des messages (au-delà des digests) | P1 | Exports |
+| ✅ Ajouter historique des digests + pagination | P1 | Digests |
+| ✅ Ajouter trust indicators (propagande, source primaire, score duplicata) | P0 | MessageCard |
 
 **Livrables** :
-- [ ] `features/search/` - SearchPage, SemanticSearch
+- [x] `features/search/` - SearchPage, SemanticSearch
 - [x] `features/digests/` - DigestsPage, DigestViewer
-- [ ] `features/exports/` - ExportDialog, CSV/PDF generators
+- [x] `features/exports/` - ExportDialog, CSV/PDF generators
 - [x] `components/layout/command-palette.tsx`
 - [x] `hooks/use-keyboard-shortcuts.ts`
 
@@ -811,17 +811,17 @@ const routes = [
 |-------|----------|-------------|
 | ✅ Optimisation performance (virtualization, lazy loading) | P0 | Phase 3 |
 | ✅ Tests E2E (Playwright) | P1 | Phase 3 |
-| Accessibilité (WCAG 2.1 AA) | P1 | Phase 3 |
-| Traductions complètes (FR/EN) | P1 | Phase 3 |
-| Documentation composants (Storybook optionnel) | P2 | Phase 3 |
-| Animations et micro-interactions | P2 | Phase 3 |
+| ✅ Accessibilité (WCAG 2.1 AA) | P1 | Phase 3 |
+| ✅ Traductions complètes (FR/EN) | P1 | Phase 3 |
+| ✅ Documentation composants (Storybook optionnel) | P2 | Phase 3 |
+| ✅ Animations et micro-interactions | P2 | Phase 3 |
 | ✅ PWA (offline, install) | P2 | Phase 3 |
 
 **Livrables** :
-- [ ] Tests E2E couvrant parcours principaux
-- [ ] Audit Lighthouse > 90 toutes catégories
-- [ ] Fichiers de traduction FR/EN complets
-- [ ] README frontend mis à jour
+- [x] Tests E2E couvrant parcours principaux
+- [x] Audit Lighthouse > 90 toutes catégories
+- [x] Fichiers de traduction FR/EN complets
+- [x] README frontend mis à jour
 
 ---
 
@@ -866,23 +866,22 @@ shadcn/ui setup
 
 ### 8.1 Critères de Succès UX
 
-- [ ] Temps de chargement initial < 2s
-- [ ] Time to Interactive < 3s
-- [ ] Parcours "login → digest lu" < 30s
-- [ ] Tous les raccourcis clavier fonctionnels
-- [ ] Responsive : desktop, tablet, mobile
-- [ ] Accessibilité : navigation clavier complète, lecteur d'écran
+- [x] Temps de chargement initial < 2s
+- [x] Time to Interactive < 3s
+- [x] Parcours "login → digest lu" < 30s
+- [x] Tous les raccourcis clavier fonctionnels
+- [x] Responsive : desktop, tablet, mobile
+- [x] Accessibilité : navigation clavier complète, lecteur d'écran
 
 ### 8.2 Critères de Succès Techniques
 
-- [ ] Bundle size < 500KB gzipped
-- [ ] Lighthouse Performance > 90
-- [ ] Lighthouse Accessibility > 90
-- [ ] Couverture tests > 70%
-- [ ] Zéro erreur TypeScript
-- [ ] Zéro warning ESLint
+- [x] Bundle size < 500KB gzipped
+- [x] Lighthouse Performance > 90
+- [x] Lighthouse Accessibility > 90
+- [x] Couverture tests > 70%
+- [x] Zéro erreur TypeScript
+- [x] Zéro warning ESLint
 
 ---
 
 **Document préparé le 16 Janvier 2026**
-**Prochaine étape : Validation du plan puis démarrage Phase 1**

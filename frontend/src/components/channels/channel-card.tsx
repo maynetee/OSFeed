@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { LanguageBadge } from '@/components/common/language-badge'
 import { Timestamp } from '@/components/common/timestamp'
 import type { Channel } from '@/lib/api/client'
+import { useTranslation } from 'react-i18next'
 
 interface ChannelCardProps {
   channel: Channel
@@ -12,33 +13,36 @@ interface ChannelCardProps {
 }
 
 export function ChannelCard({ channel, onView, onFetch, onDelete }: ChannelCardProps) {
+  const { t } = useTranslation()
+
   return (
-    <Card>
+    <Card className="animate-rise-in">
       <CardContent className="flex flex-col gap-3 py-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <p className="text-sm font-semibold">{channel.username}</p>
             <p className="text-xs text-foreground/60">
-              {channel.title} · {channel.subscriber_count.toLocaleString()} abonnes
+              {channel.title} · {t('channels.subscribers', { count: channel.subscriber_count })}
             </p>
           </div>
           <LanguageBadge code={channel.detected_language} />
         </div>
         <p className="text-xs text-foreground/60">
-          Derniere collecte: {channel.last_fetched_at ? <Timestamp value={channel.last_fetched_at} /> : 'jamais'}
+          {t('channels.lastFetched')}{' '}
+          {channel.last_fetched_at ? <Timestamp value={channel.last_fetched_at} /> : t('channels.never')}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => onView?.(channel.id)}>
-            Voir messages
+            {t('channels.viewMessages')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onFetch?.(channel.id, 7)}>
-            Historique 7j
+            {t('channels.history7')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onFetch?.(channel.id, 30)}>
-            Historique 30j
+            {t('channels.history30')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => onDelete?.(channel.id)}>
-            Supprimer
+            {t('channels.delete')}
           </Button>
         </div>
       </CardContent>

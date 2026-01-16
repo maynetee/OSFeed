@@ -5,10 +5,12 @@ import { AddChannelDialog } from '@/components/channels/add-channel-dialog'
 import { ChannelList } from '@/components/channels/channel-list'
 import { EmptyState } from '@/components/common/empty-state'
 import { channelsApi, messagesApi } from '@/lib/api/client'
+import { useTranslation } from 'react-i18next'
 
 export function ChannelsPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const channelsQuery = useQuery({
     queryKey: ['channels'],
@@ -36,15 +38,17 @@ export function ChannelsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm text-foreground/60">{channels.length} canaux actifs</p>
-          <h2 className="text-2xl font-semibold">Sources Telegram</h2>
+          <p className="text-sm text-foreground/60">
+            {t('channels.subtitle', { count: channels.length })}
+          </p>
+          <h2 className="text-2xl font-semibold">{t('channels.title')}</h2>
         </div>
         <AddChannelDialog onSubmit={(username) => addChannel.mutateAsync(username)} />
       </div>
       {channels.length === 0 && !channelsQuery.isLoading ? (
         <EmptyState
-          title="Aucun canal"
-          description="Ajoutez une source Telegram pour commencer la veille."
+          title={t('channels.emptyTitle')}
+          description={t('channels.emptyDescription')}
         />
       ) : (
         <ChannelList

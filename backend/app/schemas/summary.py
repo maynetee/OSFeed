@@ -26,3 +26,10 @@ class SummaryResponse(BaseModel):
 class SummaryGenerateRequest(BaseModel):
     digest_type: str = "daily"
     filters: Optional[Dict[str, List[str]]] = None
+
+
+class SummaryListResponse(BaseModel):
+    summaries: List[SummaryResponse]
+    total: int
+    page: int
+    page_size: int

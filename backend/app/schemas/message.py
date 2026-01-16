@@ -22,6 +22,7 @@ class MessageResponse(BaseModel):
     published_at: datetime
     fetched_at: datetime
     translated_at: Optional[datetime] = None
+    similarity_score: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
 

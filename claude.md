@@ -21,6 +21,10 @@ Transformer TeleScope en **outil de renseignement opérationnel** destiné aux j
 - Vite 5 + React 18 + React Router 6
 - Tailwind CSS + shadcn/ui + cmdk
 - Zustand (state client) + TanStack Query (state serveur)
+- Recherche full-text + sémantique + vue de similarité
+- Trust indicators (duplicata, score, source primaire)
+- Exports messages (CSV/PDF/HTML) + historique digests paginé
+- i18n FR/EN + micro-interactions
 - PWA + tests E2E (Playwright)
 
 ## Règles de Dépôt
@@ -38,6 +42,7 @@ Transformer TeleScope en **outil de renseignement opérationnel** destiné aux j
 - [changelog.md](./changelog.md) - Historique des modifications
 - [FRONTEND_REFONTE.md](./FRONTEND_REFONTE.md) - Plan de refonte frontend
 - [api.md](./api.md) - Documentation API (à créer)
+- [frontend/README.md](./frontend/README.md) - Docs frontend
 
 ## Mise à Jour de la Documentation
 

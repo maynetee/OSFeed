@@ -17,6 +17,19 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - Virtualisation du feed + lazy-loading routes
 - PWA (manifest + service worker)
 - Tests E2E Playwright (smoke login)
+#### Recherche & exports
+- Recherche full-text + sémantique avec endpoints dédiés
+- Vue "messages similaires" (score de similarité)
+- Export messages CSV/PDF/HTML
+- Historique digests paginé + endpoint listing
+- Dialog export dédié (frontend)
+#### Qualité UI
+- Trust indicators (duplicata, score, source primaire)
+- Affichage des entités NER dans les messages
+- i18n FR/EN sur l'interface
+- Micro-interactions (cards animées)
+#### Documentation
+- README frontend ajouté
 #### Tests et validation
 - Test de déduplication avec vector store simulé
 - Tests auth refresh compatibles `httpx` récent
@@ -78,6 +91,9 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 - `realtime_collector.py` - Boucle auto-reconnect avec gestion des erreurs
 - `docker-compose.yml` - Ajout Redis + Qdrant aligné sur le client
 - `config.py` - Ignore les variables `.env` non utilisées pour éviter les erreurs Alembic
+- `backend/app/api/messages.py` - filtres multi-canaux, search, exports, similarité
+- `backend/app/api/summaries.py` - listing paginé + récupération par id
+- `frontend/src/app/i18n.ts` - dictionnaire FR/EN étendu
 
 ### Corrigé
 - Migration initiale Alembic réécrite pour une création clean du schéma
