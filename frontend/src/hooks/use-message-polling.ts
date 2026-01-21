@@ -21,7 +21,7 @@ export function useMessagePolling(
   refetchFn: () => Promise<unknown>,
   options: UseMessagePollingOptions = {}
 ) {
-  const { interval = DEFAULT_INTERVAL, enabled = true, onNewMessages } = options
+  const { interval = DEFAULT_INTERVAL, enabled = true } = options
   const [refreshState, setRefreshState] = useState<RefreshState>({
     lastRefresh: null,
     isRefreshing: false,

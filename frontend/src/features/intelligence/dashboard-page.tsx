@@ -32,7 +32,7 @@ export function IntelligenceDashboardPage() {
           <Card className="px-4 py-2 flex items-center gap-2 bg-slate-50 border-slate-200">
             <Activity className="h-4 w-4 text-slate-500" />
             <span className="text-sm font-medium text-slate-600">Tension Globale</span>
-            <Badge variant={dashboard.global_tension > 5 ? "destructive" : "secondary"}>
+            <Badge variant={dashboard.global_tension > 5 ? "danger" : "muted"}>
               {dashboard.global_tension}/10
             </Badge>
           </Card>

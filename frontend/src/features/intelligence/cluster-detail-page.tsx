@@ -4,7 +4,7 @@ import { intelligenceApi } from "@/lib/api/intelligence";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Clock, Users, FileText } from "lucide-react";
+import { ArrowLeft, Clock, Users } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { UrgencyBadge } from "./components/urgency-badge";
 import { EntityChip } from "./components/entity-chip";
@@ -124,7 +124,7 @@ export function ClusterDetailPage() {
                   {msg.text}
                 </p>
                 <div className="mt-2 flex justify-end">
-                  <Button variant="link" size="sm" className="h-auto p-0 text-blue-600 text-xs">
+                  <Button variant="ghost" size="sm" className="h-auto p-0 text-blue-600 text-xs">
                     Voir le contexte complet &rarr;
                   </Button>
                 </div>

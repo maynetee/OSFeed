@@ -74,7 +74,7 @@ async def test_translate_batch_preserves_order_and_skips_same_language(monkeypat
     translator = LLMTranslator()
     lang_map = {"hola": "es", "bonjour": "fr", "hello": "en", "ciao": "it"}
 
-    def _fake_detect_language(text: str) -> str:
+    async def _fake_detect_language(text: str) -> str:
         return lang_map[text]
 
     async def _fake_batch(texts: list[str], source_lang: str, target_lang: str, model: str) -> list[str]:
