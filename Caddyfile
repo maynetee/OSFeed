@@ -1,0 +1,48 @@
+# Caddyfile - Configuration HTTPS automatique pour OSFeed
+# IMPORTANT: Remplacez VOTRE_DOMAINE par votre vrai domaine (ex: osfeed.example.com)
+
+VOTRE_DOMAINE {
+    # Frontend (Interface utilisateur)
+    reverse_proxy frontend:80
+
+    # Backend API
+    handle_path /api/* {
+        reverse_proxy backend:8000
+    }
+
+    # Documentation API Swagger
+    handle_path /docs* {
+        reverse_proxy backend:8000
+    }
+
+    # Documentation API ReDoc
+    handle_path /redoc* {
+        reverse_proxy backend:8000
+    }
+
+    # OpenAPI JSON (requis pour /docs et /redoc)
+    handle_path /openapi.json {
+        reverse_proxy backend:8000
+    }
+
+    # Health check endpoint
+    handle_path /health* {
+        reverse_proxy backend:8000
+    }
+
+    # Compression
+    encode gzip zstd
+
+    # Headers de securite
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    # Logs
+    log {
+        output stdout
+        format console
+    }
+}
