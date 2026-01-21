@@ -26,13 +26,28 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 # Global semaphore for rate limiting concurrent channel fetches
 _channel_semaphore: asyncio.Semaphore | None = None
+_channel_semaphore_lock: asyncio.Lock | None = None
 
 
-def get_channel_semaphore() -> asyncio.Semaphore:
-    """Get or create the global channel semaphore for rate limiting."""
+def _get_lock() -> asyncio.Lock:
+    """Get or create the initialization lock (must be called from async context)."""
+    global _channel_semaphore_lock
+    if _channel_semaphore_lock is None:
+        _channel_semaphore_lock = asyncio.Lock()
+    return _channel_semaphore_lock
+
+
+async def get_channel_semaphore() -> asyncio.Semaphore:
+    """Get or create the global channel semaphore for rate limiting.
+    
+    Thread-safe initialization using async lock to prevent race conditions.
+    """
     global _channel_semaphore
     if _channel_semaphore is None:
-        _channel_semaphore = asyncio.Semaphore(settings.telegram_concurrent_channels)
+        async with _get_lock():
+            # Double-check after acquiring lock
+            if _channel_semaphore is None:
+                _channel_semaphore = asyncio.Semaphore(settings.telegram_concurrent_channels)
     return _channel_semaphore
 
 
@@ -72,6 +87,7 @@ def telegram_retry(func: F) -> F:
                 # Telegram tells us exactly how long to wait
                 wait_time = e.seconds
                 # Add jitter to avoid all clients retrying at the same time
+                jitter = 0.0
                 if use_jitter:
                     jitter = random.uniform(1, 5)
                     wait_time += jitter
@@ -155,7 +171,7 @@ async def with_rate_limit(coro):
             with_rate_limit(fetch_channel(ch)) for ch in channels
         ])
     """
-    semaphore = get_channel_semaphore()
+    semaphore = await get_channel_semaphore()
     async with semaphore:
         return await coro
 

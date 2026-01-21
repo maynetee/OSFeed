@@ -1,11 +1,13 @@
 # ===========================================
-# TeleScope - Fichiers ignorés par Git
+# OSFeed - Fichiers ignorés par Git
 # ===========================================
 
 # ----- Environnement & Secrets -----
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
 *.session
 *.session-journal
 
@@ -71,3 +73,30 @@ backend/data/*.session-journal
 tmp/
 temp/
 *.bak
+
+# ----- OS generated files -----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ----- Coverage & Testing -----
+coverage/
+*.lcov
+.nyc_output/
+
+# ----- Build outputs -----
+*.tsbuildinfo
+.next/
+out/
+
+# ----- Secrets & API Keys (extra protection) -----
+**/secrets/
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# ----- Local development -----
+.sisyphus/
+*.local
+local.settings.json

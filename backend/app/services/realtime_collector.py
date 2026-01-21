@@ -11,13 +11,13 @@ from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.models.channel import Channel as ChannelModel
 from app.models.message import Message
+from app.services.telegram_collector import _connect_lock
 from app.services.translator import translator
-from app.services.telegram_collector import _telegram_lock
-from sqlalchemy import select
+from app.services.translation_pool import run_translation
+from sqlalchemy import select, update
 from datetime import datetime, timezone
 import asyncio
 import os
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,6 +44,9 @@ class RealtimeCollector:
         self.running = False
         self._channel_ids = set()  # Telegram channel IDs we're monitoring
         self._reconnect_attempts = 0
+        self._tasks: set[asyncio.Task] = set()  # Track running tasks
+        self._flood_wait_seconds: int = 0  # FloodWait delay from handlers
+        self._flood_wait_lock = asyncio.Lock()  # Protect flood wait state
 
     async def start(self):
         """Start the real-time collector with auto-reconnect loop."""
@@ -53,8 +56,10 @@ class RealtimeCollector:
         self.running = True
         logger.info("Starting real-time collector...")
 
-        # Start the main loop with auto-reconnect
-        asyncio.create_task(self._run_with_reconnect())
+        # Start the main loop with auto-reconnect, tracking the task
+        task = asyncio.create_task(self._run_with_reconnect())
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
 
     async def _run_with_reconnect(self):
         """Main loop that handles reconnection on errors."""
@@ -66,8 +71,7 @@ class RealtimeCollector:
                 logger.warning(
                     f"FloodWaitError in real-time collector: waiting {wait_time}s"
                 )
-                await asyncio.sleep(wait_time)
-                self._reconnect_attempts = 0  # Reset after successful wait
+                await self._handle_flood_wait(wait_time)
             except (ConnectionError, TelethonConnectionError, OSError) as e:
                 delay = min(
                     RECONNECT_BASE_DELAY * (2 ** self._reconnect_attempts),
@@ -85,12 +89,27 @@ class RealtimeCollector:
 
         logger.info("Real-time collector stopped")
 
+    async def _handle_flood_wait(self, wait_seconds: int):
+        """Handle FloodWaitError with controlled wait and reconnect.
+
+        Args:
+            wait_seconds: Number of seconds to wait before reconnecting.
+        """
+        async with self._flood_wait_lock:
+            # Use the maximum wait time if multiple flood waits occur
+            effective_wait = max(self._flood_wait_seconds, wait_seconds)
+            self._flood_wait_seconds = 0  # Reset for next cycle
+
+        logger.info(f"FloodWait: sleeping for {effective_wait}s before reconnect")
+        await asyncio.sleep(effective_wait)
+        self._reconnect_attempts = 0  # Reset after successful wait
+
     async def _connect_and_listen(self):
         """Connect to Telegram and start listening for messages."""
         os.makedirs("data", exist_ok=True)
 
         # Use the same session file as the regular collector
-        async with _telegram_lock:
+        async with _connect_lock:
             self.client = TelegramClient(
                 "data/telegram_session",
                 self.api_id,
@@ -128,7 +147,10 @@ class RealtimeCollector:
         """Refresh the list of channels we're monitoring."""
         async with AsyncSessionLocal() as db:
             result = await db.execute(
-                select(ChannelModel.telegram_id).where(ChannelModel.is_active == True)
+                select(ChannelModel.telegram_id).where(
+                    ChannelModel.is_active == True,
+                    ChannelModel.telegram_id.isnot(None),
+                )
             )
             channel_ids = {row[0] for row in result.all()}
             self._channel_ids = channel_ids
@@ -177,9 +199,6 @@ class RealtimeCollector:
 
                 channel_id = channel.id
 
-            # Translate message (outside DB session - this is slow)
-            translated_text, source_lang = await translator.translate(event.message.text)
-
             # Determine media type
             media_type = None
             media_urls = []
@@ -192,38 +211,115 @@ class RealtimeCollector:
                     media_type = 'video'
 
             # Save to database
+            message_id = None
             async with AsyncSessionLocal() as db:
                 message = Message(
                     channel_id=channel_id,
                     telegram_message_id=event.message.id,
                     original_text=event.message.text,
-                    translated_text=translated_text,
-                    source_language=source_lang,
+                    translated_text=None,
+                    source_language=None,
                     target_language=settings.preferred_language,
+                    needs_translation=True,
                     media_type=media_type,
                     media_urls=media_urls,
                     published_at=event.message.date,
-                    translated_at=datetime.now(timezone.utc),
+                    translated_at=None,
                 )
                 db.add(message)
                 await db.commit()
+                # Refresh to get ID
+                await db.refresh(message)
+                message_id = message.id
 
             logger.info(
                 f"Saved real-time message from {chat.title}: "
                 f"{event.message.text[:50]}..."
             )
+            
+            # Trigger instant translation in background
+            if message_id and event.message.text:
+                 asyncio.create_task(self._translate_new_message(
+                     message_id, 
+                     event.message.text, 
+                     event.message.date
+                 ))
 
         except FloodWaitError as e:
-            logger.warning(f"FloodWaitError processing message: {e.seconds}s wait required")
-            # The reconnect loop will handle this
-            raise
+            # Signal the reconnect loop to handle FloodWait gracefully
+            # instead of raising, which could disrupt the event handler
+            logger.warning(
+                f"FloodWaitError processing message: {e.seconds}s wait required. "
+                "Signaling reconnect loop."
+            )
+            async with self._flood_wait_lock:
+                self._flood_wait_seconds = max(self._flood_wait_seconds, e.seconds)
+            # Don't re-raise - let the _keep_alive loop detect the disconnection
+            # or wait for the flood wait period naturally
         except Exception as e:
             logger.error(f"Error processing real-time message: {e}")
 
+    async def _translate_new_message(self, message_id, text, published_at):
+        """Translate a newly arrived message immediately."""
+        try:
+            target_lang = settings.preferred_language
+            
+            # Run translation (using shared pool to respect concurrency limits)
+            translated_text, source_lang, priority = await run_translation(
+                translator.translate(
+                    text,
+                    target_lang=target_lang,
+                    published_at=published_at
+                )
+            )
+            
+            if priority == "skip":
+                need_update = True
+                translated_text = None
+            else:
+                need_update = True
+
+            if need_update:
+                async with AsyncSessionLocal() as db:
+                    await db.execute(
+                        update(Message)
+                        .where(Message.id == message_id)
+                        .values(
+                            translated_text=translated_text,
+                            source_language=source_lang,
+                            target_language=target_lang,
+                            needs_translation=False,
+                            translated_at=datetime.now(timezone.utc),
+                            translation_priority=priority,
+                        )
+                    )
+                    await db.commit()
+                logger.info(f"Instantly translated message {message_id} ({source_lang}->{target_lang})")
+                
+        except Exception as e:
+            logger.error(f"Failed to instant-translate message {message_id}: {e}")
+
     async def stop(self):
-        """Stop the real-time collector."""
+        """Stop the real-time collector and cleanup all tasks."""
         logger.info("Stopping real-time collector...")
         self.running = False
+
+        # Cancel and await all tracked tasks
+        if self._tasks:
+            logger.debug(f"Cancelling {len(self._tasks)} tracked tasks")
+            for task in self._tasks:
+                if not task.done():
+                    task.cancel()
+
+            # Wait for all tasks to complete (with cancellation)
+            results = await asyncio.gather(*self._tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception) and not isinstance(
+                    result, asyncio.CancelledError
+                ):
+                    logger.warning(f"Task {i} ended with error: {result}")
+            self._tasks.clear()
+
         if self.client:
             try:
                 await self.client.disconnect()

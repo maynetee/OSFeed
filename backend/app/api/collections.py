@@ -126,9 +126,9 @@ async def get_collections_overview(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Step 1: Fetch user's collections (without loading full channel objects)
     result = await db.execute(
         select(Collection)
-        .options(selectinload(Collection.channels))
         .outerjoin(
             CollectionShare,
             (CollectionShare.collection_id == Collection.id) & (CollectionShare.user_id == user.id),
@@ -136,36 +136,97 @@ async def get_collections_overview(
         .where(or_(Collection.user_id == user.id, CollectionShare.user_id == user.id))
     )
     collections = result.scalars().all()
-    overview = []
+    
+    if not collections:
+        return {"collections": []}
+    
+    collection_ids = [c.id for c in collections]
+    global_collection_ids = {c.id for c in collections if c.is_global}
+    non_global_collection_ids = [c.id for c in collections if not c.is_global]
+    
     week_ago = datetime.utcnow() - timedelta(days=7)
-    for collection in collections:
-        channel_ids = await _collection_channel_ids(db, collection)
-        if not channel_ids:
-            overview.append(
-                {
-                    "id": str(collection.id),
-                    "name": collection.name,
-                    "message_count_7d": 0,
-                    "channel_count": 0,
-                    "created_at": collection.created_at,
-                }
+    
+    # Step 2: Get channel counts per non-global collection (single query on junction table)
+    channel_counts: dict = {}
+    if non_global_collection_ids:
+        channel_count_result = await db.execute(
+            select(
+                collection_channels.c.collection_id,
+                func.count(collection_channels.c.channel_id).label("channel_count")
             )
-            continue
-        count_result = await db.execute(
-            select(func.count())
-            .select_from(Message)
-            .where(Message.channel_id.in_(channel_ids))
+            .where(collection_channels.c.collection_id.in_(non_global_collection_ids))
+            .group_by(collection_channels.c.collection_id)
+        )
+        channel_counts = {row.collection_id: row.channel_count for row in channel_count_result.all()}
+    
+    # Step 3: Get all active channel IDs and count for global collections
+    all_active_channels_result = await db.execute(
+        select(Channel.id).where(Channel.is_active == True)
+    )
+    all_active_channel_ids = [row[0] for row in all_active_channels_result.all()]
+    global_channel_count = len(all_active_channel_ids)
+    
+    # Step 4: Build a mapping of collection_id -> list of channel_ids for message counting
+    # For non-global collections, get channel IDs from junction table
+    collection_channel_ids: dict = {c.id: [] for c in collections}
+    
+    if non_global_collection_ids:
+        channel_ids_result = await db.execute(
+            select(
+                collection_channels.c.collection_id,
+                collection_channels.c.channel_id
+            )
+            .where(collection_channels.c.collection_id.in_(non_global_collection_ids))
+        )
+        for row in channel_ids_result.all():
+            collection_channel_ids[row.collection_id].append(row.channel_id)
+    
+    # For global collections, use all active channels
+    for cid in global_collection_ids:
+        collection_channel_ids[cid] = all_active_channel_ids
+    
+    # Step 5: Single grouped query for 7-day message counts
+    # Build a union of (collection_id, channel_id) pairs for the query
+    all_channel_ids_for_count = set()
+    for cids in collection_channel_ids.values():
+        all_channel_ids_for_count.update(cids)
+    
+    message_counts: dict = {c.id: 0 for c in collections}
+    
+    if all_channel_ids_for_count:
+        # Get message counts grouped by channel_id
+        channel_message_counts_result = await db.execute(
+            select(
+                Message.channel_id,
+                func.count().label("msg_count")
+            )
+            .where(Message.channel_id.in_(list(all_channel_ids_for_count)))
             .where(Message.published_at >= week_ago)
+            .group_by(Message.channel_id)
         )
-        overview.append(
-            {
-                "id": str(collection.id),
-                "name": collection.name,
-                "message_count_7d": count_result.scalar() or 0,
-                "channel_count": len(channel_ids),
-                "created_at": collection.created_at,
-            }
-        )
+        channel_msg_counts = {row.channel_id: row.msg_count for row in channel_message_counts_result.all()}
+        
+        # Aggregate message counts per collection
+        for cid, chnl_ids in collection_channel_ids.items():
+            message_counts[cid] = sum(channel_msg_counts.get(ch_id, 0) for ch_id in chnl_ids)
+    
+    # Step 6: Build the response
+    overview = []
+    for collection in collections:
+        cid = collection.id
+        if collection.is_global:
+            ch_count = global_channel_count
+        else:
+            ch_count = channel_counts.get(cid, 0)
+        
+        overview.append({
+            "id": str(cid),
+            "name": collection.name,
+            "message_count_7d": message_counts.get(cid, 0),
+            "channel_count": ch_count,
+            "created_at": collection.created_at,
+        })
+    
     return {"collections": overview}
 
 
@@ -557,7 +618,7 @@ async def export_collection_messages(
                 message.is_duplicate,
             ])
         output.seek(0)
-        filename = f"telescope-collection-{collection_id}.csv"
+        filename = f"osfeed-collection-{collection_id}.csv"
         return StreamingResponse(
             iter([output.getvalue()]),
             media_type="text/csv",
@@ -572,7 +633,7 @@ async def export_collection_messages(
         html_lines = [
             "<!DOCTYPE html>",
             "<html lang='fr'>",
-            "<head><meta charset='utf-8'><title>TeleScope - Collection Export</title>",
+            "<head><meta charset='utf-8'><title>OSFeed - Collection Export</title>",
             "<style>body{font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;padding:24px;}h1{font-size:20px;}article{margin:16px 0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;}small{color:#64748b;}</style>",
             "</head><body>",
             f"<h1>Collection: {escape(collection.name)}</h1>",
@@ -593,7 +654,7 @@ async def export_collection_messages(
         return StreamingResponse(
             iter([html]),
             media_type="text/html",
-            headers={"Content-Disposition": f"attachment; filename=telescope-collection-{collection_id}.html"},
+            headers={"Content-Disposition": f"attachment; filename=osfeed-collection-{collection_id}.html"},
         )
 
     if format == "pdf":
@@ -605,7 +666,7 @@ async def export_collection_messages(
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
         pdf.set_font("Helvetica", size=14)
-        pdf.cell(0, 10, f"TeleScope - {collection.name}", ln=True)
+        pdf.cell(0, 10, f"OSFeed - {collection.name}", ln=True)
         pdf.set_font("Helvetica", size=11)
         for message, channel in rows:
             header = f"{channel.title} (@{channel.username}) - {message.published_at}"
@@ -624,7 +685,7 @@ async def export_collection_messages(
             BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=telescope-collection-{collection_id}.pdf",
+                "Content-Disposition": f"attachment; filename=osfeed-collection-{collection_id}.pdf",
             },
         )
 

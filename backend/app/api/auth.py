@@ -1,4 +1,4 @@
-"""Authentication API routes for TeleScope."""
+"""Authentication API routes for OSFeed."""
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -150,6 +150,7 @@ async def request_data_deletion(
     # 3. Keep audit logs for legal compliance
     # For now, we just mark the account as inactive
 
+
     user.is_active = False
     await db.commit()
 
@@ -157,3 +158,19 @@ async def request_data_deletion(
         "status": "success",
         "message": "Your account has been deactivated. Personal data will be anonymized within 30 days.",
     }
+
+
+@router.post("/logout", summary="Logout user")
+async def logout(
+    user: User = Depends(current_active_user),
+    user_manager: BaseUserManager = Depends(get_user_manager),
+):
+    """Logout the current user by invalidating their refresh token."""
+    await user_manager.user_db.update(
+        user,
+        {
+            "refresh_token_hash": None,
+            "refresh_token_expires_at": None,
+        },
+    )
+    return JSONResponse({"message": "Successfully logged out"})

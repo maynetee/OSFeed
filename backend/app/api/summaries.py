@@ -169,7 +169,7 @@ async def export_summary_pdf(
         raise HTTPException(status_code=403, detail="Not authorized to access this summary")
 
     pdf_bytes = _render_summary_pdf(summary)
-    filename = f"telescope-summary-{summary_id}.pdf"
+    filename = f"osfeed-summary-{summary_id}.pdf"
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",

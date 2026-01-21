@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AddChannelDialog } from '@/components/channels/add-channel-dialog'
 import { ChannelList } from '@/components/channels/channel-list'
 import { EmptyState } from '@/components/common/empty-state'
-import { channelsApi, messagesApi, collectionsApi } from '@/lib/api/client'
+import { channelsApi, collectionsApi } from '@/lib/api/client'
 import { useTranslation } from 'react-i18next'
 
 export function ChannelsPage() {
@@ -27,6 +27,14 @@ export function ChannelsPage() {
   const channelsQuery = useQuery({
     queryKey: ['channels'],
     queryFn: async () => (await channelsApi.list()).data,
+    refetchInterval: (data) => {
+      const channels = Array.isArray(data) ? data : []
+      const hasActiveJob = channels.some(
+        (channel) =>
+          channel.fetch_job?.status === 'queued' || channel.fetch_job?.status === 'running',
+      )
+      return hasActiveJob ? 3000 : false
+    },
   })
   const collectionsQuery = useQuery({
     queryKey: ['collections'],
@@ -35,7 +43,17 @@ export function ChannelsPage() {
 
   const addChannel = useMutation({
     mutationFn: (username: string) => channelsApi.add(username),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
+    onSuccess: (response) => {
+      const newChannel = response.data
+      queryClient.setQueryData(['channels'], (current) => {
+        const channels = Array.isArray(current) ? current : []
+        if (channels.some((channel) => channel.id === newChannel.id)) {
+          return channels
+        }
+        return [newChannel, ...channels]
+      })
+      queryClient.invalidateQueries({ queryKey: ['channels'] })
+    },
   })
 
   const deleteChannel = useMutation({
@@ -43,12 +61,7 @@ export function ChannelsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
   })
 
-  const fetchHistorical = useMutation({
-    mutationFn: ({ id, days }: { id: string; days: number }) =>
-      messagesApi.fetchHistorical(id, days),
-  })
-
-  const channels = channelsQuery.data ?? []
+  const channels = Array.isArray(channelsQuery.data) ? channelsQuery.data : []
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,7 +88,6 @@ export function ChannelsPage() {
           channels={channels}
           collections={collectionsQuery.data ?? []}
           onView={(id) => navigate(`/channels/${id}`)}
-          onFetch={(id, days) => fetchHistorical.mutate({ id, days })}
           onDelete={(id) => deleteChannel.mutate(id)}
         />
       )}

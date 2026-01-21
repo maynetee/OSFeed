@@ -6,6 +6,8 @@ import types
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 if "sentence_transformers" not in sys.modules:
     sentence_stub = types.ModuleType("sentence_transformers")
 
@@ -19,7 +21,12 @@ if "sentence_transformers" not in sys.modules:
     sentence_stub.SentenceTransformer = _DummyEmbedder
     sys.modules["sentence_transformers"] = sentence_stub
 
-from app.models.channel import Channel  # noqa: F401
+# Import all models to ensure registry is populated in the correct order
+# This avoids "failed to locate a name" errors in SQLAlchemy's relationship resolution
+from app.models.summary import Summary  # Added this import
+from app.models.user import User
+from app.models.channel import Channel
+from app.models.fetch_job import FetchJob
 from app.models.message import Message
 from app.services.deduplicator import DeduplicationService
 import app.services.deduplicator as dedup_module
@@ -50,7 +57,7 @@ class _FakeVectorStore:
     def is_ready(self) -> bool:
         return True
 
-    def upsert_texts(self, items: list[dict]) -> list[str]:
+    async def upsert_texts(self, items: list[dict]) -> list[str]:
         ids: list[str] = []
         for item in items:
             vector_id = str(item.get("id") or uuid.uuid4())
@@ -61,7 +68,7 @@ class _FakeVectorStore:
             ids.append(vector_id)
         return ids
 
-    def query_similar(self, text: str, top_k: int = 5, filter: dict | None = None) -> list[dict]:
+    async def query_similar(self, text: str, top_k: int = 5, filter: dict | None = None) -> list[dict]:
         query_vector = _embed_text(text)
         matches: list[dict] = []
         cutoff = None
@@ -90,7 +97,8 @@ def _build_message(channel_id: uuid.UUID, telegram_id: int, text: str, published
     )
 
 
-def test_deduplication_marks_similar_messages(monkeypatch) -> None:
+@pytest.mark.asyncio
+async def test_deduplication_marks_similar_messages(monkeypatch) -> None:
     fake_store = _FakeVectorStore()
     monkeypatch.setattr(dedup_module, "vector_store", fake_store)
 
@@ -117,7 +125,7 @@ def test_deduplication_marks_similar_messages(monkeypatch) -> None:
         base_time + timedelta(minutes=2),
     )
 
-    deduper.mark_duplicates([message_a, message_b, message_c])
+    await deduper.mark_duplicates([message_a, message_b, message_c])
 
     assert message_a.is_duplicate is False
     assert message_a.duplicate_group_id == message_a.id

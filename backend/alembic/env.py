@@ -13,10 +13,20 @@ from app.database import Base
 from app.config import get_settings
 
 # Import all models so Alembic can detect them
-from app.models.channel import Channel
-from app.models.message import Message
-from app.models.summary import Summary
-from app.models.user import User
+from app.models import (
+    Channel,
+    FetchJob,
+    Message,
+    MessageTranslation,
+    Summary,
+    User,
+    Collection,
+    CollectionShare,
+    AuditLog,
+    Alert,
+    ApiUsage,
+    NarrativeCluster,
+)
 
 # this is the Alembic Config object
 config = context.config

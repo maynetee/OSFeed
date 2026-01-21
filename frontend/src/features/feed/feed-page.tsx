@@ -1,21 +1,33 @@
-import { useMemo, useState } from 'react'
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useInfiniteQuery, useQuery, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
+import { RefreshCw, Radio } from 'lucide-react'
 
 import { ExportDialog } from '@/components/exports/export-dialog'
 import { MessageFeed } from '@/components/messages/message-feed'
 import { MessageFilters } from '@/components/messages/message-filters'
 import { Button } from '@/components/ui/button'
-import { channelsApi, collectionsApi, messagesApi } from '@/lib/api/client'
+import { channelsApi, collectionsApi, messagesApi, Message, MessageListResponse } from '@/lib/api/client'
+import { cn } from '@/lib/cn'
+import { useMessageStream } from '@/hooks/use-message-stream'
 import { useFilterStore } from '@/stores/filter-store'
 
+type FeedQueryData = InfiniteData<MessageListResponse>
+
 export function FeedPage() {
+  const queryClient = useQueryClient()
   const channelIds = useFilterStore((state) => state.channelIds)
   const dateRange = useFilterStore((state) => state.dateRange)
   const collectionIds = useFilterStore((state) => state.collectionIds)
+  const setChannelIds = useFilterStore((state) => state.setChannelIds)
+  const setCollectionIds = useFilterStore((state) => state.setCollectionIds)
+  const filtersTouched = useFilterStore((state) => state.filtersTouched)
+  const resetFilters = useFilterStore((state) => state.resetFilters)
   const [exportOpen, setExportOpen] = useState(false)
   const { t } = useTranslation()
+  const [lastMessageTime, setLastMessageTime] = useState<Date | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const channelsQuery = useQuery({
     queryKey: ['channels'],
@@ -27,15 +39,44 @@ export function FeedPage() {
     queryFn: async () => (await collectionsApi.list()).data,
   })
 
-  const rangeDays = dateRange === '24h' ? 1 : dateRange === '7d' ? 7 : 30
+  const rangeDays = dateRange === '24h' ? 1 : dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : null
 
   const activeChannelIds = useMemo(() => {
+    const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
+    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const validChannelIds = channelIds.filter((id) => availableChannelIds.has(id))
+    const validCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
     const collectionChannelIds =
       collectionsQuery.data
-        ?.filter((collection) => collectionIds.includes(collection.id))
+        ?.filter((collection) => validCollectionIds.includes(collection.id))
         .flatMap((collection) => collection.channel_ids) ?? []
-    return Array.from(new Set([...channelIds, ...collectionChannelIds]))
-  }, [collectionsQuery.data, collectionIds, channelIds])
+    const scopedIds = [...validChannelIds, ...collectionChannelIds].filter((id) =>
+      availableChannelIds.has(id),
+    )
+    return Array.from(new Set(scopedIds))
+  }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds])
+
+  useEffect(() => {
+    const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
+    const nextChannelIds = channelIds.filter((id) => availableChannelIds.has(id))
+    if (nextChannelIds.length !== channelIds.length) {
+      setChannelIds(nextChannelIds)
+    }
+    if (!filtersTouched && (channelIds.length > 0 || collectionIds.length > 0)) {
+      resetFilters()
+    }
+  }, [channelsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds])
+
+  useEffect(() => {
+    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const nextCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
+    if (nextCollectionIds.length !== collectionIds.length) {
+      setCollectionIds(nextCollectionIds)
+    }
+    if (!filtersTouched && (channelIds.length > 0 || collectionIds.length > 0)) {
+      resetFilters()
+    }
+  }, [collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setCollectionIds])
 
   const messagesQuery = useInfiniteQuery({
     queryKey: ['messages', activeChannelIds, dateRange],
@@ -46,7 +87,7 @@ export function FeedPage() {
           limit: 20,
           offset: pageParam,
           channel_ids: activeChannelIds.length ? activeChannelIds : undefined,
-          start_date: subDays(new Date(), rangeDays).toISOString(),
+          start_date: rangeDays ? subDays(new Date(), rangeDays).toISOString() : undefined,
         })
       ).data
     },
@@ -56,10 +97,53 @@ export function FeedPage() {
     },
   })
 
+  const { isConnected } = useMessageStream({
+    channelIds: activeChannelIds,
+    onMessages: (newMessages, isRealtime) => {
+      if (isRealtime && newMessages.length > 0) {
+        setLastMessageTime(new Date())
+        queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange], (oldData) => {
+          if (!oldData) return oldData
+          const newPages = [...oldData.pages]
+          if (newPages.length > 0) {
+            // Filter out existing messages to avoid duplicates
+            const existingIds = new Set(newPages.flatMap((p) => p.messages).map((m) => m.id))
+            const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id))
+            
+            if (uniqueNewMessages.length > 0) {
+                newPages[0] = {
+                  ...newPages[0],
+                  messages: [...uniqueNewMessages, ...newPages[0].messages]
+                }
+            }
+          }
+          return {
+            ...oldData,
+            pages: newPages
+          }
+        })
+      }
+    }
+  })
+
+  const manualRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+        await channelsApi.refresh(activeChannelIds)
+        // Stream will pick up new messages automatically
+    } catch (e) {
+        console.error(e)
+    } finally {
+        setIsRefreshing(false)
+    }
+  }
+
   const messages = useMemo(
     () => messagesQuery.data?.pages.flatMap((page) => page.messages) ?? [],
     [messagesQuery.data],
   )
+  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0
+  const totalChannels = (channelsQuery.data ?? []).length
 
   return (
     <div className="flex flex-col gap-6">
@@ -68,11 +152,52 @@ export function FeedPage() {
           <p className="text-sm text-foreground/60">{t('feed.subtitle')}</p>
           <h2 className="text-2xl font-semibold">{t('feed.title')}</h2>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 text-xs text-foreground/60 sm:text-sm">
+            {isConnected ? (
+                <span className="flex items-center gap-1.5 text-green-600">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
+                    </span>
+                    Live
+                </span>
+            ) : (
+                <span className="flex items-center gap-1 text-yellow-600">
+                    <Radio className="h-3 w-3" />
+                    Connecting...
+                </span>
+            )}
+            {lastMessageTime && (
+                <span className="text-muted-foreground ml-2">
+                    Last update: {lastMessageTime.toLocaleTimeString()}
+                </span>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => manualRefresh()}
+            disabled={isRefreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+            <span className="hidden sm:inline">{t('feed.refresh')}</span>
+          </Button>
           <Button variant="outline">{t('feed.filters')}</Button>
           <Button onClick={() => setExportOpen(true)}>{t('feed.export')}</Button>
         </div>
       </div>
+
+      {hasActiveFilters ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-2 text-xs text-foreground/70">
+          <span>
+            {t('filters.active', { count: activeChannelIds.length, total: totalChannels })}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
+            {t('filters.clear')}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_3fr]">
         <MessageFilters
@@ -104,7 +229,7 @@ export function FeedPage() {
         onOpenChange={setExportOpen}
         filters={{
           channel_ids: activeChannelIds.length ? activeChannelIds : undefined,
-          start_date: subDays(new Date(), rangeDays).toISOString(),
+          start_date: rangeDays ? subDays(new Date(), rangeDays).toISOString() : undefined,
         }}
       />
     </div>

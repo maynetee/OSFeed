@@ -12,14 +12,33 @@ export function ChannelDetailPage() {
 
   const channelQuery = useQuery({
     queryKey: ['channels', id],
-    queryFn: async () => (await channelsApi.list()).data.find((channel) => channel.id === id),
+    queryFn: async () => (await channelsApi.get(id as string)).data,
     enabled: Boolean(id),
+    // Only poll when fetch job is active, and reduce frequency
+    refetchInterval: (query) => {
+      // Don't poll if tab is not visible
+      if (document.visibilityState !== 'visible') return false
+      const status = query.state.data?.fetch_job?.status
+      if (status === 'queued' || status === 'running') {
+        return 10_000 // 10s when actively fetching
+      }
+      return false // No polling when idle
+    },
   })
 
   const messagesQuery = useQuery({
     queryKey: ['channel-messages', id],
     queryFn: async () => (await messagesApi.list({ channel_id: id, limit: 20, offset: 0 })).data,
     enabled: Boolean(id),
+    refetchInterval: () => {
+      // Don't poll if tab is not visible
+      if (document.visibilityState !== 'visible') return false
+      const status = channelQuery.data?.fetch_job?.status
+      if (status === 'queued' || status === 'running') {
+        return 10_000 // 10s when actively fetching
+      }
+      return false // No polling when idle
+    },
   })
 
   return (

@@ -6,6 +6,7 @@ const resources = {
     translation: {
       navigation: {
         dashboard: 'Dashboard',
+        intelligence: 'Situation Room',
         feed: 'Feed',
         search: 'Search',
         digests: 'Digests',
@@ -52,7 +53,7 @@ const resources = {
         statusSummary: '{{duplicates}}% duplicates filtered, {{messages}} messages today.',
       },
       auth: {
-        loginTitle: 'Welcome to TeleScope',
+        loginTitle: 'Welcome to OSFeed',
         loginDescription: 'Sign in to find your essential signals.',
         email: 'Email',
         password: 'Password',
@@ -103,6 +104,8 @@ const resources = {
         subtitle: 'Real-time feed',
         filters: 'Filters',
         export: 'Export',
+        refresh: 'Refresh',
+        lastRefresh: 'Last refresh:',
       },
       filters: {
         title: 'Filters',
@@ -110,6 +113,9 @@ const resources = {
         period: 'Period',
         channels: 'Channels',
         collections: 'Collections',
+        clear: 'Show all',
+        active: 'Filters active: {{count}}/{{total}} channels',
+        all: 'All time',
       },
       search: {
         title: 'Search',
@@ -168,6 +174,19 @@ const resources = {
         viewMessages: 'View messages',
         history7: 'History 7d',
         history30: 'History 30d',
+        fetchStatus: 'Fetch:',
+        fetchQueued: 'Queued',
+        fetchRunning: 'Running',
+        fetchCompleted: 'Completed',
+        fetchFailed: 'Failed',
+        fetchStageFetching: 'Fetching',
+        fetchStageInfo: 'Channel info',
+        fetchStageChecking: 'Checking',
+        fetchStageTranslating: 'Translating',
+        fetchStageSaving: 'Saving',
+        fetchNew: '{{count}} new',
+        fetchTotal: '{{count}} total',
+        fetchProgress: '{{done}} / {{total}} translated',
         delete: 'Delete',
         assignCollections: 'Collections',
         assignCollectionsTitle: 'Assign collections',
@@ -272,6 +291,7 @@ const resources = {
         similar: 'View similar',
         copy: 'Copy',
         export: 'Export',
+        openTelegram: 'Open on Telegram',
         similarTitle: 'Similar messages',
         similarLoading: 'Loading similarities...',
         similarEmpty: 'No similar messages found.',
@@ -298,6 +318,7 @@ const resources = {
     translation: {
       navigation: {
         dashboard: 'Dashboard',
+        intelligence: 'Situation Room',
         feed: 'Fil',
         search: 'Recherche',
         digests: 'Digests',
@@ -344,7 +365,7 @@ const resources = {
         statusSummary: '{{duplicates}}% duplicatas filtres, {{messages}} messages aujourd’hui.',
       },
       auth: {
-        loginTitle: 'Bienvenue sur TeleScope',
+        loginTitle: 'Bienvenue sur OSFeed',
         loginDescription: 'Connectez-vous pour retrouver vos signaux essentiels.',
         email: 'Email',
         password: 'Mot de passe',
@@ -402,6 +423,9 @@ const resources = {
         period: 'Periode',
         channels: 'Canaux',
         collections: 'Collections',
+        clear: 'Tout afficher',
+        active: 'Filtres actifs : {{count}}/{{total}} canaux',
+        all: 'Tout',
       },
       search: {
         title: 'Recherche',
@@ -460,6 +484,19 @@ const resources = {
         viewMessages: 'Voir messages',
         history7: 'Historique 7j',
         history30: 'Historique 30j',
+        fetchStatus: 'Collecte:',
+        fetchQueued: 'En file',
+        fetchRunning: 'En cours',
+        fetchCompleted: 'Terminee',
+        fetchFailed: 'Echec',
+        fetchStageFetching: 'Collecte',
+        fetchStageInfo: 'Infos canal',
+        fetchStageChecking: 'Verification',
+        fetchStageTranslating: 'Traduction',
+        fetchStageSaving: 'Sauvegarde',
+        fetchNew: '{{count}} nouveaux',
+        fetchTotal: '{{count}} total',
+        fetchProgress: '{{done}} / {{total}} traduits',
         delete: 'Supprimer',
         assignCollections: 'Collections',
         assignCollectionsTitle: 'Assigner aux collections',
@@ -564,6 +601,7 @@ const resources = {
         similar: 'Voir similaires',
         copy: 'Copier',
         export: 'Exporter',
+        openTelegram: 'Ouvrir sur Telegram',
         similarTitle: 'Messages similaires',
         similarLoading: 'Chargement des similitudes...',
         similarEmpty: 'Aucun message similaire trouve.',
@@ -589,7 +627,7 @@ const resources = {
 }
 
 const storedLanguage =
-  typeof window !== 'undefined' ? localStorage.getItem('telescope_language') : null
+  typeof window !== 'undefined' ? localStorage.getItem('osfeed_language') : null
 
 i18n.use(initReactI18next).init({
   resources,

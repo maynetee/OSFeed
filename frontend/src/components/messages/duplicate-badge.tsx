@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { useTranslation } from 'react-i18next'
 
@@ -6,7 +7,7 @@ interface DuplicateBadgeProps {
   score?: number | null
 }
 
-export function DuplicateBadge({ isDuplicate, score }: DuplicateBadgeProps) {
+export const DuplicateBadge = memo(function DuplicateBadge({ isDuplicate, score }: DuplicateBadgeProps) {
   const { t } = useTranslation()
 
   if (!isDuplicate) return null
@@ -17,4 +18,4 @@ export function DuplicateBadge({ isDuplicate, score }: DuplicateBadgeProps) {
       {typeof score === 'number' ? ` ${score}%` : ''}
     </Badge>
   )
-}
+})

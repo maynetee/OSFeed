@@ -16,7 +16,7 @@ export function SettingsPage() {
   const handleLanguageChange = async (value: string) => {
     setIsTranslating(true)
     i18n.changeLanguage(value)
-    localStorage.setItem('telescope_language', value)
+    localStorage.setItem('osfeed_language', value)
     try {
       await messagesApi.translate(value)
       queryClient.invalidateQueries({ queryKey: ['messages'] })

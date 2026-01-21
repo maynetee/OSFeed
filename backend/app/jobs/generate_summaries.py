@@ -1,8 +1,14 @@
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
+
 from sqlalchemy import select
+
 from app.database import AsyncSessionLocal
 from app.models.user import User
 from app.services.summarizer import generate_daily_summary
+
+
+logger = logging.getLogger(__name__)
 
 
 async def generate_summaries_job():
@@ -12,7 +18,8 @@ async def generate_summaries_job():
     Note: generate_daily_summary now manages its own DB sessions internally
     to avoid holding locks during the slow LLM API call.
     """
-    print(f"[{datetime.utcnow()}] Starting summary generation job...")
+    now = datetime.now(timezone.utc)
+    logger.info(f"[{now.isoformat()}] Starting summary generation job...")
 
     try:
         async with AsyncSessionLocal() as session:
@@ -21,13 +28,14 @@ async def generate_summaries_job():
 
         if not users:
             summary = await generate_daily_summary()
-            print(f"Generated daily summary (ID: {summary.id}) with {summary.message_count} messages")
+            logger.info(f"Generated daily summary (ID: {summary.id}) with {summary.message_count} messages")
         else:
             for user in users:
                 summary = await generate_daily_summary(user_id=user.id)
-                print(f"Generated daily summary for {user.email} (ID: {summary.id})")
+                logger.info(f"Generated daily summary for {user.email} (ID: {summary.id})")
 
     except Exception as e:
-        print(f"Error generating summary: {e}")
+        logger.error(f"Error generating summary: {e}", exc_info=True)
 
-    print(f"[{datetime.utcnow()}] Summary generation job completed")
+    end_time = datetime.now(timezone.utc)
+    logger.info(f"[{end_time.isoformat()}] Summary generation job completed")

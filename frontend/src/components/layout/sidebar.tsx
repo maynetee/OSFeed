@@ -8,6 +8,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  Globe,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -18,6 +19,7 @@ import { statsApi } from '@/lib/api/client'
 
 const navItems = [
   { key: 'dashboard', to: '/', icon: LayoutDashboard },
+  { key: 'intelligence', to: '/intelligence', icon: Globe },
   { key: 'feed', to: '/feed', icon: Radio },
   { key: 'search', to: '/search', icon: Search },
   { key: 'digests', to: '/digests', icon: BookOpenText },
@@ -51,12 +53,12 @@ export function Sidebar() {
     >
       <div className={cn('flex items-center gap-3 px-2', collapsed && 'justify-center')}>
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-          <span className="text-lg font-semibold">T</span>
+          <span className="text-lg font-semibold">O</span>
         </div>
         {!collapsed && (
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground-muted">
-              TeleScope
+              OSFeed
             </p>
             <p className="text-xs text-foreground-muted">{t('branding.tagline')}</p>
           </div>

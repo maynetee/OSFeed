@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional, Dict, Any
 from uuid import UUID
+from app.schemas.fetch_job import FetchJobStatus
 
 
 class ChannelBase(BaseModel):
@@ -14,7 +15,7 @@ class ChannelCreate(ChannelBase):
 
 class ChannelResponse(ChannelBase):
     id: UUID
-    telegram_id: int
+    telegram_id: Optional[int] = None
     title: str
     description: Optional[str] = None
     detected_language: Optional[str] = None
@@ -25,5 +26,6 @@ class ChannelResponse(ChannelBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     last_fetched_at: Optional[datetime] = None
+    fetch_job: Optional[FetchJobStatus] = None
 
     model_config = ConfigDict(from_attributes=True)

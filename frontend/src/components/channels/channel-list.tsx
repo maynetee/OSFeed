@@ -5,11 +5,10 @@ interface ChannelListProps {
   channels: Channel[]
   collections?: Collection[]
   onView?: (id: string) => void
-  onFetch?: (id: string, days: number) => void
   onDelete?: (id: string) => void
 }
 
-export function ChannelList({ channels, collections = [], onView, onFetch, onDelete }: ChannelListProps) {
+export function ChannelList({ channels, collections = [], onView, onDelete }: ChannelListProps) {
   return (
     <div className="space-y-4">
       {channels.map((channel) => (
@@ -18,7 +17,6 @@ export function ChannelList({ channels, collections = [], onView, onFetch, onDel
           channel={channel}
           collections={collections}
           onView={onView}
-          onFetch={onFetch}
           onDelete={onDelete}
         />
       ))}

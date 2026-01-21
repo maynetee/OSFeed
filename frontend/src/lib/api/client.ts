@@ -74,6 +74,7 @@ export const authApi = {
   register: (email: string, password: string) =>
     api.post('/api/auth/register', { email, password }),
   me: () => api.get('/api/auth/me'),
+  logout: () => api.post('/api/auth/logout'),
 }
 
 const buildParams = (params: Record<string, unknown>) => {
@@ -92,7 +93,7 @@ const buildParams = (params: Record<string, unknown>) => {
 // Types
 export interface Channel {
   id: string
-  telegram_id: string
+  telegram_id: string | null
   username: string
   title: string
   description: string | null
@@ -101,11 +102,29 @@ export interface Channel {
   tags?: string[] | null
   created_at: string
   last_fetched_at: string | null
+  fetch_job?: FetchJobStatus | null
+}
+
+export interface FetchJobStatus {
+  id: string
+  channel_id: string
+  days: number
+  status: string
+  stage?: string | null
+  total_messages?: number | null
+  new_messages?: number | null
+  processed_messages?: number | null
+  error_message?: string | null
+  created_at: string
+  started_at?: string | null
+  finished_at?: string | null
 }
 
 export interface Message {
   id: string
   channel_id: string
+  channel_title?: string | null
+  channel_username?: string | null
   telegram_message_id: number
   original_text: string
   translated_text: string | null
@@ -243,8 +262,17 @@ export interface MessagesByChannel {
 // API functions
 export const channelsApi = {
   list: () => api.get<Channel[]>('/api/channels'),
+  get: (id: string) => api.get<Channel>(`/api/channels/${id}`),
   add: (username: string) => api.post<Channel>('/api/channels', { username }),
   delete: (id: string) => api.delete(`/api/channels/${id}`),
+  refresh: (channelIds?: string[]) =>
+    api.post<{ job_ids: string[] }>('/api/channels/refresh', {
+      channel_ids: channelIds,
+    }),
+  getJobsStatus: (jobIds: string[]) =>
+    api.post<{ jobs: FetchJobStatus[] }>('/api/channels/fetch-jobs/status', {
+      job_ids: jobIds,
+    }),
 }
 
 export const messagesApi = {
@@ -327,6 +355,7 @@ export const summariesApi = {
 
 export const collectionsApi = {
   list: () => api.get<Collection[]>('/api/collections'),
+  get: (id: string) => api.get<Collection>(`/api/collections/${id}`),
   create: (payload: {
     name: string
     description?: string

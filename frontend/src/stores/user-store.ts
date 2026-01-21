@@ -24,6 +24,12 @@ interface UserState {
   setHasHydrated: (state: boolean) => void
 }
 
+// Promise-based hydration: resolves when hydration completes (success or error)
+let resolveHydration: () => void = () => { }
+export const hydrationPromise = new Promise<void>((resolve) => {
+  resolveHydration = resolve
+})
+
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
@@ -36,7 +42,7 @@ export const useUserStore = create<UserState>()(
       setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
-      name: 'telescope-auth',
+      name: 'osfeed-auth',
       partialize: (state) => ({ user: state.user, tokens: state.tokens }),
       onRehydrateStorage: () => (_state, error) => {
         if (error) {
@@ -44,16 +50,46 @@ export const useUserStore = create<UserState>()(
         }
         // Always mark as hydrated, even on error
         useUserStore.setState({ _hasHydrated: true })
+        // Resolve the hydration promise deterministically
+        resolveHydration()
       },
     }
   )
 )
 
-// Ensure hydration happens even if onRehydrateStorage doesn't fire
+/**
+ * Wait for store hydration to complete.
+ * Returns immediately if already hydrated, otherwise waits for hydration promise.
+ */
+export async function waitForHydration(): Promise<void> {
+  if (useUserStore.getState()._hasHydrated) {
+    return
+  }
+  await hydrationPromise
+}
+
+// SSR guard: if running in browser and hydration hasn't happened after persist init,
+// manually trigger rehydrate. This handles edge cases where storage is unavailable.
 if (typeof window !== 'undefined') {
+  // Use persist API's rehydrate if hydration hasn't completed after store creation
+  const unsubscribe = useUserStore.persist.onFinishHydration(() => {
+    useUserStore.setState({ _hasHydrated: true })
+    resolveHydration()
+    unsubscribe()
+  })
+
+  // If already hydrated (synchronous storage), resolve immediately
+  if (useUserStore.persist.hasHydrated()) {
+    useUserStore.setState({ _hasHydrated: true })
+    resolveHydration()
+  }
+
+  // Safety timeout: force hydration flag if it takes too long (e.g. storage issues)
   setTimeout(() => {
     if (!useUserStore.getState()._hasHydrated) {
+      console.warn('Hydration timed out, forcing hydrated state')
       useUserStore.setState({ _hasHydrated: true })
+      resolveHydration()
     }
-  }, 100)
+  }, 500)
 }

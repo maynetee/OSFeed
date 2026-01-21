@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 
 const login = async (page: Page) => {
   await page.addInitScript(() => {
-    localStorage.setItem('telescope_language', 'fr')
+    localStorage.setItem('osfeed_language', 'fr')
   })
   await page.goto('/login')
   await page.getByRole('button', { name: 'Se connecter' }).click()

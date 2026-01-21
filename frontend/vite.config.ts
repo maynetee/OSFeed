@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
       manifest: {
-        name: 'TeleScope',
-        short_name: 'TeleScope',
+        name: 'OSFeed',
+        short_name: 'OSFeed',
         description: 'Signal intelligence from Telegram sources.',
         theme_color: '#0ea5e9',
         background_color: '#f8fafc',

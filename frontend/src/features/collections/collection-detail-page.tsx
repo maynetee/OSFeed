@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { RefreshCw } from 'lucide-react'
 
 import { collectionsApi, messagesApi, summariesApi } from '@/lib/api/client'
+import type { Collection } from '@/lib/api/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { MessageFeed } from '@/components/messages/message-feed'
@@ -14,6 +16,8 @@ import { CollectionAlerts } from '@/components/collections/collection-alerts'
 import { CollectionShares } from '@/components/collections/collection-shares'
 import { DigestCard } from '@/components/digests/digest-card'
 import { Timestamp } from '@/components/common/timestamp'
+import { cn } from '@/lib/cn'
+import { useMessagePolling } from '@/hooks/use-message-polling'
 
 export function CollectionDetailPage() {
   const { id } = useParams()
@@ -25,7 +29,7 @@ export function CollectionDetailPage() {
 
   const collectionQuery = useQuery({
     queryKey: ['collections', id],
-    queryFn: async () => (await collectionsApi.list()).data.find((collection) => collection.id === id),
+    queryFn: async () => (await collectionsApi.get(id as string)).data,
     enabled: Boolean(id),
   })
 
@@ -70,7 +74,40 @@ export function CollectionDetailPage() {
   const updateCollection = useMutation({
     mutationFn: (payload: Parameters<typeof collectionsApi.update>[1]) =>
       collectionsApi.update(id as string, payload),
-    onSuccess: () => {
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ['collections'] })
+      await queryClient.cancelQueries({ queryKey: ['collections', id] })
+
+      const previousCollections = queryClient.getQueryData<Collection[]>(['collections'])
+      const previousCollection = queryClient.getQueryData<Collection>(['collections', id])
+
+      if (previousCollections) {
+        queryClient.setQueryData<Collection[]>(
+          ['collections'],
+          previousCollections.map((collection) =>
+            collection.id === id ? { ...collection, ...payload } : collection,
+          ),
+        )
+      }
+
+      if (previousCollection) {
+        queryClient.setQueryData<Collection>(['collections', id], {
+          ...previousCollection,
+          ...payload,
+        })
+      }
+
+      return { previousCollections, previousCollection }
+    },
+    onError: (_error, _payload, context) => {
+      if (context?.previousCollections) {
+        queryClient.setQueryData(['collections'], context.previousCollections)
+      }
+      if (context?.previousCollection) {
+        queryClient.setQueryData(['collections', id], context.previousCollection)
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['collections'] })
       queryClient.invalidateQueries({ queryKey: ['collections', id] })
       queryClient.invalidateQueries({ queryKey: ['collections', id, 'stats'] })
@@ -104,6 +141,16 @@ export function CollectionDetailPage() {
     link.click()
     window.URL.revokeObjectURL(url)
   }
+
+  const refetchMessages = useCallback(() => messagesQuery.refetch(), [messagesQuery.refetch])
+
+  const { lastRefreshFormatted, lastRefreshFull, isRefreshing, manualRefresh } = useMessagePolling(
+    refetchMessages,
+    {
+      interval: 20_000,
+      enabled: Boolean(collectionQuery.data?.channel_ids?.length),
+    }
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -144,7 +191,30 @@ export function CollectionDetailPage() {
 
       <Card>
         <CardContent className="py-6">
-          <h3 className="text-lg font-semibold">{t('collections.feedTitle')}</h3>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold">{t('collections.feedTitle')}</h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <div
+                className="text-xs text-foreground/60 sm:text-sm"
+                title={lastRefreshFull ?? undefined}
+              >
+                {t('feed.lastRefresh')}{' '}
+                <span className="font-mono font-semibold text-foreground/80">
+                  {lastRefreshFormatted}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => manualRefresh(collectionQuery.data?.channel_ids ?? [])}
+                disabled={isRefreshing}
+                className="gap-2"
+              >
+                <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+                <span className="hidden sm:inline">{t('feed.refresh')}</span>
+              </Button>
+            </div>
+          </div>
           <div className="mt-4">
             <MessageFeed
               messages={messages}

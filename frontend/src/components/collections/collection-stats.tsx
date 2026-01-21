@@ -1,15 +1,16 @@
+import { memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TrendChart } from '@/components/stats/trend-chart'
-import type { CollectionStats } from '@/lib/api/client'
+import type { CollectionStats as CollectionStatsData } from '@/lib/api/client'
 import { useTranslation } from 'react-i18next'
 
 interface CollectionStatsProps {
-  stats?: CollectionStats
+  stats?: CollectionStatsData
   isLoading?: boolean
 }
 
-export function CollectionStats({ stats, isLoading }: CollectionStatsProps) {
+export const CollectionStats = memo(function CollectionStats({ stats, isLoading }: CollectionStatsProps) {
   const { t } = useTranslation()
 
   if (isLoading && !stats) {
@@ -90,4 +91,4 @@ export function CollectionStats({ stats, isLoading }: CollectionStatsProps) {
       </div>
     </div>
   )
-}
+})

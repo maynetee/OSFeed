@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 import secrets
 
-# Get the project root (telescope/)
+# Get the project root (osfeed/)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     openrouter_api_key: str
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
 
-    # OpenAI API (Translations)
+    # OpenAI API (Translations & Embeddings)
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
@@ -30,13 +30,13 @@ class Settings(BaseSettings):
     # PostgreSQL Configuration
     postgres_host: str = "localhost"
     postgres_port: int = 5432
-    postgres_db: str = "telescope_db"
-    postgres_user: str = "telescope_user"
+    postgres_db: str = "osfeed_db"
+    postgres_user: str = "osfeed_user"
     postgres_password: str = ""
 
     # Legacy SQLite (for fallback/migration)
     use_sqlite: bool = False  # Set to True for local dev without PostgreSQL
-    sqlite_url: str = "sqlite+aiosqlite:///./data/telescope.db"
+    sqlite_url: str = "sqlite+aiosqlite:///./data/osfeed.db"
 
     @computed_field
     @property
@@ -63,22 +63,70 @@ class Settings(BaseSettings):
     telegram_base_delay: float = 1.0  # seconds
     telegram_max_delay: float = 300.0  # 5 minutes max
     telegram_jitter: bool = True
-    telegram_concurrent_channels: int = 3  # max parallel channel fetches
+    telegram_concurrent_channels: int = 10  # max parallel channel fetches
 
     # Qdrant Vector Store
     qdrant_url: str = ""
     qdrant_api_key: str = ""
-    qdrant_collection_name: str = "telescope-embeddings"
+    qdrant_collection_name: str = "osfeed-embeddings"
     qdrant_distance: str = "cosine"
     qdrant_timeout_seconds: float = 5.0
 
     # Redis Cache
     redis_url: str = ""
     redis_cache_ttl_seconds: int = 86400
+    enable_response_cache: bool = True
+    response_cache_ttl: int = 30
 
-    # Embeddings
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    embedding_dimension: int = 384
+    # Embeddings (UPDATED: OpenAI Defaults)
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimension: int = 1536
+
+    # Translation concurrency
+    translation_concurrency: int = 20  # Increased from 10 for better throughput
+
+    # Translation cost optimization
+    translation_default_model: str = "gemini-flash"  # Options: gemini-flash, gpt-4o-mini, google
+    translation_high_priority_model: str = "gpt-4o-mini"  # Model for high-priority messages
+    translation_skip_same_language: bool = True  # Skip if source == target
+    translation_skip_trivial: bool = True  # Skip URLs-only, emojis-only, etc.
+    translation_skip_short_words: list[str] = [
+        "ok",
+        "okay",
+        "yes",
+        "no",
+        "yep",
+        "nope",
+        "oui",
+        "non",
+        "si",
+        "ja",
+        "nein",
+        "\u0434\u0430",
+        "\u043d\u0435\u0442",
+    ]
+    translation_skip_short_max_chars: int = 2
+    translation_high_priority_hours: int = 24  # Messages < 24h = high priority
+    translation_normal_priority_days: int = 7  # Messages 1-7 days = normal priority
+    translation_high_quality_languages: list[str] = ["ru", "uk", "fr", "de", "es", "it"]
+
+    # Gemini API (for cost-effective translation)
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+
+    # Adaptive cache TTL
+    translation_cache_base_ttl: int = 604800  # 7 days base TTL
+    translation_cache_max_ttl: int = 2592000  # 30 days max TTL
+    translation_cache_hit_multiplier: float = 1.5  # TTL multiplier per hit
+
+    # Fetch parallelization
+    fetch_workers: int = 10  # Number of parallel fetch workers
+    fetch_channel_semaphore: int = 10  # Max concurrent Telegram operations
+
+    # Database pooling (PostgreSQL)
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_recycle: int = 1800
 
     # Deduplication
     dedup_similarity_threshold: float = 0.85

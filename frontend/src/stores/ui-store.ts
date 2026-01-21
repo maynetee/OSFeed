@@ -26,7 +26,7 @@ export const useUiStore = create<UiState>()(
         set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
     }),
     {
-      name: 'telescope-ui',
+      name: 'osfeed-ui',
     },
   ),
 )

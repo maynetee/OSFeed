@@ -9,8 +9,8 @@ import asyncpg
 def build_postgres_dsn():
     host = os.getenv("POSTGRES_HOST", "localhost")
     port = os.getenv("POSTGRES_PORT", "5432")
-    db = os.getenv("POSTGRES_DB", "telescope_db")
-    user = os.getenv("POSTGRES_USER", "telescope_user")
+    db = os.getenv("POSTGRES_DB", "osfeed_db")
+    user = os.getenv("POSTGRES_USER", "osfeed_user")
     password = os.getenv("POSTGRES_PASSWORD", "")
     if password:
         return f"postgresql://{user}:{password}@{host}:{port}/{db}"

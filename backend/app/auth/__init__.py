@@ -1,4 +1,4 @@
-"""Authentication package for TeleScope."""
+"""Authentication package for OSFeed."""
 from app.auth.users import (
     auth_backend,
     current_active_user,

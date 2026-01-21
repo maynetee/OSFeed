@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { MessageSquareText } from 'lucide-react'
+import { ExternalLink, MessageSquareText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
@@ -19,7 +19,7 @@ interface MessageCardProps {
   onExport?: (message: Message) => void
 }
 
-export function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
+export const MessageCard = memo(function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
   const { t } = useTranslation()
   const [similarOpen, setSimilarOpen] = useState(false)
   const similarityScore = message.similarity_score
@@ -33,18 +33,41 @@ export function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
   const showPropaganda =
     message.is_duplicate && typeof duplicateScore === 'number' && duplicateScore >= 80
 
+  const channelLabel = message.channel_title || message.channel_username || message.channel_id
+  const channelHandle = message.channel_username ? `@${message.channel_username}` : null
+  const telegramLink = message.channel_username
+    ? `https://t.me/${message.channel_username}/${message.telegram_message_id}`
+    : null
+
   const similarQuery = useQuery({
     queryKey: ['messages', message.id, 'similar'],
     queryFn: async () => (await messagesApi.similar(message.id, { top_k: 5 })).data,
     enabled: similarOpen,
   })
 
+  const handleOpenSimilar = useCallback(() => setSimilarOpen(true), [])
+  const handleCopy = useCallback(() => onCopy?.(message), [onCopy, message])
+  const handleExport = useCallback(() => onExport?.(message), [onExport, message])
+
   return (
     <Card className="animate-rise-in transition hover:border-primary/40">
       <CardContent className="flex flex-col gap-4 py-6">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/60">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-foreground">{message.channel_id}</span>
+            <span className="font-semibold text-foreground">{channelLabel}</span>
+            {channelHandle ? <span className="text-foreground/50">{channelHandle}</span> : null}
+            {telegramLink ? (
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-foreground/60 hover:text-foreground"
+              >
+                <a href={telegramLink} target="_blank" rel="noreferrer" aria-label={t('messages.openTelegram')}>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </Button>
+            ) : null}
             <Timestamp value={message.published_at} />
             {message.source_language ? <Badge variant="muted">{message.source_language}</Badge> : null}
             {message.translated_text ? <Badge variant="success">{t('messages.translated')}</Badge> : null}
@@ -86,13 +109,13 @@ export function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setSimilarOpen(true)}>
+          <Button variant="ghost" size="sm" onClick={handleOpenSimilar}>
             {t('messages.similar')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onCopy?.(message)}>
+          <Button variant="ghost" size="sm" onClick={handleCopy}>
             {t('messages.copy')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onExport?.(message)}>
+          <Button variant="ghost" size="sm" onClick={handleExport}>
             {t('messages.export')}
           </Button>
         </div>
@@ -112,7 +135,16 @@ export function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
                   <CardContent className="py-4">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/60">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-foreground">{similarMessage.channel_id}</span>
+                        <span className="font-semibold text-foreground">
+                          {similarMessage.channel_title ||
+                            similarMessage.channel_username ||
+                            similarMessage.channel_id}
+                        </span>
+                        {similarMessage.channel_username ? (
+                          <span className="text-foreground/50">
+                            @{similarMessage.channel_username}
+                          </span>
+                        ) : null}
                         <Timestamp value={similarMessage.published_at} />
                       </div>
                       {typeof similarMessage.similarity_score === 'number' ? (
@@ -135,4 +167,4 @@ export function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
       </Dialog>
     </Card>
   )
-}
+})

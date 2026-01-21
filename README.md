@@ -1,11 +1,11 @@
-# TeleScope
+# OSFeed
 
-TeleScope is a Telegram-first OSINT platform for collection, translation, deduplication, and daily digests.
+OSFeed is a Telegram-first OSINT platform for collection, translation, deduplication, and daily digests.
 
 ## Highlights
 
 - Telegram collection with flood-wait handling
-- LLM translation (OpenAI GPT-4o-mini) with fallback
+- LLM translation with model routing (Gemini Flash default, GPT-4o-mini for high-priority) + fallback
 - Vector deduplication (Qdrant) + semantic search hooks
 - Daily digests v2 (HTML + PDF export + key entities)
 - Collections to group channels, filter digests, and export scoped messages
@@ -27,30 +27,37 @@ TeleScope is a Telegram-first OSINT platform for collection, translation, dedupl
 - Refresh tokens + session rotation
 - API usage tracking (LLM cost monitoring)
 
-## Quickstart (local)
+## Quickstart (Full Docker)
+
+OSFeed runs entirely in Docker for both development and production. Hot-reloading is enabled via volume mounts.
 
 1) Start everything
-```
+```bash
 ./start.sh
 ```
+*This command starts Docker services, waits for readiness, and applies database migrations.*
 
 2) Open the app
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
-## Frontend dev
-
-```
-cd frontend
-npm install
-npm run dev
+3) Stop the app
+```bash
+./stop.sh
 ```
 
-Run E2E tests:
+## Logs & Debugging
+
+View logs for all services:
+```bash
+docker compose logs -f
 ```
-cd frontend
-npm run test:e2e
+
+View specific logs:
+```bash
+docker compose logs -f backend
+docker compose logs -f frontend
 ```
 
 ## Environment
@@ -70,30 +77,21 @@ The first run copies `.env.example` to `.env` if missing. Update `.env` with:
 
 ## PostgreSQL setup
 
-The default flow uses PostgreSQL via Docker Compose. The `start.sh` script:
-- starts PostgreSQL (unless `USE_SQLITE=true` or `SKIP_POSTGRES=1`)
-- runs Alembic migrations
-- optionally migrates SQLite data to PostgreSQL
+The `start.sh` script automatically handles PostgreSQL startup and migrations.
 
 ### Optional migration
 
-If you have an existing SQLite database in `data/telescope.db`, run:
-```
+If you have an existing SQLite database in `data/osfeed.db`, run:
+```bash
 MIGRATE_SQLITE=1 ./start.sh
 ```
 
-This will run:
-- `backend/scripts/migrate_sqlite_to_postgres.py`
-- after Alembic migrations
-
 ### Manual migration (alternative)
-```
+```bash
 docker compose up -d
-cd backend
-alembic upgrade head
-python3 scripts/migrate_sqlite_to_postgres.py --dry-run
-python3 scripts/migrate_sqlite_to_postgres.py
-python3 scripts/check_postgres.py
+docker compose exec backend alembic upgrade head
+# Migration script if needed:
+docker compose exec backend python scripts/migrate_sqlite_to_postgres.py
 ```
 
 ## API notes
@@ -106,6 +104,5 @@ python3 scripts/check_postgres.py
 
 ## Requirements
 
-- Python 3.11-3.13 (3.14 not supported by Pydantic yet)
-- Node.js
-- Docker + Docker Compose (PostgreSQL, Qdrant, Redis)
+- Docker + Docker Compose (PostgreSQL, Qdrant, Redis, Backend, Frontend)
+- No local Python/Node dependencies required!

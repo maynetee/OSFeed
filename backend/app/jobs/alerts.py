@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from sqlalchemy import select, func, or_
 from app.database import AsyncSessionLocal
@@ -7,6 +8,7 @@ from app.models.channel import Channel
 from app.models.message import Message
 from app.models.collection import collection_channels
 
+logger = logging.getLogger(__name__)
 
 def _should_run(alert: Alert) -> bool:
     if not alert.last_triggered_at:
@@ -20,7 +22,7 @@ def _should_run(alert: Alert) -> bool:
 
 
 async def evaluate_alerts_job():
-    print(f"[{datetime.utcnow()}] Starting alert evaluation job...")
+    logger.info(f"[{datetime.utcnow()}] Starting alert evaluation job...")
 
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(Alert).where(Alert.is_active == True))
@@ -92,4 +94,4 @@ async def evaluate_alerts_job():
 
         await session.commit()
 
-    print(f"[{datetime.utcnow()}] Alert evaluation job completed")
+    logger.info(f"[{datetime.utcnow()}] Alert evaluation job completed")

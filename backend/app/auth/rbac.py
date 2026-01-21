@@ -1,4 +1,4 @@
-"""Role-Based Access Control (RBAC) for TeleScope."""
+"""Role-Based Access Control (RBAC) for OSFeed."""
 from functools import wraps
 from typing import List, Callable
 

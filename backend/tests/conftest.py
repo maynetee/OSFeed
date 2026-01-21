@@ -1,5 +1,7 @@
 import os
 import asyncio
+import sqlite3
+from datetime import datetime, date
 from pathlib import Path
 
 import pytest
@@ -13,6 +15,10 @@ os.environ.setdefault("USE_SQLITE", "true")
 os.environ.setdefault("SQLITE_URL", "sqlite+aiosqlite:///./data/test.db")
 os.environ.setdefault("SCHEDULER_ENABLED", "false")
 os.environ.setdefault("API_USAGE_TRACKING_ENABLED", "false")
+
+# Avoid deprecated sqlite3 default datetime adapters in Python 3.12+.
+sqlite3.register_adapter(datetime, lambda value: value.isoformat(sep=" "))
+sqlite3.register_adapter(date, lambda value: value.isoformat())
 
 
 @pytest.fixture(scope="session")

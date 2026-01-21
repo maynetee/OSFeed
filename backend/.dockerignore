@@ -1,0 +1,27 @@
+# Virtual environments
+.venv/
+.venv.bak/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Test/dev artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+
+# Local data
+data/
+*.db
+*.sqlite
+
+# Misc
+.git/
+.env
+.env.*

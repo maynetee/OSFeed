@@ -1,42 +1,101 @@
-version: "3.9"
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: telescope-postgres
+  backend:
+    build: ./backend
+    container_name: osfeed-backend
     restart: unless-stopped
     env_file: .env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-telescope_db}
-      POSTGRES_USER: ${POSTGRES_USER:-telescope_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telescope_password}
+      POSTGRES_HOST: postgres
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  frontend:
+    build: 
+      context: ./frontend
+      target: development
+    container_name: osfeed-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: osfeed-postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
+      POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-osfeed_password}
     ports:
       - "5432:5432"
     volumes:
-      - telescope_postgres:/var/lib/postgresql/data
+      - osfeed_postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
   qdrant:
     image: qdrant/qdrant:v1.16.2
-    container_name: telescope-qdrant
+    container_name: osfeed-qdrant
     restart: unless-stopped
     ports:
       - "6333:6333"
     volumes:
-      - telescope_qdrant:/qdrant/storage
+      - osfeed_qdrant:/qdrant/storage
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
   redis:
     image: redis:7-alpine
-    container_name: telescope-redis
+    container_name: osfeed-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
-      - telescope_redis:/data
+      - osfeed_redis:/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
 volumes:
-  telescope_postgres:
-  telescope_qdrant:
-  telescope_redis:
+  osfeed_postgres:
+  osfeed_qdrant:
+  osfeed_redis:

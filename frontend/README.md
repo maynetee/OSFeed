@@ -1,4 +1,4 @@
-# TeleScope Frontend
+# OSFeed Frontend
 
 ## Demarrage
 
@@ -36,7 +36,7 @@ src/
 ## Internationalisation
 
 - Les libelles utilisent `react-i18next` (`src/app/i18n.ts`).
-- La langue active est stockee dans `localStorage` via `telescope_language`.
+- La langue active est stockee dans `localStorage` via `osfeed_language`.
 
 ## Exports
 

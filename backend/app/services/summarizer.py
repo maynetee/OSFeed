@@ -95,7 +95,10 @@ class SummarizerService:
                 ],
                 temperature=0.2,
             )
-            content = response.choices[0].message.content.strip()
+            raw_content = response.choices[0].message.content
+            if raw_content is None:
+                raise ValueError("OpenAI returned empty content")
+            content = raw_content.strip()
             if response.usage:
                 await record_api_usage(
                     provider="openai",
@@ -110,7 +113,7 @@ class SummarizerService:
                 raise ValueError("Failed to parse summary JSON")
             return data
         except Exception as e:
-            print(f"Summary generation failed: {e}")
+            logger.error(f"Summary generation failed: {e}")
             return {
                 "title": "Daily Digest",
                 "summary": "Failed to generate summary.",

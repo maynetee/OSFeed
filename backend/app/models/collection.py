@@ -1,5 +1,6 @@
 from sqlalchemy import Column, DateTime, String, Text, ForeignKey, Table, Boolean, JSON
 from sqlalchemy.dialects.postgresql import UUID
+from fastapi_users_db_sqlalchemy.generics import GUID
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -18,7 +19,7 @@ class Collection(Base):
     __tablename__ = "collections"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(GUID, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     color = Column(String(7), nullable=True)

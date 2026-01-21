@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,12 +12,27 @@ interface MessageFiltersProps {
 }
 
 export function MessageFilters({ channels, collections }: MessageFiltersProps) {
-  const channelIds = useFilterStore((state) => state.channelIds)
-  const dateRange = useFilterStore((state) => state.dateRange)
-  const collectionIds = useFilterStore((state) => state.collectionIds)
-  const setChannelIds = useFilterStore((state) => state.setChannelIds)
-  const setCollectionIds = useFilterStore((state) => state.setCollectionIds)
-  const setDateRange = useFilterStore((state) => state.setDateRange)
+  const {
+    channelIds,
+    dateRange,
+    collectionIds,
+    setChannelIds,
+    setCollectionIds,
+    setDateRange,
+    setFiltersTouched,
+    resetFilters,
+  } = useFilterStore(
+    useShallow((state) => ({
+      channelIds: state.channelIds,
+      dateRange: state.dateRange,
+      collectionIds: state.collectionIds,
+      setChannelIds: state.setChannelIds,
+      setCollectionIds: state.setCollectionIds,
+      setDateRange: state.setDateRange,
+      setFiltersTouched: state.setFiltersTouched,
+      resetFilters: state.resetFilters,
+    }))
+  )
   const { t } = useTranslation()
 
   const channelOptions = useMemo(
@@ -35,17 +51,32 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
           <p className="text-sm font-semibold">{t('filters.title')}</p>
           <p className="text-xs text-foreground/60">{t('filters.subtitle')}</p>
         </div>
+        <div className="flex justify-end">
+          {(channelIds.length > 0 || collectionIds.length > 0) ? (
+            <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
+              {t('filters.clear')}
+            </Button>
+          ) : null}
+        </div>
 
         <p className="text-xs font-semibold uppercase text-foreground/40">{t('filters.period')}</p>
         <div className="flex flex-wrap gap-2">
-          {['24h', '7d', '30d'].map((range) => (
+          {[
+            { value: '24h', label: '24h' },
+            { value: '7d', label: '7d' },
+            { value: '30d', label: '30d' },
+            { value: 'all', label: t('filters.all') },
+          ].map((range) => (
             <Button
-              key={range}
-              variant={dateRange === range ? 'default' : 'outline'}
+              key={range.value}
+              variant={dateRange === range.value ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setDateRange(range as '24h' | '7d' | '30d')}
+              onClick={() => {
+                setFiltersTouched(true)
+                setDateRange(range.value as '24h' | '7d' | '30d' | 'all')
+              }}
             >
-              {range}
+              {range.label}
             </Button>
           ))}
         </div>
@@ -59,13 +90,14 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
                 key={channel.id}
                 variant={active ? 'secondary' : 'outline'}
                 size="sm"
-                onClick={() =>
+                onClick={() => {
+                  setFiltersTouched(true)
                   setChannelIds(
                     active
                       ? channelIds.filter((id) => id !== channel.id)
                       : [...channelIds, channel.id],
                   )
-                }
+                }}
               >
                 {channel.title}
               </Button>
@@ -79,25 +111,26 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
               {t('filters.collections')}
             </p>
             <div className="flex flex-wrap gap-2">
-            {collectionOptions.map((collection) => {
-              const active = collectionIds.includes(collection.id)
-              return (
-                <Button
-                  key={collection.id}
-                  variant={active ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() =>
-                    setCollectionIds(
-                      active
-                        ? collectionIds.filter((id) => id !== collection.id)
-                        : [...collectionIds, collection.id],
-                    )
-                  }
-                >
-                  {collection.name}
-                </Button>
-              )
-            })}
+              {collectionOptions.map((collection) => {
+                const active = collectionIds.includes(collection.id)
+                return (
+                  <Button
+                    key={collection.id}
+                    variant={active ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setFiltersTouched(true)
+                      setCollectionIds(
+                        active
+                          ? collectionIds.filter((id) => id !== collection.id)
+                          : [...collectionIds, collection.id],
+                      )
+                    }}
+                  >
+                    {collection.name}
+                  </Button>
+                )
+              })}
             </div>
           </div>
         ) : null}

@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AxiosError } from 'axios'
+import { Bot, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useUserStore } from '@/stores/user-store'
@@ -15,31 +16,19 @@ import { authApi } from '@/lib/api/client'
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
-})
-
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(1, "Password is required"),
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
-type RegisterFormValues = z.infer<typeof registerSchema>
 
 export function LoginPage() {
   const navigate = useNavigate()
   const { setUser, setTokens } = useUserStore()
   const { t } = useTranslation()
-  const [isRegister, setIsRegister] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loginForm = useForm<LoginFormValues>({
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
-  })
-
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
     defaultValues: { email: '', password: '' },
   })
 
@@ -63,134 +52,99 @@ export function LoginPage() {
         name: userResponse.data.email.split('@')[0],
       })
 
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<{ detail: string }>
       setError(axiosError.response?.data?.detail || t('auth.loginError'))
     }
   }
 
-  const handleRegister = async (values: RegisterFormValues) => {
-    setError(null)
-    try {
-      await authApi.register(values.email, values.password)
-      // After registration, login automatically
-      await handleLogin(values)
-    } catch (err) {
-      const axiosError = err as AxiosError<{ detail: string }>
-      setError(axiosError.response?.data?.detail || t('auth.registerError'))
-    }
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-auth px-6 py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>{isRegister ? t('auth.registerTitle') : t('auth.loginTitle')}</CardTitle>
-          <CardDescription>
-            {isRegister ? t('auth.registerDescription') : t('auth.loginDescription')}
+    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-2 mb-8">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <Bot className="h-6 w-6" />
+        </div>
+        <span className="text-2xl font-bold tracking-tight">OSFeed</span>
+      </div>
+
+      <Card className="w-full max-w-sm sm:max-w-md shadow-lg border-muted">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">{t('auth.loginTitle')}</CardTitle>
+          <CardDescription className="text-center">
+            {t('auth.loginDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 rounded-md bg-danger/10 p-3 text-sm text-danger">{error}</div>
+            <div className="mb-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive font-medium border border-destructive/20">
+              {error}
+            </div>
           )}
-          {isRegister ? (
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={registerForm.handleSubmit(handleRegister)}
+          <form className="space-y-4" onSubmit={form.handleSubmit(handleLogin)}>
+            <div className="space-y-2">
+              <Label htmlFor="email">{t('auth.email')}</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                className="h-10"
+                {...form.register('email')}
+              />
+              {form.formState.errors.email && (
+                <span className="text-xs text-destructive font-medium">
+                  {form.formState.errors.email.message}
+                </span>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">{t('auth.password')}</Label>
+                <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                  Forgot password?
+                </a>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                className="h-10"
+                {...form.register('password')}
+              />
+              {form.formState.errors.password && (
+                <span className="text-xs text-destructive font-medium">
+                  {form.formState.errors.password.message}
+                </span>
+              )}
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-10"
+              disabled={form.formState.isSubmitting}
             >
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="reg-email">{t('auth.email')}</Label>
-                <Input
-                  id="reg-email"
-                  type="email"
-                  placeholder={t('auth.emailPlaceholder')}
-                  {...registerForm.register('email')}
-                />
-                {registerForm.formState.errors.email && (
-                  <span className="text-xs text-danger">
-                    {registerForm.formState.errors.email.message}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="reg-password">{t('auth.password')}</Label>
-                <Input
-                  id="reg-password"
-                  type="password"
-                  placeholder={t('auth.passwordPlaceholder')}
-                  {...registerForm.register('password')}
-                />
-                {registerForm.formState.errors.password && (
-                  <span className="text-xs text-danger">
-                    {registerForm.formState.errors.password.message}
-                  </span>
-                )}
-              </div>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={registerForm.formState.isSubmitting}
-              >
-                {registerForm.formState.isSubmitting
-                  ? t('auth.registering')
-                  : t('auth.createAccount')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-foreground/60"
-                onClick={() => setIsRegister(false)}
-              >
-                {t('auth.alreadyHaveAccount')}
-              </Button>
-            </form>
-          ) : (
-            <form className="flex flex-col gap-4" onSubmit={loginForm.handleSubmit(handleLogin)}>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="login-email">{t('auth.email')}</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder={t('auth.emailPlaceholder')}
-                  {...loginForm.register('email')}
-                />
-                {loginForm.formState.errors.email && (
-                  <span className="text-xs text-danger">
-                    {loginForm.formState.errors.email.message}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="login-password">{t('auth.password')}</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder={t('auth.passwordPlaceholder')}
-                  {...loginForm.register('password')}
-                />
-                {loginForm.formState.errors.password && (
-                  <span className="text-xs text-danger">
-                    {loginForm.formState.errors.password.message}
-                  </span>
-                )}
-              </div>
-              <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
-                {loginForm.formState.isSubmitting ? t('auth.signingIn') : t('auth.signIn')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-foreground/60"
-                onClick={() => setIsRegister(true)}
-              >
-                {t('auth.createAccount')}
-              </Button>
-            </form>
-          )}
+              {form.formState.isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('auth.signingIn')}
+                </>
+              ) : (
+                t('auth.signIn')
+              )}
+            </Button>
+          </form>
         </CardContent>
+        <CardFooter className="flex flex-col gap-2 border-t bg-muted/5 py-4">
+          <p className="text-xs text-center text-muted-foreground">
+            Don&apos;t have an account?{' '}
+            <Link to="/register" className="text-primary font-medium hover:underline">
+              {t('auth.createAccount')}
+            </Link>
+          </p>
+        </CardFooter>
       </Card>
+
+      <p className="mt-8 text-center text-xs text-muted-foreground">
+        &copy; {new Date().getFullYear()} OSFeed Inc. All rights reserved.
+      </p>
     </div>
   )
 }

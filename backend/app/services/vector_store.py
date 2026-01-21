@@ -1,10 +1,13 @@
+import logging
 from app.config import get_settings
-from typing import Optional, Any
+from typing import Optional, Any, List
 import uuid
 import hashlib
+import asyncio
+from app.services.embedding.openai import OpenAIEmbeddingService
 
 settings = get_settings()
-
+logger = logging.getLogger(__name__)
 
 class VectorStore:
     def __init__(self):
@@ -13,12 +16,13 @@ class VectorStore:
         self.collection_name = settings.qdrant_collection_name
         self.distance = settings.qdrant_distance
         self.timeout_seconds = settings.qdrant_timeout_seconds
-        self.model_name = settings.embedding_model
-        self.dimension = settings.embedding_dimension
-        self._embedder = None
+        
+        self._embedder = OpenAIEmbeddingService()
+        self.dimension = self._embedder.dimension
+        
         self._client = None
         self._ready = False
-        self._init_collection()
+        # Initialization happens lazily to support async
 
     def _resolve_distance(self, qmodels: Any) -> Any:
         distance = (self.distance or "").lower()
@@ -28,27 +32,36 @@ class VectorStore:
             return qmodels.Distance.EUCLID
         return qmodels.Distance.COSINE
 
-    def _init_collection(self) -> None:
+    async def _ensure_collection(self) -> None:
+        if self._ready:
+            return
+            
         if not self.url or not self.collection_name:
             return
 
         try:
-            from qdrant_client import QdrantClient
+            from qdrant_client import AsyncQdrantClient
             from qdrant_client.http import models as qmodels
-        except Exception as e:
-            print(f"Vector store init failed: {e}")
+        except ImportError as e:
+            logger.error(f"Vector store init failed: {e}")
             return
 
         try:
-            client = QdrantClient(
-                url=self.url,
-                api_key=self.api_key or None,
-                timeout=self.timeout_seconds,
-            )
-            collections = client.get_collections().collections
+            if not self._client:
+                self._client = AsyncQdrantClient(
+                    url=self.url,
+                    api_key=self.api_key or None,
+                    timeout=self.timeout_seconds,
+                )
+
+            # Check if collection exists
+            # AsyncQdrantClient methods are async
+            collections_response = await self._client.get_collections()
+            collections = collections_response.collections
             existing_names = {collection.name for collection in collections}
+            
             if self.collection_name not in existing_names:
-                client.create_collection(
+                await self._client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=qmodels.VectorParams(
                         size=self.dimension,
@@ -56,33 +69,28 @@ class VectorStore:
                     ),
                 )
 
-            self._client = client
             self._ready = True
         except Exception as e:
-            print(f"Vector store init failed: {e}")
+            logger.error(f"Vector store init failed: {e}")
 
     @property
     def is_ready(self) -> bool:
-        return self._ready and self._client is not None
+        # Note: This property is less useful now since init is lazy/async
+        # But we can check if client is instantiated
+        return self._client is not None
 
-    def _get_embedder(self) -> Any:
-        if self._embedder is None:
-            from sentence_transformers import SentenceTransformer
-            self._embedder = SentenceTransformer(self.model_name)
-        return self._embedder
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        return await self._embedder.embed_texts(texts)
 
-    def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        embedder = self._get_embedder()
-        embeddings = embedder.encode(texts, normalize_embeddings=True)
-        return embeddings.tolist()
-
-    def upsert_texts(self, items: list[dict]) -> list[Optional[str]]:
-        if not self.is_ready or not items:
+    async def upsert_texts(self, items: list[dict]) -> list[Optional[str]]:
+        await self._ensure_collection()
+        
+        if not self._ready or not items:
             return [None] * len(items)
 
         from qdrant_client.http import models as qmodels
         texts = [item["text"] for item in items]
-        vectors = self.embed_texts(texts)
+        vectors = await self.embed_texts(texts)
         records: list[qmodels.PointStruct] = []
         ids = []
 
@@ -100,7 +108,7 @@ class VectorStore:
             )
             ids.append(str(vector_id))
 
-        self._client.upsert(
+        await self._client.upsert(
             collection_name=self.collection_name,
             points=records,
             wait=True,
@@ -159,19 +167,23 @@ class VectorStore:
             return None
         return qmodels.Filter(must=conditions)
 
-    def query_similar(
+    async def query_similar(
         self,
         text: str,
         top_k: int = 5,
         filter: Optional[dict] = None,
     ) -> list[dict]:
-        if not self.is_ready or not text:
+        await self._ensure_collection()
+        
+        if not self._ready or not text:
             return []
 
         from qdrant_client.http import models as qmodels
 
-        vector = self.embed_texts([text])[0]
-        result = self._client.search(
+        vectors = await self.embed_texts([text])
+        vector = vectors[0]
+        
+        result = await self._client.search(
             collection_name=self.collection_name,
             query_vector=vector,
             limit=top_k,
@@ -190,6 +202,82 @@ class VectorStore:
             )
         return normalized
 
+    async def get_or_create_embedding(self, text: str, doc_id: str) -> List[float]:
+        await self._ensure_collection()
+        if not self._ready:
+            return []
 
-# Singleton instance
+        from qdrant_client.http import models as qmodels
+        
+        # Check if exists
+        try:
+            points = await self._client.retrieve(
+                collection_name=self.collection_name,
+                ids=[doc_id],
+                with_vectors=True
+            )
+            
+            if points and points[0].vector:
+                return points[0].vector
+        except Exception:
+            pass # Not found or error, proceed to create
+
+        # Create
+        try:
+            embeddings = await self._embedder.embed_texts([text])
+            if not embeddings:
+                return []
+                
+            vector = embeddings[0]
+            
+            # Upsert immediately to save it
+            await self._client.upsert(
+                collection_name=self.collection_name,
+                points=[
+                    qmodels.PointStruct(
+                        id=doc_id,
+                        vector=vector,
+                        payload={"text": text[:100]} # Minimal payload
+                    )
+                ]
+            )
+            return vector
+        except Exception as e:
+            logger.error(f"Failed to get/create embedding: {e}")
+            return []
+
+    async def scroll_vectors(
+        self,
+        limit: int = 100,
+        offset: Optional[str] = None,
+        filter: Optional[dict] = None,
+        with_vectors: bool = False
+    ) -> tuple[list[dict], Optional[str]]:
+        """Fetch vectors with pagination for batch processing."""
+        await self._ensure_collection()
+        
+        if not self._ready:
+            return [], None
+
+        from qdrant_client.http import models as qmodels
+        
+        result, next_page_offset = await self._client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=self._build_filter(filter, qmodels),
+            limit=limit,
+            offset=offset,
+            with_payload=True,
+            with_vectors=with_vectors,
+        )
+
+        normalized = []
+        for point in result:
+            normalized.append({
+                "id": str(point.id),
+                "payload": point.payload or {},
+                "vector": point.vector if with_vectors else None
+            })
+            
+        return normalized, next_page_offset
+
 vector_store = VectorStore()
