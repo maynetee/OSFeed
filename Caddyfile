@@ -1,13 +1,11 @@
-# Caddyfile - OSFeed
-# - HTTP sur IP: http://135.125.100.103 (toujours actif)
-# - HTTPS sur domaine: https://osfeed.com (automatique quand DNS propagé)
+# Caddyfile - OSFeed Production
+# Variables: {$DOMAIN} et {$ACME_EMAIL} injectees par Docker Compose
 
 {
-    email hello@osfeed.com
+    email {$ACME_EMAIL}
 }
 
-# HTTPS pour le domaine (certificat auto quand DNS prêt)
-osfeed.com, www.osfeed.com {
+{$DOMAIN}, www.{$DOMAIN} {
     tls {
         issuer acme {
             disable_tlsalpn_challenge
@@ -44,47 +42,7 @@ osfeed.com, www.osfeed.com {
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
         Referrer-Policy strict-origin-when-cross-origin
-    }
-
-    log {
-        output stdout
-        format console
-    }
-}
-
-# HTTP pour accès par IP (fallback)
-http://:80 {
-    @not_domain {
-        not host osfeed.com
-        not host www.osfeed.com
-    }
-
-    handle @not_domain {
-        handle /api/* {
-            reverse_proxy backend:8000
-        }
-
-        handle /docs* {
-            reverse_proxy backend:8000
-        }
-
-        handle /redoc* {
-            reverse_proxy backend:8000
-        }
-
-        handle /openapi.json {
-            reverse_proxy backend:8000
-        }
-
-        handle /health* {
-            reverse_proxy backend:8000
-        }
-
-        handle {
-            reverse_proxy frontend:80
-        }
-
-        encode gzip zstd
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
     }
 
     log {

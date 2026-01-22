@@ -1,18 +1,21 @@
+# Docker Compose Normal - OSFeed Production
+# Usage: DOMAIN=mondomaine.com ACME_EMAIL=mon@email.com docker compose up -d --build
+
 services:
   backend:
     build: ./backend
     container_name: osfeed-backend
-    restart: unless-stopped
+    restart: always
     env_file: .env
     environment:
       POSTGRES_HOST: postgres
       QDRANT_URL: http://qdrant:6333
       REDIS_URL: redis://redis:6379/0
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      APP_ENV: production
+      APP_DEBUG: "false"
+    expose:
+      - "8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,37 +26,50 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '2.0'
+          memory: 2G
 
   frontend:
-    build: 
+    build:
       context: ./frontend
-      target: development
+      target: production
     container_name: osfeed-frontend
-    restart: unless-stopped
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    restart: always
+    expose:
+      - "80"
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '0.5'
+          memory: 256M
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: osfeed-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN:?Variable DOMAIN requise}
+      - ACME_EMAIL=${ACME_EMAIL:?Variable ACME_EMAIL requise}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
 
   postgres:
     image: postgres:16-alpine
     container_name: osfeed-postgres
-    restart: unless-stopped
+    restart: always
     env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
       POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-osfeed_password}
-    ports:
-      - "5432:5432"
     volumes:
       - osfeed_postgres:/var/lib/postgresql/data
     healthcheck:
@@ -65,28 +81,24 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 1G
+          memory: 2G
 
   qdrant:
     image: qdrant/qdrant:v1.16.2
     container_name: osfeed-qdrant
-    restart: unless-stopped
-    ports:
-      - "6333:6333"
+    restart: always
     volumes:
       - osfeed_qdrant:/qdrant/storage
     deploy:
       resources:
         limits:
           cpus: '1.0'
-          memory: 1G
+          memory: 2G
 
   redis:
     image: redis:7-alpine
     container_name: osfeed-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
+    restart: always
     volumes:
       - osfeed_redis:/data
     deploy:
@@ -99,3 +111,5 @@ volumes:
   osfeed_postgres:
   osfeed_qdrant:
   osfeed_redis:
+  caddy_data:
+  caddy_config:
