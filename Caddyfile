@@ -1,46 +1,92 @@
-# Caddyfile - Configuration HTTPS automatique pour OSFeed
-# IMPORTANT: Remplacez VOTRE_DOMAINE par votre vrai domaine (ex: osfeed.example.com)
+# Caddyfile - OSFeed
+# - HTTP sur IP: http://135.125.100.103 (toujours actif)
+# - HTTPS sur domaine: https://osfeed.com (automatique quand DNS propagé)
 
-VOTRE_DOMAINE {
-    # Frontend (Interface utilisateur)
-    reverse_proxy frontend:80
+{
+    email hello@osfeed.com
+}
 
-    # Backend API
-    handle_path /api/* {
+# HTTPS pour le domaine (certificat auto quand DNS prêt)
+osfeed.com, www.osfeed.com {
+    tls {
+        issuer acme {
+            disable_tlsalpn_challenge
+        }
+    }
+
+    handle /api/* {
         reverse_proxy backend:8000
     }
 
-    # Documentation API Swagger
-    handle_path /docs* {
+    handle /docs* {
         reverse_proxy backend:8000
     }
 
-    # Documentation API ReDoc
-    handle_path /redoc* {
+    handle /redoc* {
         reverse_proxy backend:8000
     }
 
-    # OpenAPI JSON (requis pour /docs et /redoc)
-    handle_path /openapi.json {
+    handle /openapi.json {
         reverse_proxy backend:8000
     }
 
-    # Health check endpoint
-    handle_path /health* {
+    handle /health* {
         reverse_proxy backend:8000
     }
 
-    # Compression
+    handle {
+        reverse_proxy frontend:80
+    }
+
     encode gzip zstd
 
-    # Headers de securite
     header {
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
         Referrer-Policy strict-origin-when-cross-origin
     }
 
-    # Logs
+    log {
+        output stdout
+        format console
+    }
+}
+
+# HTTP pour accès par IP (fallback)
+http://:80 {
+    @not_domain {
+        not host osfeed.com
+        not host www.osfeed.com
+    }
+
+    handle @not_domain {
+        handle /api/* {
+            reverse_proxy backend:8000
+        }
+
+        handle /docs* {
+            reverse_proxy backend:8000
+        }
+
+        handle /redoc* {
+            reverse_proxy backend:8000
+        }
+
+        handle /openapi.json {
+            reverse_proxy backend:8000
+        }
+
+        handle /health* {
+            reverse_proxy backend:8000
+        }
+
+        handle {
+            reverse_proxy frontend:80
+        }
+
+        encode gzip zstd
+    }
+
     log {
         output stdout
         format console

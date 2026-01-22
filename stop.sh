@@ -2,9 +2,12 @@
 
 # OSFeed - Stop Docker services
 # Usage:
-#   ./stop.sh           -> docker compose stop
-#   ./stop.sh --down    -> docker compose down
-#   ./stop.sh --wipe    -> docker compose down -v (remove volumes)
+#   ./stop.sh                  -> docker compose stop (prod) - DEFAULT
+#   ./stop.sh --dev            -> docker compose stop (dev)
+#   ./stop.sh --down           -> docker compose down (prod)
+#   ./stop.sh --dev --down     -> docker compose down (dev)
+#   ./stop.sh --wipe           -> docker compose down -v (remove volumes)
+#   ./stop.sh --dev --wipe     -> docker compose down -v (dev, remove volumes)
 
 set -e
 
@@ -17,14 +20,28 @@ YELLOW='\033[0;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Parse arguments - Production mode by default
+PROD_MODE=true
 MODE="stop"
-if [ "$1" = "--down" ]; then
-    MODE="down"
-elif [ "$1" = "--wipe" ]; then
-    MODE="wipe"
-fi
+for arg in "$@"; do
+    case $arg in
+        --dev)
+            PROD_MODE=false
+            ;;
+        --down)
+            MODE="down"
+            ;;
+        --wipe)
+            MODE="wipe"
+            ;;
+    esac
+done
 
-echo -e "${BLUE}Stopping OSFeed (${MODE})...${NC}"
+if [ "$PROD_MODE" = true ]; then
+    echo -e "${BLUE}Stopping OSFeed Production (${MODE})...${NC}"
+else
+    echo -e "${BLUE}Stopping OSFeed Development (${MODE})...${NC}"
+fi
 
 # Check for docker
 if ! command -v docker &> /dev/null; then
@@ -40,6 +57,11 @@ elif command -v docker-compose &> /dev/null; then
 else
     echo -e "${RED}Docker Compose not found.${NC}"
     exit 1
+fi
+
+# Add production files if in prod mode
+if [ "$PROD_MODE" = true ]; then
+    COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.yml -f docker-compose.prod.yml"
 fi
 
 if [ "$MODE" = "down" ]; then

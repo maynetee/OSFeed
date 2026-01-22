@@ -9,10 +9,6 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class Settings(BaseSettings):
-    # Telegram API
-    telegram_api_id: int
-    telegram_api_hash: str
-    telegram_phone: str
 
     # OpenRouter API
     openrouter_api_key: str
@@ -57,13 +53,6 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60  # 1 hour
     refresh_token_expire_days: int = 7
     scheduler_enabled: bool = True
-
-    # Telegram Rate Limiting / Flood Wait Management
-    telegram_max_retries: int = 5
-    telegram_base_delay: float = 1.0  # seconds
-    telegram_max_delay: float = 300.0  # 5 minutes max
-    telegram_jitter: bool = True
-    telegram_concurrent_channels: int = 10  # max parallel channel fetches
 
     # Qdrant Vector Store
     qdrant_url: str = ""
@@ -121,7 +110,6 @@ class Settings(BaseSettings):
 
     # Fetch parallelization
     fetch_workers: int = 10  # Number of parallel fetch workers
-    fetch_channel_semaphore: int = 10  # Max concurrent Telegram operations
 
     # Database pooling (PostgreSQL)
     db_pool_size: int = 10

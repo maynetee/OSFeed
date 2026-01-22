@@ -25,6 +25,21 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>
 
+const getErrorMessage = (detail: string | undefined): string => {
+  switch (detail) {
+    case 'REGISTER_USER_ALREADY_EXISTS':
+      return 'An account with this email already exists'
+    case 'REGISTER_INVALID_PASSWORD':
+      return 'Password is too weak. Use at least 8 characters with letters and numbers'
+    case 'LOGIN_BAD_CREDENTIALS':
+      return 'Invalid email or password'
+    case 'LOGIN_USER_NOT_VERIFIED':
+      return 'Please verify your email before logging in'
+    default:
+      return detail || 'Registration failed. Please try again.'
+  }
+}
+
 export function RegisterPage() {
   const navigate = useNavigate()
   const { setUser, setTokens } = useUserStore()
@@ -39,8 +54,12 @@ export function RegisterPage() {
   const handleRegister = async (values: RegisterFormValues) => {
     setError(null)
     try {
-      const response = await authApi.register(values.email, values.password)
-      const { access_token, refresh_token, refresh_expires_at } = response.data
+      // First, create the account
+      await authApi.register(values.email, values.password)
+
+      // Then, login to get the tokens
+      const loginResponse = await authApi.login(values.email, values.password)
+      const { access_token, refresh_token, refresh_expires_at } = loginResponse.data
 
       setTokens({
         accessToken: access_token,
@@ -59,7 +78,7 @@ export function RegisterPage() {
       navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<{ detail: string }>
-      setError(axiosError.response?.data?.detail || "Registration failed")
+      setError(getErrorMessage(axiosError.response?.data?.detail))
     }
   }
 

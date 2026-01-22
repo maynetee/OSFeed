@@ -23,13 +23,13 @@ EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host"]
 
 # Production stage
-FROM nginx:alpine-slim
+FROM nginx:alpine-slim AS production
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy custom nginx config if needed (optional, using default for now)
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy custom nginx config for SPA routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
 EXPOSE 80

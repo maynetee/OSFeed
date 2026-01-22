@@ -20,7 +20,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    user_role_enum = sa.Enum("admin", "analyst", "viewer", name="userrole")
+    # Create enum type only if it doesn't exist
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+                CREATE TYPE userrole AS ENUM ('admin', 'analyst', 'viewer');
+            END IF;
+        END$$;
+    """)
+
+    # Use postgresql.ENUM with create_type=False since we handle enum creation manually above
+    user_role_enum = postgresql.ENUM("admin", "analyst", "viewer", name="userrole", create_type=False)
 
     op.create_table(
         "users",

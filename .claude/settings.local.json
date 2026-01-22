@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(systemctl status caddy)",
+      "Bash(docker logs:*)",
+      "Bash(curl -v http://localhost)",
+      "Bash(curl:*)",
+      "Bash(sudo ufw status:*)",
+      "Bash(docker restart:*)",
+      "Bash(docker volume:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(grep:*)"
+    ]
+  }
+}

@@ -12,7 +12,6 @@ from app.models.collection import Collection
 from app.models.user import User
 from app.schemas.channel import ChannelCreate, ChannelResponse
 from app.services.fetch_queue import enqueue_fetch_job
-from app.services.telegram_collector import get_channel_info_with_lock
 import re
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
@@ -89,7 +88,7 @@ async def add_channel(
     if not re.match(r"^[a-zA-Z][\w\d]{3,30}[a-zA-Z\d]$", username):
         raise HTTPException(status_code=400, detail="Invalid Telegram username format. Must be 5-32 chars, start with letter.")
 
-    # Check database first to avoid unnecessary Telegram calls
+    # Telegram integration has been removed - only allow linking to existing channels
     async with AsyncSessionLocal() as db:
         try:
             # Check if channel already exists
@@ -139,102 +138,11 @@ async def add_channel(
                     )
                 
                 channel_to_use = existing_channel
-            else:
-                # Channel doesn't exist by username, need to fetch from Telegram
-                try:
-                    channel_info = await get_channel_info_with_lock(username)
-                except Exception as exc:
-                    error_msg = str(exc).lower()
-                    if "usernameinvalid" in error_msg or "usernamenotoccupied" in error_msg:
-                        raise HTTPException(status_code=400, detail="Channel not found on Telegram")
-                    elif "channelprivate" in error_msg:
-                        raise HTTPException(status_code=400, detail="This is a private channel")
-                    else:
-                        raise HTTPException(status_code=400, detail=f"Invalid Telegram channel: {exc}")
-
-                # Check if channel exists by Telegram ID (to handle username changes or casing mismatches)
-                tid = channel_info.get("id")
-                if tid:
-                    result = await db.execute(select(Channel).where(Channel.telegram_id == tid))
-                    existing_by_id = result.scalar_one_or_none()
-                    
-                    if existing_by_id:
-                        # Found by ID! Update it and use it.
-                        existing_by_id.username = channel_info.get("username") or existing_by_id.username
-                        existing_by_id.title = channel_info.get("title") or existing_by_id.title
-                        existing_by_id.description = channel_info.get("description") or existing_by_id.description
-                        existing_by_id.subscriber_count = channel_info.get("participants_count") or existing_by_id.subscriber_count
-                        
-                        if not existing_by_id.is_active:
-                             existing_by_id.is_active = True
-                        
-                        channel_to_use = existing_by_id
-                        
-                        # Check if already linked (logic similar to above, but we are in the 'else' of username check)
-                        # We need to ensure we link it.
-                        link_result = await db.execute(
-                            select(user_channels).where(
-                                and_(
-                                    user_channels.c.user_id == user.id,
-                                    user_channels.c.channel_id == existing_by_id.id
-                                )
-                            )
-                        )
-                        if link_result.first():
-                             # Already linked.
-                             pass
-                        else:
-                             await db.execute(
-                                insert(user_channels).values(
-                                    user_id=user.id,
-                                    channel_id=existing_by_id.id
-                                )
-                            )
-                        is_new = False
-                    else:
-                         # Truly new
-                        new_channel = Channel(
-                            telegram_id=tid,
-                            username=channel_info.get("username") or username,
-                            title=channel_info.get("title") or username,
-                            description=channel_info.get("description") or '',
-                            subscriber_count=channel_info.get("participants_count") or 0,
-                        )
-                        db.add(new_channel)
-                        await db.flush() # Get ID
-
-                        # Link user validation
-                        await db.execute(
-                            insert(user_channels).values(
-                                user_id=user.id,
-                                channel_id=new_channel.id
-                            )
-                        )
-                        
-                        channel_to_use = new_channel
-                        is_new = True
-                else:
-                    # Should unlikely occur if fetch succeeded but no ID?
-                    # Fallback to create if no ID returned (flimsy but safeguard)
-                    new_channel = Channel(
-                        telegram_id=None,
-                        username=channel_info.get("username") or username,
-                        title=channel_info.get("title") or username,
-                        description=channel_info.get("description") or '',
-                        subscriber_count=channel_info.get("participants_count") or 0,
-                    )
-                    db.add(new_channel)
-                    await db.flush()
-
-                    await db.execute(
-                        insert(user_channels).values(
-                            user_id=user.id,
-                            channel_id=new_channel.id
-                        )
-                    )
-                    channel_to_use = new_channel
-                    is_new = True
-
+                # Channel doesn't exist - Telegram integration disabled
+                raise HTTPException(
+                    status_code=400,
+                    detail="Telegram integration is disabled. Cannot add new channels."
+                )
             # Assign to collections (for both new and existing linked channels)
             collections_result = await db.execute(
                 select(Collection)

@@ -40,7 +40,6 @@ export function SettingsPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline">{t('settings.notificationEmail')}</Button>
-            <Button variant="outline">{t('settings.notificationSlack')}</Button>
             <Button variant="outline">{t('settings.notificationTelegram')}</Button>
           </div>
         </CardContent>

@@ -19,11 +19,11 @@ services:
           cpus: '2.0'
           memory: 2G
 
-  # Frontend : Mode Production (Nginx statique - utilise le dernier stage du Dockerfile)
+  # Frontend : Mode Production (Nginx statique)
   frontend:
     build:
       context: ./frontend
-      # Pas de target = utilise le dernier stage (nginx production)
+      target: production
     restart: always
     volumes: []
     ports: []

@@ -21,6 +21,17 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
+const getErrorMessage = (detail: string | undefined): string => {
+  switch (detail) {
+    case 'LOGIN_BAD_CREDENTIALS':
+      return 'Invalid email or password'
+    case 'LOGIN_USER_NOT_VERIFIED':
+      return 'Please verify your email before logging in'
+    default:
+      return detail || 'Login failed. Please try again.'
+  }
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
   const { setUser, setTokens } = useUserStore()
@@ -55,7 +66,7 @@ export function LoginPage() {
       navigate('/dashboard')
     } catch (err) {
       const axiosError = err as AxiosError<{ detail: string }>
-      setError(axiosError.response?.data?.detail || t('auth.loginError'))
+      setError(getErrorMessage(axiosError.response?.data?.detail))
     }
   }
 
