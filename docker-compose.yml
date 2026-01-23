@@ -13,19 +13,25 @@ services:
     build: ./backend
     restart: always
     environment:
-      # Database - Coolify provides SERVICE_NAME_POSTGRES for previews
-      POSTGRES_HOST: ${SERVICE_NAME_POSTGRES:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
-      POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      # Services - Coolify provides SERVICE_NAME_* for previews
-      QDRANT_URL: http://${SERVICE_NAME_QDRANT:-qdrant}:6333
-      REDIS_URL: redis://${SERVICE_NAME_REDIS:-redis}:6379/0
+      # Database - Use production infrastructure (shared between prod and previews)
+      # Using Coolify shared variables ({{project.VAR}}) so they work for both prod AND preview
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: osfeed_db
+      POSTGRES_USER: osfeed_user
+      POSTGRES_PASSWORD: "{{project.POSTGRES_PASSWORD}}"
+      # Services - Use production infrastructure
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
       # App config
       APP_ENV: production
       APP_DEBUG: "false"
-      TELEGRAM_SESSION_PATH: /app/data/telegram.session
+      SECRET_KEY: "{{project.SECRET_KEY}}"
+      OPENAI_API_KEY: "{{project.OPENAI_API_KEY}}"
+      # Telegram - shared across all deployments
+      TELEGRAM_API_ID: "{{project.TELEGRAM_API_ID}}"
+      TELEGRAM_API_HASH: "{{project.TELEGRAM_API_HASH}}"
+      TELEGRAM_SESSION_STRING: "{{project.TELEGRAM_SESSION_STRING}}"
     expose:
       - "8000"
     volumes:
