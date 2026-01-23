@@ -1,0 +1,65 @@
+# Infrastructure Services - Deploy separately, shared between production and previews
+# This should be deployed as a separate Coolify application WITHOUT preview deployments enabled
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: osfeed-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
+      POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - osfeed_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-osfeed_user} -d ${POSTGRES_DB:-osfeed_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - coolify
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  qdrant:
+    image: qdrant/qdrant:v1.16.2
+    container_name: osfeed-qdrant
+    restart: always
+    volumes:
+      - osfeed_qdrant:/qdrant/storage
+    networks:
+      - coolify
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+
+  redis:
+    image: redis:7-alpine
+    container_name: osfeed-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - osfeed_redis:/data
+    networks:
+      - coolify
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  coolify:
+    external: true
+
+volumes:
+  osfeed_postgres:
+  osfeed_qdrant:
+  osfeed_redis:
