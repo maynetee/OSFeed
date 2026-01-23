@@ -10,8 +10,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 class Settings(BaseSettings):
 
-    # OpenRouter API
-    openrouter_api_key: str
+    # OpenRouter API (optional - used for free LLM fallback)
+    openrouter_api_key: str = ""
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
 
     # OpenAI API (Translations & Embeddings)
