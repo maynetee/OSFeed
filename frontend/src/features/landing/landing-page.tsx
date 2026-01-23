@@ -81,6 +81,9 @@ export function LandingPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.6 }}
                             >
+                                <div className="mb-4 px-6 py-3 bg-green-500 text-white rounded-lg font-bold text-xl shadow-lg">
+                                    ✅ PREVIEW DEPLOYMENT TEST - CA MARCHE!
+                                </div>
                                 <div className="inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium bg-muted/50 mb-6">
                                     <span className="flex h-2 w-2 rounded-full bg-primary mr-2"></span>
                                     New: AI-Powered Summaries
