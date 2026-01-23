@@ -129,6 +129,26 @@ class Settings(BaseSettings):
     llm_cost_input_per_1k: float = 0.0
     llm_cost_output_per_1k: float = 0.0
 
+    # Telegram API (User Account)
+    telegram_api_id: int = 0
+    telegram_api_hash: str = ""
+    telegram_phone: str = ""
+    telegram_session_path: str = "/app/data/telegram.session"
+
+    # Telegram Rate Limits (Redis Token Bucket)
+    telegram_requests_per_minute: int = 30
+    telegram_flood_wait_multiplier: float = 1.5
+    telegram_max_retries: int = 3
+
+    # JoinChannel Limit (Telegram enforces ~20/day)
+    telegram_join_channel_daily_limit: int = 20
+    telegram_join_channel_queue_enabled: bool = True
+
+    # Telegram Worker Config
+    telegram_fetch_workers: int = 3
+    telegram_batch_size: int = 100
+    telegram_sync_interval_seconds: int = 300
+
     model_config = SettingsConfigDict(
         env_file=str(PROJECT_ROOT / ".env"),
         case_sensitive=False,

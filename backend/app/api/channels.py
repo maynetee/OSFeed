@@ -15,6 +15,8 @@ from app.services.fetch_queue import enqueue_fetch_job
 import re
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
+from app.services.telegram_client import get_telegram_client
+from app.services.channel_join_queue import queue_channel_join
 from typing import List, Optional
 from pydantic import BaseModel
 from app.schemas.fetch_job import FetchJobStatus
@@ -136,13 +138,48 @@ async def add_channel(
                             channel_id=existing_channel.id
                         )
                     )
-                
+
                 channel_to_use = existing_channel
-                # Channel doesn't exist - Telegram integration disabled
-                raise HTTPException(
-                    status_code=400,
-                    detail="Telegram integration is disabled. Cannot add new channels."
-                )
+            else:
+                # Channel doesn't exist - create via Telegram
+                telegram_client = get_telegram_client()
+
+                # Check JoinChannel limit before proceeding
+                if not await telegram_client.can_join_channel():
+                    if settings.telegram_join_channel_queue_enabled:
+                        # Queue for later processing
+                        await queue_channel_join(username, user.id)
+                        raise HTTPException(
+                            status_code=202,
+                            detail="Daily channel join limit reached. Your request has been queued."
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=429,
+                            detail="Daily channel join limit reached. Please try again tomorrow."
+                        )
+
+                try:
+                    # Resolve and join channel via Telegram
+                    channel_info = await telegram_client.resolve_channel(username)
+                    await telegram_client.join_public_channel(username)
+                    await telegram_client.record_channel_join()
+
+                    # Create new channel record
+                    channel_to_use = Channel(
+                        username=username,
+                        telegram_id=channel_info['telegram_id'],
+                        title=channel_info['title'],
+                        description=channel_info.get('description'),
+                        is_active=True
+                    )
+                    db.add(channel_to_use)
+                    is_new = True
+
+                except ValueError as e:
+                    # Invalid username, private channel, etc.
+                    raise HTTPException(status_code=400, detail=str(e))
+
             # Assign to collections (for both new and existing linked channels)
             collections_result = await db.execute(
                 select(Collection)

@@ -25,8 +25,11 @@ services:
       # App config
       APP_ENV: production
       APP_DEBUG: "false"
+      TELEGRAM_SESSION_PATH: /app/data/telegram.session
     expose:
       - "8000"
+    volumes:
+      - telegram_data:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     networks:
       - coolify
@@ -67,3 +70,7 @@ networks:
   osfeed-production:
     external: true
     name: ikoogcskg08o40soswwwscws  # Production application network
+
+volumes:
+  telegram_data:
+    # Named volume for Telegram session persistence
