@@ -63,6 +63,7 @@ services:
 
 networks:
   coolify:
+    name: coolify
     external: true
 
 volumes:
