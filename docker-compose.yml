@@ -5,7 +5,7 @@ services:
     build: ./backend
     restart: always
     environment:
-      # Database - peuvent être overridés pour les previews
+      # Database - ces valeurs peuvent être overridées par les variables d'env Coolify
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
