@@ -1,21 +1,27 @@
 # Docker Compose - OSFeed Application (Coolify ready)
-# Infrastructure (postgres, redis, qdrant) is deployed separately via docker-compose.infra.yml
-# This enables preview deployments to share the production database
+#
+# COOLIFY PREVIEW DEPLOYMENTS:
+# Coolify auto-injects these variables for previews:
+#   - SERVICE_NAME_POSTGRES=postgres-pr-{id}
+#   - SERVICE_NAME_QDRANT=qdrant-pr-{id}
+#   - SERVICE_NAME_REDIS=redis-pr-{id}
+#   - SERVICE_URL_BACKEND=https://{pr_id}.api.osfeed.com
+# This allows automatic configuration without manual env vars per PR.
 
 services:
   backend:
     build: ./backend
     restart: always
     environment:
-      # Database - connects to shared infrastructure
-      POSTGRES_HOST: ${POSTGRES_HOST:-osfeed-postgres}
+      # Database - Coolify provides SERVICE_NAME_POSTGRES for previews
+      POSTGRES_HOST: ${SERVICE_NAME_POSTGRES:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
       POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      # Services - connects to shared infrastructure
-      QDRANT_URL: ${QDRANT_URL:-http://osfeed-qdrant:6333}
-      REDIS_URL: ${REDIS_URL:-redis://osfeed-redis:6379/0}
+      # Services - Coolify provides SERVICE_NAME_* for previews
+      QDRANT_URL: http://${SERVICE_NAME_QDRANT:-qdrant}:6333
+      REDIS_URL: redis://${SERVICE_NAME_REDIS:-redis}:6379/0
       # App config
       APP_ENV: production
       APP_DEBUG: "false"
@@ -42,7 +48,8 @@ services:
       context: ./frontend
       target: production
       args:
-        VITE_API_URL: ${VITE_API_URL:-https://api.osfeed.com}
+        # Coolify provides SERVICE_URL_BACKEND for previews (e.g., https://12.api.osfeed.com)
+        VITE_API_URL: ${SERVICE_URL_BACKEND:-https://api.osfeed.com}
     restart: always
     expose:
       - "80"
