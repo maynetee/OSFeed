@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 
 from telethon import TelegramClient
+from telethon.sessions import StringSession
 from telethon.tl.functions.channels import JoinChannelRequest, GetFullChannelRequest
 from telethon.tl.functions.contacts import ResolveUsernameRequest
 from telethon.tl.types import Channel as TelegramChannel
@@ -56,12 +57,19 @@ class TelegramClientManager:
                         "Set TELEGRAM_API_ID and TELEGRAM_API_HASH environment variables."
                     )
 
-                session_path = settings.telegram_session_path
-                if session_path.endswith(".session"):
-                    session_path = session_path[:-8]
+                # Use StringSession if provided (for cloud deployments)
+                # Otherwise fall back to file-based session
+                if settings.telegram_session_string:
+                    logger.info("Using StringSession from environment")
+                    session = StringSession(settings.telegram_session_string)
+                else:
+                    session = settings.telegram_session_path
+                    if session.endswith(".session"):
+                        session = session[:-8]
+                    logger.info(f"Using file-based session at {session}")
 
                 self._client = TelegramClient(
-                    session_path,
+                    session,
                     settings.telegram_api_id,
                     settings.telegram_api_hash
                 )

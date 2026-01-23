@@ -134,6 +134,7 @@ class Settings(BaseSettings):
     telegram_api_hash: str = ""
     telegram_phone: str = ""
     telegram_session_path: str = "/app/data/telegram.session"
+    telegram_session_string: str = ""  # StringSession for cloud deployments (takes priority over file)
 
     # Telegram Rate Limits (Redis Token Bucket)
     telegram_requests_per_minute: int = 30

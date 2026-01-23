@@ -9,24 +9,22 @@ This tool:
 2. Sends auth code via Telegram
 3. Prompts for SMS code (interactive!)
 4. Prompts for 2FA password (if enabled)
-5. Creates session file at telegram_session_path
+5. Creates a StringSession that can be used as an environment variable
 6. Verifies session works
 
-Run this ONCE locally before deploying to production.
-The session file must then be copied to the production server
-or mounted via Docker volume.
+The StringSession output can be set as TELEGRAM_SESSION_STRING in Coolify
+or any cloud deployment platform.
 
 Deployment Workflow:
 1. Get API credentials from my.telegram.org
-2. Set environment variables:
+2. Set environment variables locally:
    - TELEGRAM_API_ID
    - TELEGRAM_API_HASH
    - TELEGRAM_PHONE
 3. Run this script
-4. Enter SMS code when prompted
+4. Enter SMS/Telegram code when prompted
 5. Enter 2FA password if enabled
-6. Session file created at TELEGRAM_SESSION_PATH
-7. Copy session file to server OR configure Docker volume
+6. Copy the TELEGRAM_SESSION_STRING output to Coolify
 """
 import asyncio
 import sys
@@ -37,6 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from telethon import TelegramClient
+from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError
 
 
@@ -63,11 +62,13 @@ async def setup_telegram_session():
     print("OSFeed Telegram Setup")
     print("=" * 60)
     print()
-    print("This tool will authenticate with Telegram and create a session file.")
+    print("This tool will authenticate with Telegram and generate a")
+    print("StringSession that you can use as an environment variable.")
+    print()
     print("You will need:")
     print("  1. API ID and API Hash from my.telegram.org")
     print("  2. Phone number registered with Telegram")
-    print("  3. Access to receive SMS or Telegram code")
+    print("  3. Access to receive Telegram code (in app or SMS)")
     print()
 
     # Get credentials
@@ -79,22 +80,12 @@ async def setup_telegram_session():
         sys.exit(1)
 
     api_hash = get_env_or_prompt("TELEGRAM_API_HASH", "API Hash")
-    phone = get_env_or_prompt("TELEGRAM_PHONE", "Phone number (with country code, e.g., +1234567890)")
-
-    session_path = os.environ.get("TELEGRAM_SESSION_PATH", "./telegram.session")
-    print(f"\nSession will be saved to: {session_path}")
-
-    # Ensure directory exists
-    session_dir = Path(session_path).parent
-    session_dir.mkdir(parents=True, exist_ok=True)
-
-    # Remove .session extension if present (Telethon adds it)
-    if session_path.endswith(".session"):
-        session_path = session_path[:-8]
+    phone = get_env_or_prompt("TELEGRAM_PHONE", "Phone number (with country code, e.g., +33612345678)")
 
     print("\nConnecting to Telegram...")
 
-    client = TelegramClient(session_path, api_id, api_hash)
+    # Use StringSession for portable session
+    client = TelegramClient(StringSession(), api_id, api_hash)
 
     try:
         await client.connect()
@@ -103,7 +94,12 @@ async def setup_telegram_session():
             print(f"\nSending authentication code to {phone}...")
             await client.send_code_request(phone)
 
-            print("\nCheck your Telegram app or SMS for the code.")
+            print()
+            print("=" * 60)
+            print("CHECK YOUR TELEGRAM APP FOR THE CODE")
+            print("(or SMS if Telegram app is not installed)")
+            print("=" * 60)
+            print()
             code = input("Enter the code you received: ").strip()
 
             try:
@@ -119,6 +115,10 @@ async def setup_telegram_session():
 
         # Verify it works
         me = await client.get_me()
+
+        # Get the session string
+        session_string = client.session.save()
+
         print()
         print("=" * 60)
         print("SUCCESS!")
@@ -127,16 +127,25 @@ async def setup_telegram_session():
         print(f"Username: @{me.username}" if me.username else "Username: (none)")
         print(f"Phone: {me.phone}")
         print()
-        print(f"Session file created at: {session_path}.session")
+        print("=" * 60)
+        print("COPY THIS TO COOLIFY AS TELEGRAM_SESSION_STRING:")
+        print("=" * 60)
         print()
-        print("Next steps:")
-        print("  1. Copy the session file to your production server")
-        print("     OR mount it via Docker volume at /app/data/")
-        print("  2. Set TELEGRAM_SESSION_PATH=/app/data/telegram.session")
-        print("  3. The production app will use this session automatically")
+        print(session_string)
         print()
-        print("IMPORTANT: Keep your session file secure!")
-        print("           It grants full access to this Telegram account.")
+        print("=" * 60)
+        print()
+        print("In Coolify, add this environment variable to your backend:")
+        print()
+        print(f"  TELEGRAM_SESSION_STRING={session_string}")
+        print()
+        print("This single string contains your authenticated session.")
+        print("Set the same value in both preview and production environments.")
+        print()
+        print("SECURITY WARNING:")
+        print("  - This string grants FULL ACCESS to your Telegram account")
+        print("  - Keep it secret like a password")
+        print("  - Never commit it to git")
 
     except Exception as e:
         print(f"\nError: {e}")
