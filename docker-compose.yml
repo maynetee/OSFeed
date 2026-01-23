@@ -40,7 +40,6 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     networks:
       - coolify
-      - osfeed-production  # Connect to production network for infrastructure access
     deploy:
       resources:
         limits:
@@ -74,9 +73,6 @@ services:
 networks:
   coolify:
     external: true
-  osfeed-production:
-    external: true
-    name: ikoogcskg08o40soswwwscws  # Production application network
 
 volumes:
   telegram_data:
