@@ -100,3 +100,7 @@ service-account*.json
 .sisyphus/
 *.local
 local.settings.json
+
+# ----- Claude Code & OMC state -----
+.omc/
+.mcp-servers/
