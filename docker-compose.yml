@@ -1,5 +1,4 @@
-# Docker Compose Normal - OSFeed Production
-# Usage: DOMAIN=mondomaine.com ACME_EMAIL=mon@email.com docker compose up -d --build
+# Docker Compose - OSFeed (Coolify ready)
 
 services:
   backend:
@@ -42,24 +41,6 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
-
-  caddy:
-    image: caddy:2-alpine
-    container_name: osfeed-caddy
-    restart: always
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      - DOMAIN=${DOMAIN:?Variable DOMAIN requise}
-      - ACME_EMAIL=${ACME_EMAIL:?Variable ACME_EMAIL requise}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - frontend
-      - backend
 
   postgres:
     image: postgres:16-alpine
@@ -111,5 +92,3 @@ volumes:
   osfeed_postgres:
   osfeed_qdrant:
   osfeed_redis:
-  caddy_data:
-  caddy_config:
