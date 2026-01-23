@@ -1,39 +1,40 @@
-# Docker Compose - OSFeed (Coolify ready)
+# Docker Compose - OSFeed Application (Coolify ready)
+# Infrastructure (postgres, redis, qdrant) is deployed separately via docker-compose.infra.yml
+# This enables preview deployments to share the production database
 
 services:
   backend:
     build: ./backend
     restart: always
     environment:
-      # Database - ces valeurs peuvent être overridées par les variables d'env Coolify
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      # Database - connects to shared infrastructure
+      POSTGRES_HOST: ${POSTGRES_HOST:-osfeed-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
       POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      # Services internes - peuvent être overridés pour les previews
-      QDRANT_URL: ${QDRANT_URL:-http://qdrant:6333}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      # Services - connects to shared infrastructure
+      QDRANT_URL: ${QDRANT_URL:-http://osfeed-qdrant:6333}
+      REDIS_URL: ${REDIS_URL:-redis://osfeed-redis:6379/0}
       # App config
       APP_ENV: production
       APP_DEBUG: "false"
     expose:
       - "8000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    depends_on:
-      postgres:
-        condition: service_healthy
-      qdrant:
-        condition: service_started
-      redis:
-        condition: service_started
     networks:
-      - osfeed-network
+      - coolify
     deploy:
       resources:
         limits:
           cpus: '2.0'
           memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
     build:
@@ -43,57 +44,7 @@ services:
     expose:
       - "80"
     networks:
-      - osfeed-network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-
-  postgres:
-    image: postgres:16-alpine
-    restart: always
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
-      POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-    volumes:
-      - osfeed_postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-osfeed_user} -d ${POSTGRES_DB:-osfeed_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - osfeed-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-
-  qdrant:
-    image: qdrant/qdrant:v1.16.2
-    restart: always
-    volumes:
-      - osfeed_qdrant:/qdrant/storage
-    networks:
-      - osfeed-network
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-
-  redis:
-    image: redis:7-alpine
-    restart: always
-    command: redis-server --appendonly yes
-    volumes:
-      - osfeed_redis:/data
-    networks:
-      - osfeed-network
+      - coolify
     deploy:
       resources:
         limits:
@@ -101,10 +52,5 @@ services:
           memory: 256M
 
 networks:
-  osfeed-network:
-    driver: bridge
-
-volumes:
-  osfeed_postgres:
-  osfeed_qdrant:
-  osfeed_redis:
+  coolify:
+    external: true
