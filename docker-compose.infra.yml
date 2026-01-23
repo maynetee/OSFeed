@@ -19,7 +19,9 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - coolify
+      coolify:
+        aliases:
+          - postgres  # Alias so other services can connect via 'postgres' hostname
     deploy:
       resources:
         limits:
@@ -33,7 +35,9 @@ services:
     volumes:
       - osfeed_qdrant:/qdrant/storage
     networks:
-      - coolify
+      coolify:
+        aliases:
+          - qdrant  # Alias so other services can connect via 'qdrant' hostname
     deploy:
       resources:
         limits:
@@ -48,7 +52,9 @@ services:
     volumes:
       - osfeed_redis:/data
     networks:
-      - coolify
+      coolify:
+        aliases:
+          - redis  # Alias so other services can connect via 'redis' hostname
     deploy:
       resources:
         limits:
