@@ -3,13 +3,18 @@
 services:
   backend:
     build: ./backend
-    container_name: osfeed-backend
     restart: always
-    env_file: .env
     environment:
+      # Database - ces valeurs doivent correspondre au service postgres
       POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
+      POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      # Services internes
       QDRANT_URL: http://qdrant:6333
       REDIS_URL: redis://redis:6379/0
+      # App config
       APP_ENV: production
       APP_DEBUG: "false"
     expose:
@@ -22,6 +27,8 @@ services:
         condition: service_started
       redis:
         condition: service_started
+    networks:
+      - osfeed-network
     deploy:
       resources:
         limits:
@@ -32,10 +39,11 @@ services:
     build:
       context: ./frontend
       target: production
-    container_name: osfeed-frontend
     restart: always
     expose:
       - "80"
+    networks:
+      - osfeed-network
     deploy:
       resources:
         limits:
@@ -44,20 +52,21 @@ services:
 
   postgres:
     image: postgres:16-alpine
-    container_name: osfeed-postgres
     restart: always
-    env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-osfeed_db}
       POSTGRES_USER: ${POSTGRES_USER:-osfeed_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-osfeed_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
     volumes:
       - osfeed_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-osfeed_user} -d ${POSTGRES_DB:-osfeed_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    networks:
+      - osfeed-network
     deploy:
       resources:
         limits:
@@ -66,10 +75,11 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.16.2
-    container_name: osfeed-qdrant
     restart: always
     volumes:
       - osfeed_qdrant:/qdrant/storage
+    networks:
+      - osfeed-network
     deploy:
       resources:
         limits:
@@ -78,15 +88,21 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: osfeed-redis
     restart: always
+    command: redis-server --appendonly yes
     volumes:
       - osfeed_redis:/data
+    networks:
+      - osfeed-network
     deploy:
       resources:
         limits:
           cpus: '0.5'
           memory: 256M
+
+networks:
+  osfeed-network:
+    driver: bridge
 
 volumes:
   osfeed_postgres:
