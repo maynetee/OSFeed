@@ -65,7 +65,7 @@ services:
       - coolify
     restart: always
     labels:
-      - "coolify.fqdn=https://osfeed.com,https://www.osfeed.com"
+      - "coolify.fqdn=https://osfeed.com"
     expose:
       - "80"
     deploy:
