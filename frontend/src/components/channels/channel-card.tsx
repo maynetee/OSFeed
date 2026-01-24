@@ -64,7 +64,7 @@ export function ChannelCard({
           <div>
             <p className="text-sm font-semibold">{channel.username}</p>
             <p className="text-xs text-foreground/60">
-              {channel.title} · {t('channels.subscribers', { count: channel.subscriber_count })}
+              {t('channels.subscribers', { count: channel.subscriber_count })}
             </p>
           </div>
           <LanguageBadge code={channel.detected_language} />
