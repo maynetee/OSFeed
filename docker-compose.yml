@@ -37,8 +37,8 @@ services:
       APP_DEBUG: "false"
       SECRET_KEY: ${SECRET_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      # Frontend URL for CORS - Coolify provides SERVICE_URL_FRONTEND
-      FRONTEND_URL: ${SERVICE_URL_FRONTEND:-https://osfeed.com}
+      # Frontend URL for CORS (Coolify's SERVICE_URL_FRONTEND lacks https:// prefix)
+      FRONTEND_URL: ${FRONTEND_URL:-https://osfeed.com}
       # Telegram
       TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
