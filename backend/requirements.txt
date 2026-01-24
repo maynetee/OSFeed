@@ -32,6 +32,10 @@ sentence-transformers>=3.1.0
 redis>=5.0.0
 fastapi-cache2>=0.2.1
 
+# Telegram Integration
+Telethon>=1.36.0
+cryptg>=0.4.0
+
 # Testing
 pytest>=8.0.0
 pytest-asyncio>=0.23.0

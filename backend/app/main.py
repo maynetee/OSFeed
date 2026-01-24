@@ -18,6 +18,10 @@ from app.jobs.alerts import evaluate_alerts_job
 from app.jobs.clustering import run_clustering_job
 from app.jobs.ner_extraction import run_ner_job
 from app.services.fetch_queue import start_fetch_worker, stop_fetch_worker
+from app.services.telegram_client import cleanup_telegram_client
+from app.services.rate_limiter import cleanup_rate_limiter
+from app.services.channel_join_queue import process_join_queue
+from app.services.telegram_updates import start_update_handler, stop_update_handler
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +42,7 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized")
 
     await start_fetch_worker()
+    await start_update_handler()
 
     if settings.enable_response_cache and settings.redis_url:
         try:
@@ -52,8 +57,8 @@ async def lifespan(app: FastAPI):
 
     # Start background jobs
     if settings.scheduler_enabled:
-        # Collect messages every 2 minutes (job takes ~90 seconds to complete)
-        scheduler.add_job(collect_messages_job, 'interval', minutes=2, id='collect_messages')
+        # Collect messages every 5 minutes
+        scheduler.add_job(collect_messages_job, 'interval', minutes=5, id='collect_messages')
 
         # Generate daily summary at configured time
         hour, minute = map(int, settings.summary_time.split(':'))
@@ -64,6 +69,16 @@ async def lifespan(app: FastAPI):
         scheduler.add_job(purge_audit_logs_job, 'cron', hour=purge_hour, minute=purge_minute, id='purge_audit_logs')
 
         scheduler.add_job(evaluate_alerts_job, 'interval', minutes=10, id='alert_monitor')
+
+        # Process JoinChannel queue at midnight UTC
+        scheduler.add_job(
+            process_join_queue,
+            'cron',
+            hour=0,
+            minute=0,
+            timezone='UTC',
+            id='process_join_queue'
+        )
 
         scheduler.add_job(
             translate_pending_messages_job,
@@ -87,7 +102,7 @@ async def lifespan(app: FastAPI):
         )
 
         scheduler.start()
-        logger.info("Background jobs scheduled (collecting every 2 minutes)")
+        logger.info("Background jobs scheduled (collecting every 5 minutes)")
 
     yield
 
@@ -95,6 +110,9 @@ async def lifespan(app: FastAPI):
     if settings.scheduler_enabled:
         scheduler.shutdown()
     await stop_fetch_worker()
+    await stop_update_handler()
+    await cleanup_telegram_client()
+    await cleanup_rate_limiter()
     if redis_cache:
         await redis_cache.close()
         await redis_cache.connection_pool.disconnect()
