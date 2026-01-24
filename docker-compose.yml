@@ -38,8 +38,6 @@ services:
     volumes:
       - telegram_data:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
-    networks:
-      - coolify
     deploy:
       resources:
         limits:
@@ -62,18 +60,14 @@ services:
     restart: always
     expose:
       - "80"
-    networks:
-      - coolify
     deploy:
       resources:
         limits:
           cpus: '0.5'
           memory: 256M
 
-networks:
-  coolify:
-    name: coolify
-    external: true
+# NOTE: No networks section - Coolify manages networking via "Connect to Predefined Network" option
+# This avoids "external network not found" errors for preview deployments
 
 volumes:
   telegram_data:
