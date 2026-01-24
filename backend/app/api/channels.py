@@ -113,33 +113,29 @@ async def add_channel(
                     )
                 )
                 existing_link = link_result.first()
-                
+
                 if existing_link:
-                    # If already linked but inactive, reactivate it? 
-                    # Usually if linked, it should be active for this user.
+                    # Link exists - ensure channel is active
                     if not existing_channel.is_active:
-                         existing_channel.is_active = True
-                         await db.commit()
-                         # We still inform the user it was already there, but now active.
-                         pass
+                        # Reactivate and return the channel
+                        existing_channel.is_active = True
+                        channel_to_use = existing_channel
                     else:
+                        # Channel is active and linked - already in user's list
                         raise HTTPException(status_code=400, detail="Channel already exists in your list")
-                
-                # If channel exists (inactive or active) but NOT linked:
-                if not existing_channel.is_active:
-                    existing_channel.is_active = True
-                    
-                # Link user to existing channel
-                # (Only if not already linked - logic above covers linked case)
-                if not existing_link:
+                else:
+                    # Channel exists but user doesn't have it linked yet
+                    # Ensure it's active and create the link
+                    if not existing_channel.is_active:
+                        existing_channel.is_active = True
+
                     await db.execute(
                         insert(user_channels).values(
                             user_id=user.id,
                             channel_id=existing_channel.id
                         )
                     )
-
-                channel_to_use = existing_channel
+                    channel_to_use = existing_channel
             else:
                 # Channel doesn't exist - create via Telegram
                 telegram_client = get_telegram_client()
