@@ -156,6 +156,27 @@ async def _process_fetch_job(job_data: dict) -> None:
 
         telegram_client = get_telegram_client()
 
+        # Update channel info (subscriber count, title, description)
+        await _update_job_status(job_id, "running", stage="info")
+        try:
+            channel_info = await telegram_client.resolve_channel(username)
+            async with AsyncSessionLocal() as db:
+                from sqlalchemy import select
+
+                result = await db.execute(
+                    select(Channel).where(Channel.id == channel_id)
+                )
+                channel = result.scalar_one_or_none()
+                if channel:
+                    channel.title = channel_info.get('title') or channel.title
+                    channel.description = channel_info.get('description') or channel.description
+                    channel.subscriber_count = channel_info.get('subscribers', 0)
+                    await db.commit()
+                    logger.info(f"Updated channel info for {username}: {channel_info.get('subscribers', 0)} subscribers")
+        except Exception as e:
+            logger.warning(f"Failed to update channel info for {username}: {e}")
+            # Continue with fetch even if info update fails
+
         # Get channel's last known message ID for incremental sync
         async with AsyncSessionLocal() as db:
             from sqlalchemy import select, func
