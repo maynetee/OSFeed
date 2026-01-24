@@ -78,6 +78,15 @@ def _get_session_maker():
     return _session_maker
 
 
+# Backward-compatible alias for AsyncSessionLocal (used by many modules)
+def AsyncSessionLocal():
+    """Get a new async session (lazy initialization).
+
+    Usage: async with AsyncSessionLocal() as session: ...
+    """
+    return _get_session_maker()()
+
+
 # Base class for models
 Base = declarative_base()
 
