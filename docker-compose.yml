@@ -1,12 +1,10 @@
 # Docker Compose - OSFeed Application (Coolify ready)
 #
-# COOLIFY PREVIEW DEPLOYMENTS:
-# Coolify auto-injects these variables for previews:
-#   - SERVICE_NAME_POSTGRES=postgres-pr-{id}
-#   - SERVICE_NAME_QDRANT=qdrant-pr-{id}
-#   - SERVICE_NAME_REDIS=redis-pr-{id}
-#   - SERVICE_URL_BACKEND=https://{pr_id}.api.osfeed.com
-# This allows automatic configuration without manual env vars per PR.
+# IMPORTANT: Coolify's SERVICE_URL_* variables do NOT include the https:// prefix!
+# Example: SERVICE_URL_BACKEND=api.osfeed.com (not https://api.osfeed.com)
+#
+# For the frontend build, we use API_URL instead which must include the full URL.
+# Set API_URL=https://api.osfeed.com in Coolify environment variables.
 
 services:
   backend:
@@ -67,8 +65,8 @@ services:
       context: ./frontend
       target: production
       args:
-        # Coolify provides SERVICE_URL_BACKEND for previews (e.g., https://12.api.osfeed.com)
-        VITE_API_URL: ${SERVICE_URL_BACKEND:-https://api.osfeed.com}
+        # Use explicit API_URL env var (Coolify's SERVICE_URL_BACKEND lacks https:// prefix)
+        VITE_API_URL: ${API_URL:-https://api.osfeed.com}
     networks:
       - coolify
     restart: always
