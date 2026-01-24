@@ -13,15 +13,15 @@ services:
     build: ./backend
     restart: always
     environment:
-      # Database - hardcoded to use production infrastructure
-      POSTGRES_HOST: postgres
+      # Database - using container names from docker-compose.infra.yml
+      POSTGRES_HOST: osfeed-postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: osfeed_db
       POSTGRES_USER: osfeed_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # Services - hardcoded to use production infrastructure
-      QDRANT_URL: http://qdrant:6333
-      REDIS_URL: redis://redis:6379/0
+      # Services - using container names from docker-compose.infra.yml
+      QDRANT_URL: http://osfeed-qdrant:6333
+      REDIS_URL: redis://osfeed-redis:6379/0
       # App config
       APP_ENV: production
       APP_DEBUG: "false"
