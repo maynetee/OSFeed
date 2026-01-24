@@ -77,6 +77,9 @@ def get_auth_rate_limiter() -> Optional[AuthRateLimiter]:
 # FastAPI dependencies for rate limiting
 async def rate_limit_forgot_password(request: Request):
     """Rate limit dependency for forgot-password endpoint (3 requests per 15 minutes)."""
+    # Skip rate limiting for OPTIONS (CORS preflight)
+    if request.method == "OPTIONS":
+        return
     limiter = get_auth_rate_limiter()
     if limiter:
         client_ip = request.client.host if request.client else "unknown"
@@ -89,6 +92,9 @@ async def rate_limit_forgot_password(request: Request):
 
 async def rate_limit_request_verify(request: Request):
     """Rate limit dependency for request-verify-token endpoint (3 requests per 15 minutes)."""
+    # Skip rate limiting for OPTIONS (CORS preflight)
+    if request.method == "OPTIONS":
+        return
     limiter = get_auth_rate_limiter()
     if limiter:
         client_ip = request.client.host if request.client else "unknown"
@@ -101,6 +107,9 @@ async def rate_limit_request_verify(request: Request):
 
 async def rate_limit_register(request: Request):
     """Rate limit dependency for register endpoint (5 requests per hour)."""
+    # Skip rate limiting for OPTIONS (CORS preflight)
+    if request.method == "OPTIONS":
+        return
     limiter = get_auth_rate_limiter()
     if limiter:
         client_ip = request.client.host if request.client else "unknown"
