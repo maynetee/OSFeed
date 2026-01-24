@@ -1,11 +1,10 @@
+import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw } from 'lucide-react'
 
 import { AddChannelDialog } from '@/components/channels/add-channel-dialog'
 import { ChannelList } from '@/components/channels/channel-list'
 import { EmptyState } from '@/components/common/empty-state'
-import { Button } from '@/components/ui/button'
 import { channelsApi, collectionsApi } from '@/lib/api/client'
 import { useTranslation } from 'react-i18next'
 
@@ -62,6 +61,18 @@ export function ChannelsPage() {
 
   const channels = Array.isArray(channelsQuery.data) ? channelsQuery.data : []
 
+  // Auto-refresh channel info if any channel has 0 subscribers (abnormal)
+  const hasRefreshedRef = useRef(false)
+  useEffect(() => {
+    if (channels.length > 0 && !hasRefreshedRef.current && !refreshInfo.isPending) {
+      const hasZeroSubscribers = channels.some((ch) => ch.subscriber_count === 0)
+      if (hasZeroSubscribers) {
+        hasRefreshedRef.current = true
+        refreshInfo.mutate()
+      }
+    }
+  }, [channels, refreshInfo])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -71,24 +82,11 @@ export function ChannelsPage() {
           </p>
           <h2 className="text-2xl font-semibold">{t('channels.title')}</h2>
         </div>
-        <div className="flex items-center gap-2">
-          {channels.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refreshInfo.mutate()}
-              disabled={refreshInfo.isPending}
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${refreshInfo.isPending ? 'animate-spin' : ''}`} />
-              {refreshInfo.isPending ? t('common.loading') : t('channels.refreshInfo')}
-            </Button>
-          )}
-          <AddChannelDialog
-            onSubmit={(username) => addChannel.mutateAsync(username)}
-            open={addDialogOpen}
-            onOpenChange={handleDialogOpenChange}
-          />
-        </div>
+        <AddChannelDialog
+          onSubmit={(username) => addChannel.mutateAsync(username)}
+          open={addDialogOpen}
+          onOpenChange={handleDialogOpenChange}
+        />
       </div>
       {channels.length === 0 && !channelsQuery.isLoading ? (
         <EmptyState
