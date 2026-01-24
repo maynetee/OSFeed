@@ -13,7 +13,8 @@
       "Bash(docker restart:*)",
       "Bash(docker volume:*)",
       "Bash(docker-compose logs:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "mcp__coolify__list_applications"
     ]
   }
 }

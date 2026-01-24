@@ -12,6 +12,8 @@ services:
   backend:
     build: ./backend
     restart: always
+    networks:
+      - coolify
     labels:
       - "coolify.fqdn=https://api.osfeed.com"
     environment:
@@ -59,6 +61,8 @@ services:
       args:
         # Coolify provides SERVICE_URL_BACKEND for previews (e.g., https://12.api.osfeed.com)
         VITE_API_URL: ${SERVICE_URL_BACKEND:-https://api.osfeed.com}
+    networks:
+      - coolify
     restart: always
     labels:
       - "coolify.fqdn=https://osfeed.com,https://www.osfeed.com"
@@ -70,8 +74,12 @@ services:
           cpus: '0.5'
           memory: 256M
 
-# NOTE: No networks section - Coolify manages networking via "Connect to Predefined Network" option
-# This avoids "external network not found" errors for preview deployments
+# NOTE: Explicitly declaring the coolify network
+# Coolify creates this network and we connect to it via "Connect to Predefined Network" option
+
+networks:
+  coolify:
+    external: true
 
 volumes:
   telegram_data:

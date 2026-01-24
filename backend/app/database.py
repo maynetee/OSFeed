@@ -4,6 +4,7 @@ from sqlalchemy import event
 from app.config import get_settings
 import os
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -37,28 +38,45 @@ def create_engine_for_database():
         )
 
 
-# Create async engine
-engine = create_engine_for_database()
+# Lazy engine initialization
+_engine = None
 
 
-# SQLite-specific pragmas (only applied when using SQLite)
-if settings.use_sqlite:
-    @event.listens_for(engine.sync_engine, "connect")
-    def set_sqlite_pragma(dbapi_connection, connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA busy_timeout=30000")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.close()
+def get_engine():
+    """Get or create the database engine (lazy initialization)."""
+    global _engine
+    if _engine is None:
+        _engine = create_engine_for_database()
+
+        # SQLite-specific pragmas (only applied when using SQLite)
+        if settings.use_sqlite:
+            @event.listens_for(_engine.sync_engine, "connect")
+            def set_sqlite_pragma(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA foreign_keys=ON")
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA busy_timeout=30000")
+                cursor.execute("PRAGMA synchronous=NORMAL")
+                cursor.close()
+
+    return _engine
 
 
-# Create async session maker
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+# Session maker cache for lazy initialization
+_session_maker = None
+
+
+def _get_session_maker():
+    """Get or create the async session maker (lazy initialization)."""
+    global _session_maker
+    if _session_maker is None:
+        _session_maker = async_sessionmaker(
+            get_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+    return _session_maker
+
 
 # Base class for models
 Base = declarative_base()
@@ -66,7 +84,8 @@ Base = declarative_base()
 
 async def get_db():
     """Dependency to get database session."""
-    async with AsyncSessionLocal() as session:
+    session_maker = _get_session_maker()
+    async with session_maker() as session:
         try:
             yield session
             await session.commit()
@@ -78,11 +97,26 @@ async def get_db():
 
 
 async def init_db():
-    """Initialize database tables.
+    """Initialize database tables with retry logic.
 
     Note: In production with PostgreSQL, prefer using Alembic migrations.
     This function is kept for development and initial setup.
     """
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables initialized")
+    max_retries = 5
+    base_delay = 2
+
+    for attempt in range(max_retries):
+        try:
+            engine = get_engine()
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database tables initialized")
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(f"Database connection attempt {attempt + 1}/{max_retries} failed: {e}. Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+            else:
+                logger.error(f"Database initialization failed after {max_retries} attempts: {e}")
+                raise
