@@ -16,6 +16,14 @@ services:
       - coolify
     labels:
       - "coolify.fqdn=https://api.osfeed.com"
+      # Explicit Traefik labels (Coolify v4 bug workaround)
+      - "traefik.enable=true"
+      - "traefik.http.routers.osfeed-api.rule=Host(`api.osfeed.com`)"
+      - "traefik.http.routers.osfeed-api.entrypoints=http,https"
+      - "traefik.http.routers.osfeed-api.tls=true"
+      - "traefik.http.routers.osfeed-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.osfeed-api.loadbalancer.server.port=8000"
+      - "traefik.docker.network=coolify"
     environment:
       # Database - using container names from docker-compose.infra.yml
       POSTGRES_HOST: osfeed-postgres
@@ -66,6 +74,14 @@ services:
     restart: always
     labels:
       - "coolify.fqdn=https://osfeed.com"
+      # Explicit Traefik labels (Coolify v4 bug workaround)
+      - "traefik.enable=true"
+      - "traefik.http.routers.osfeed-frontend.rule=Host(`osfeed.com`) || Host(`www.osfeed.com`)"
+      - "traefik.http.routers.osfeed-frontend.entrypoints=http,https"
+      - "traefik.http.routers.osfeed-frontend.tls=true"
+      - "traefik.http.routers.osfeed-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.osfeed-frontend.loadbalancer.server.port=80"
+      - "traefik.docker.network=coolify"
     expose:
       - "80"
     deploy:
