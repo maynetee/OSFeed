@@ -12,6 +12,8 @@ services:
   backend:
     build: ./backend
     restart: always
+    labels:
+      - "coolify.fqdn=https://api.osfeed.com"
     environment:
       # Database - using container names from docker-compose.infra.yml
       POSTGRES_HOST: osfeed-postgres
@@ -58,6 +60,8 @@ services:
         # Coolify provides SERVICE_URL_BACKEND for previews (e.g., https://12.api.osfeed.com)
         VITE_API_URL: ${SERVICE_URL_BACKEND:-https://api.osfeed.com}
     restart: always
+    labels:
+      - "coolify.fqdn=https://osfeed.com,https://www.osfeed.com"
     expose:
       - "80"
     deploy:
