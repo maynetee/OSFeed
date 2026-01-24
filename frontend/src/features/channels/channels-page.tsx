@@ -1,9 +1,11 @@
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { RefreshCw } from 'lucide-react'
 
 import { AddChannelDialog } from '@/components/channels/add-channel-dialog'
 import { ChannelList } from '@/components/channels/channel-list'
 import { EmptyState } from '@/components/common/empty-state'
+import { Button } from '@/components/ui/button'
 import { channelsApi, collectionsApi } from '@/lib/api/client'
 import { useTranslation } from 'react-i18next'
 
@@ -53,6 +55,11 @@ export function ChannelsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
   })
 
+  const refreshInfo = useMutation({
+    mutationFn: () => channelsApi.refreshInfo(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
+  })
+
   const channels = Array.isArray(channelsQuery.data) ? channelsQuery.data : []
 
   return (
@@ -64,11 +71,24 @@ export function ChannelsPage() {
           </p>
           <h2 className="text-2xl font-semibold">{t('channels.title')}</h2>
         </div>
-        <AddChannelDialog
-          onSubmit={(username) => addChannel.mutateAsync(username)}
-          open={addDialogOpen}
-          onOpenChange={handleDialogOpenChange}
-        />
+        <div className="flex items-center gap-2">
+          {channels.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refreshInfo.mutate()}
+              disabled={refreshInfo.isPending}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${refreshInfo.isPending ? 'animate-spin' : ''}`} />
+              {refreshInfo.isPending ? t('common.loading') : t('channels.refreshInfo')}
+            </Button>
+          )}
+          <AddChannelDialog
+            onSubmit={(username) => addChannel.mutateAsync(username)}
+            open={addDialogOpen}
+            onOpenChange={handleDialogOpenChange}
+          />
+        </div>
       </div>
       {channels.length === 0 && !channelsQuery.isLoading ? (
         <EmptyState

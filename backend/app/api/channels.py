@@ -307,6 +307,77 @@ async def refresh_channels(
     return RefreshChannelsResponse(job_ids=job_ids)
 
 
+class RefreshInfoRequest(BaseModel):
+    channel_ids: Optional[List[UUID]] = None
+
+
+class ChannelInfoUpdate(BaseModel):
+    channel_id: UUID
+    subscriber_count: int
+    title: str
+    success: bool
+    error: Optional[str] = None
+
+
+class RefreshInfoResponse(BaseModel):
+    results: List[ChannelInfoUpdate]
+
+
+@router.post("/refresh-info", response_model=RefreshInfoResponse)
+async def refresh_channel_info(
+    payload: RefreshInfoRequest,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Refresh channel info (subscriber count, title) from Telegram without fetching messages."""
+    channel_ids = payload.channel_ids or []
+    query = (
+        select(Channel)
+        .join(user_channels, Channel.id == user_channels.c.channel_id)
+        .where(
+            and_(
+                user_channels.c.user_id == user.id,
+                Channel.is_active == True,
+            )
+        )
+    )
+    if channel_ids:
+        query = query.where(Channel.id.in_(channel_ids))
+
+    result = await db.execute(query)
+    channels = result.scalars().all()
+
+    telegram_client = get_telegram_client()
+    results = []
+
+    for channel in channels:
+        try:
+            channel_info = await telegram_client.resolve_channel(channel.username)
+            channel.title = channel_info.get('title') or channel.title
+            channel.description = channel_info.get('description') or channel.description
+            channel.subscriber_count = channel_info.get('subscribers', 0)
+
+            results.append(ChannelInfoUpdate(
+                channel_id=channel.id,
+                subscriber_count=channel.subscriber_count,
+                title=channel.title,
+                success=True
+            ))
+            logger.info(f"Updated info for {channel.username}: {channel.subscriber_count} subscribers")
+        except Exception as e:
+            logger.error(f"Failed to refresh info for {channel.username}: {e}")
+            results.append(ChannelInfoUpdate(
+                channel_id=channel.id,
+                subscriber_count=channel.subscriber_count,
+                title=channel.title,
+                success=False,
+                error=str(e)
+            ))
+
+    await db.commit()
+    return RefreshInfoResponse(results=results)
+
+
 @router.post("/fetch-jobs/status", response_model=FetchJobsStatusResponse)
 async def fetch_jobs_status(
     payload: FetchJobsStatusRequest,

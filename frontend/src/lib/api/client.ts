@@ -270,6 +270,14 @@ export interface MessagesByChannel {
 }
 
 // API functions
+export interface ChannelInfoUpdate {
+  channel_id: string
+  subscriber_count: number
+  title: string
+  success: boolean
+  error?: string
+}
+
 export const channelsApi = {
   list: () => api.get<Channel[]>('/api/channels'),
   get: (id: string) => api.get<Channel>(`/api/channels/${id}`),
@@ -277,6 +285,10 @@ export const channelsApi = {
   delete: (id: string) => api.delete(`/api/channels/${id}`),
   refresh: (channelIds?: string[]) =>
     api.post<{ job_ids: string[] }>('/api/channels/refresh', {
+      channel_ids: channelIds,
+    }),
+  refreshInfo: (channelIds?: string[]) =>
+    api.post<{ results: ChannelInfoUpdate[] }>('/api/channels/refresh-info', {
       channel_ids: channelIds,
     }),
   getJobsStatus: (jobIds: string[]) =>

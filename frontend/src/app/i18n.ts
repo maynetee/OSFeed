@@ -197,6 +197,7 @@ const resources = {
         assignCollections: 'Collections',
         assignCollectionsTitle: 'Assign collections',
         addError: 'Failed to add channel',
+        refreshInfo: 'Refresh info',
       },
       collections: {
         title: 'Collections',
@@ -513,6 +514,7 @@ const resources = {
         assignCollections: 'Collections',
         assignCollectionsTitle: 'Assigner aux collections',
         addError: "Echec de l'ajout du canal",
+        refreshInfo: 'Actualiser infos',
       },
       collections: {
         title: 'Collections',
