@@ -1,0 +1,14 @@
+{{ app_name }} - Verify Your Email Address
+
+Hello,
+
+Thank you for creating an account with {{ app_name }}! Please verify your email address {{ user_email }} by clicking the link below:
+
+{{ verify_link }}
+
+This link will expire in {{ expire_time }}.
+
+If you didn't create an account with {{ app_name }}, you can safely ignore this email.
+
+---
+© {{ app_name }}. All rights reserved.

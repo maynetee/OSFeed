@@ -54,6 +54,26 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     scheduler_enabled: bool = True
 
+    # Email Configuration
+    email_enabled: bool = False  # Default to False so app works without email
+    email_provider: str = "smtp"  # "smtp", "resend"
+    email_from_address: str = "noreply@osfeed.app"
+    email_from_name: str = "OSFeed"
+
+    # SMTP Settings
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+
+    # Resend Settings (alternative)
+    resend_api_key: str = ""
+
+    # Token Settings
+    password_reset_token_expire_minutes: int = 30
+    email_verification_token_expire_hours: int = 24
+
     # Qdrant Vector Store
     qdrant_url: str = ""
     qdrant_api_key: str = ""

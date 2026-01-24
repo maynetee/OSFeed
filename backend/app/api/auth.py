@@ -16,22 +16,30 @@ from app.auth.refresh import generate_refresh_token, hash_refresh_token, refresh
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.models.user import User
 from app.database import get_db
+from app.services.auth_rate_limiter import (
+    rate_limit_forgot_password,
+    rate_limit_request_verify,
+    rate_limit_register,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="",
+    dependencies=[Depends(rate_limit_register)],
 )
 
 router.include_router(
     fastapi_users.get_reset_password_router(),
     prefix="",
+    dependencies=[Depends(rate_limit_forgot_password)],
 )
 
 router.include_router(
     fastapi_users.get_verify_router(UserRead),
     prefix="",
+    dependencies=[Depends(rate_limit_request_verify)],
 )
 
 # User management routes (admin only)

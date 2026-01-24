@@ -111,9 +111,9 @@ export function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">{t('auth.password')}</Label>
-                <a href="#" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/forgot-password" className="text-xs text-muted-foreground hover:text-primary transition-colors">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <Input
                 id="password"

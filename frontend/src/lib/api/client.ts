@@ -73,6 +73,14 @@ export const authApi = {
     }),
   register: (email: string, password: string) =>
     api.post('/api/auth/register', { email, password }),
+  verifyEmail: (token: string) =>
+    api.post('/api/auth/verify', { token }),
+  requestVerification: (email: string) =>
+    api.post('/api/auth/request-verify-token', { email }),
+  forgotPassword: (email: string) =>
+    api.post('/api/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) =>
+    api.post('/api/auth/reset-password', { token, password }),
   me: () => api.get('/api/auth/me'),
   logout: () => api.post('/api/auth/logout'),
 }

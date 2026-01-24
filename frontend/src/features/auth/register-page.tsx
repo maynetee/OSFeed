@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -45,6 +45,8 @@ export function RegisterPage() {
   const { setUser, setTokens } = useUserStore()
   const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
+  const [registrationSuccess, setRegistrationSuccess] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState('')
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -54,32 +56,91 @@ export function RegisterPage() {
   const handleRegister = async (values: RegisterFormValues) => {
     setError(null)
     try {
-      // First, create the account
-      await authApi.register(values.email, values.password)
+      // Create the account
+      const response = await authApi.register(values.email, values.password)
 
-      // Then, login to get the tokens
-      const loginResponse = await authApi.login(values.email, values.password)
-      const { access_token, refresh_token, refresh_expires_at } = loginResponse.data
+      // Check if email verification is required (is_verified will be false)
+      if (response.data.is_verified === false) {
+        // Email verification required - show success message, DON'T auto-login
+        setRegisteredEmail(values.email)
+        setRegistrationSuccess(true)
+      } else {
+        // No email verification (email_enabled=false or already verified) - auto-login
+        const loginResponse = await authApi.login(values.email, values.password)
+        const { access_token, refresh_token, refresh_expires_at } = loginResponse.data
 
-      setTokens({
-        accessToken: access_token,
-        refreshToken: refresh_token,
-        refreshExpiresAt: refresh_expires_at,
-      })
+        setTokens({
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          refreshExpiresAt: refresh_expires_at,
+        })
 
-      // Fetch user profile
-      const userResponse = await authApi.me()
-      setUser({
-        id: userResponse.data.id,
-        email: userResponse.data.email,
-        name: userResponse.data.email.split('@')[0],
-      })
+        // Fetch user profile
+        const userResponse = await authApi.me()
+        setUser({
+          id: userResponse.data.id,
+          email: userResponse.data.email,
+          name: userResponse.data.email.split('@')[0],
+        })
 
-      navigate('/dashboard')
+        navigate('/dashboard')
+      }
     } catch (err) {
       const axiosError = err as AxiosError<{ detail: string }>
       setError(getErrorMessage(axiosError.response?.data?.detail))
     }
+  }
+
+  const handleResendVerification = async () => {
+    if (!registeredEmail) return
+    try {
+      await authApi.requestVerification(registeredEmail)
+      // Show some feedback that email was resent (you could add a toast here)
+    } catch {
+      // Silently fail - don't reveal if email exists
+    }
+  }
+
+  if (registrationSuccess) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2 mb-8">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Bot className="h-6 w-6" />
+          </div>
+          <span className="text-2xl font-bold tracking-tight">OSFeed</span>
+        </div>
+
+        <Card className="w-full max-w-sm sm:max-w-md shadow-lg border-muted">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold text-center">Check your email</CardTitle>
+            <CardDescription className="text-center">
+              We've sent a verification link to your email address
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-muted-foreground mb-4">
+              Please click the link in the email to verify your account and complete registration.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Didn't receive the email? Check your spam folder or{' '}
+              <button type="button" className="text-primary font-medium hover:underline" onClick={handleResendVerification}>
+                request a new link
+              </button>
+            </p>
+          </CardContent>
+          <CardFooter className="justify-center border-t bg-muted/5 py-4">
+            <Link to="/login" className="text-primary font-medium hover:underline">
+              Back to login
+            </Link>
+          </CardFooter>
+        </Card>
+
+        <p className="mt-8 text-center text-xs text-muted-foreground">
+          &copy; {new Date().getFullYear()} OSFeed Inc. All rights reserved.
+        </p>
+      </div>
+    )
   }
 
   return (

@@ -1,4 +1,5 @@
 """FastAPI-Users configuration for OSFeed."""
+import asyncio
 import logging
 from typing import Optional
 from uuid import UUID
@@ -11,12 +12,14 @@ from fastapi_users.authentication import (
     BearerTransport,
     JWTStrategy,
 )
+from fastapi_users.jwt import generate_jwt
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
+from app.services.email_service import email_service
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -33,10 +36,26 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
 
     reset_password_token_secret = settings.secret_key
     verification_token_secret = settings.secret_key
+    verification_token_audience = "fastapi-users:verify"
+    verification_token_lifetime_seconds = 86400  # 24 hours
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
-        """Called after a user successfully registers."""
+        """Called after a user successfully registers. Sends verification email."""
         logger.info(f"User {user.email} has registered.")
+        if settings.email_enabled:
+            # Generate verification token manually (FastAPI-Users doesn't pass it here)
+            token_data = {
+                "sub": str(user.id),
+                "email": user.email,
+                "aud": self.verification_token_audience,
+            }
+            token = generate_jwt(
+                data=token_data,
+                secret=self.verification_token_secret,
+                lifetime_seconds=self.verification_token_lifetime_seconds,
+            )
+            # Send email in background (non-blocking)
+            asyncio.create_task(email_service.send_verification(user.email, token))
 
     async def on_after_login(
         self,
@@ -52,14 +71,26 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     async def on_after_forgot_password(
         self, user: User, token: str, request: Optional[Request] = None
     ):
-        """Called after a password reset token is generated."""
-        logger.info(f"User {user.email} has requested a password reset. Token: {token}")
+        """Called after a password reset token is generated. Sends reset email."""
+        logger.info(f"User {user.email} has requested a password reset.")
+        if settings.email_enabled:
+            # Token is passed by FastAPI-Users for this hook
+            asyncio.create_task(email_service.send_password_reset(user.email, token))
 
     async def on_after_reset_password(
         self, user: User, request: Optional[Request] = None
     ):
         """Called after a password is successfully reset."""
         logger.info(f"User {user.email} has reset their password.")
+
+    async def on_after_request_verify(
+        self, user: User, token: str, request: Optional[Request] = None
+    ):
+        """Called when user explicitly requests verification email."""
+        logger.info(f"Verification requested for {user.email}.")
+        if settings.email_enabled:
+            # Token is passed by FastAPI-Users for this hook
+            asyncio.create_task(email_service.send_verification(user.email, token))
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
