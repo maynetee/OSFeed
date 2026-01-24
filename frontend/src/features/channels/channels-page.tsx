@@ -43,15 +43,7 @@ export function ChannelsPage() {
 
   const addChannel = useMutation({
     mutationFn: (username: string) => channelsApi.add(username),
-    onSuccess: (response) => {
-      const newChannel = response.data
-      queryClient.setQueryData(['channels'], (current) => {
-        const channels = Array.isArray(current) ? current : []
-        if (channels.some((channel) => channel.id === newChannel.id)) {
-          return channels
-        }
-        return [newChannel, ...channels]
-      })
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] })
     },
   })

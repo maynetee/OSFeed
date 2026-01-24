@@ -144,6 +144,16 @@ export interface Message {
     organizations?: string[]
   } | null
   similarity_score?: number | null
+  needs_translation?: boolean
+  translation_priority?: string | null
+}
+
+export interface TranslationUpdate {
+  message_id: string
+  channel_id: string
+  translated_text: string
+  source_language: string | null
+  target_language: string | null
 }
 
 export interface MessageListResponse {
@@ -317,6 +327,8 @@ export const messagesApi = {
     api.post('/api/messages/translate', null, {
       params: { target_language: targetLanguage, channel_id: channelId },
     }),
+  translateById: (messageId: string) =>
+    api.post<Message>(`/api/messages/${messageId}/translate`),
   exportHtml: (params?: {
     channel_id?: string
     channel_ids?: string[]

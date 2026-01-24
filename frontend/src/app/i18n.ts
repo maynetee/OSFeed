@@ -292,6 +292,7 @@ const resources = {
       },
       messages: {
         translated: 'Translated',
+        translating: 'Translating...',
         original: 'Original',
         similar: 'View similar',
         copy: 'Copy',
@@ -607,6 +608,7 @@ const resources = {
       },
       messages: {
         translated: 'Traduit',
+        translating: 'Traduction...',
         original: 'Original',
         similar: 'Voir similaires',
         copy: 'Copier',

@@ -13,6 +13,7 @@ from app.services.translation_pool import run_translation
 from app.services.translator import translator
 from app.services.clustering import ClusteringService
 from app.services.ner_extractor import NERService
+from app.services.events import publish_message_translated
 
 
 settings = get_settings()
@@ -32,6 +33,7 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
                 Message.target_language,
                 Message.source_language,
                 Message.published_at,
+                Message.channel_id,
             )
             .where(Message.needs_translation.is_(True))
             .where(
@@ -76,7 +78,7 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
                 )
             )
             return [
-                (row.id, translated_text, detected_lang, target_lang, priority)
+                (row.id, translated_text, detected_lang, target_lang, priority, row.channel_id)
                 for row, (translated_text, detected_lang, priority) in zip(items, results)
             ]
 
@@ -102,8 +104,11 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
         if translations:
             translated_at = datetime.now(timezone.utc)
             processed_ids = []
-            
-            for message_id, translated_text, source_lang, target_lang, priority in translations:
+
+            # Collect translation data for events
+            translation_events = []
+
+            for message_id, translated_text, source_lang, target_lang, priority, channel_id in translations:
                 await db.execute(
                     update(Message)
                     .where(Message.id == message_id)
@@ -117,8 +122,27 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
                     )
                 )
                 processed_ids.append(message_id)
-                
+
+                # Collect for later publishing (after commit)
+                translation_events.append({
+                    'message_id': message_id,
+                    'channel_id': channel_id,
+                    'translated_text': translated_text,
+                    'source_language': source_lang,
+                    'target_language': target_lang,
+                })
+
             await db.commit()
+
+            # Publish events AFTER successful commit
+            for event_data in translation_events:
+                await publish_message_translated(
+                    message_id=event_data['message_id'],
+                    channel_id=event_data['channel_id'],
+                    translated_text=event_data['translated_text'],
+                    source_language=event_data['source_language'],
+                    target_language=event_data['target_language']
+                )
             
             if processed_ids:
                 try:

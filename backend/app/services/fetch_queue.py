@@ -232,6 +232,29 @@ async def _process_fetch_job(job_data: dict) -> None:
 
                 await db.commit()
 
+                # Trigger immediate translation for new messages (non-blocking)
+                # Extract serialized data while still in session context
+                from app.services.translation_service import translate_message_immediate
+
+                if new_messages > 0:
+                    # Collect message data for translation BEFORE session closes
+                    # Query the messages we just added to get their IDs
+                    recent_result = await db.execute(
+                        select(Message.id, Message.original_text, Message.channel_id)
+                        .where(Message.channel_id == channel_id)
+                        .where(Message.needs_translation.is_(True))
+                        .order_by(Message.published_at.desc())
+                        .limit(new_messages)
+                    )
+                    messages_to_translate = recent_result.all()
+
+                    # Create async tasks with serialized data
+                    for msg_id, text, ch_id in messages_to_translate:
+                        if text and text.strip():
+                            asyncio.create_task(
+                                translate_message_immediate(msg_id, text, ch_id)
+                            )
+
             # Update progress
             await _update_job_status(
                 job_id, "running",

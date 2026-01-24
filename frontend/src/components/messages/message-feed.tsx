@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { MessageCard } from '@/components/messages/message-card'
 import { MessageSkeleton } from '@/components/messages/message-skeleton'
 import { EmptyState } from '@/components/common/empty-state'
+import { useLazyTranslation } from '@/hooks/use-lazy-translation'
 import type { Message } from '@/lib/api/client'
 
 interface MessageFeedProps {
@@ -26,6 +27,12 @@ export const MessageFeed = memo(function MessageFeed({
 }: MessageFeedProps) {
   const { t } = useTranslation()
   const parentRef = useRef<HTMLDivElement>(null)
+
+  // Trigger lazy translation for visible messages that need it
+  useLazyTranslation({
+    messages,
+    enabled: !isLoading,
+  })
 
   // Virtualizer instance
   const rowVirtualizer = useVirtualizer({

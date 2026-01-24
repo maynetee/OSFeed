@@ -171,6 +171,7 @@ async def add_channel(
                         telegram_id=channel_info['telegram_id'],
                         title=channel_info['title'],
                         description=channel_info.get('description'),
+                        subscriber_count=channel_info.get('subscribers', 0),
                         is_active=True
                     )
                     db.add(channel_to_use)

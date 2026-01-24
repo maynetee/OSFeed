@@ -20,6 +20,7 @@ from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
 from app.services.cache import get_redis_client
+from app.services.events import publish_message_translated
 from datetime import datetime, timezone
 from typing import Optional
 import base64
@@ -202,41 +203,51 @@ async def stream_messages(
                 async for event in pubsub.listen():
                     if event["type"] != "message":
                         continue
-                        
+
                     data = json.loads(event["data"])
-                    # We trigger a fetch if event type is message:new or message:update
-                    # Optimization: We could check if channel_id matches our filter here
-                    
-                    async with AsyncSessionLocal() as db:
-                        query = select(Message).options(selectinload(Message.channel))
-                        query = _apply_message_filters(query, user.id, channel_id, channel_ids, None, None)
-                        
-                        if last_message_id:
-                            query = query.where(
-                                tuple_(Message.published_at, Message.id) > (last_published_at, last_message_id)
-                            )
-                        else:
-                            query = query.where(Message.published_at > last_published_at)
-                            
-                        query = query.order_by(Message.published_at.asc(), Message.id.asc())
-                        query = query.limit(50)
-                        
-                        result = await db.execute(query)
-                        new_messages = result.scalars().all()
-                    
-                    if new_messages:
-                        newest = new_messages[-1]
-                        last_published_at = newest.published_at
-                        last_message_id = newest.id
-                        
-                        payload = {
-                            "messages": [
-                                _message_to_response(msg).model_dump(mode="json")
-                                for msg in new_messages
-                            ],
-                            "type": "realtime"
+                    event_type = data.get("type", "")
+
+                    # Handle translation events - forward directly to client
+                    if event_type == "message:translated":
+                        translation_event = {
+                            "type": "message:translated",
+                            "data": data.get("data", {})
                         }
-                        yield f"data: {json.dumps(payload)}\n\n"
+                        yield f"data: {json.dumps(translation_event)}\n\n"
+                        continue
+
+                    # Handle new message events - query DB and send
+                    if event_type == "message:new":
+                        async with AsyncSessionLocal() as db:
+                            query = select(Message).options(selectinload(Message.channel))
+                            query = _apply_message_filters(query, user.id, channel_id, channel_ids, None, None)
+
+                            if last_message_id:
+                                query = query.where(
+                                    tuple_(Message.published_at, Message.id) > (last_published_at, last_message_id)
+                                )
+                            else:
+                                query = query.where(Message.published_at > last_published_at)
+
+                            query = query.order_by(Message.published_at.asc(), Message.id.asc())
+                            query = query.limit(50)
+
+                            result = await db.execute(query)
+                            new_messages = result.scalars().all()
+
+                        if new_messages:
+                            newest = new_messages[-1]
+                            last_published_at = newest.published_at
+                            last_message_id = newest.id
+
+                            payload = {
+                                "messages": [
+                                    _message_to_response(msg).model_dump(mode="json")
+                                    for msg in new_messages
+                                ],
+                                "type": "realtime"
+                            }
+                            yield f"data: {json.dumps(payload)}\n\n"
             except asyncio.CancelledError:
                 await pubsub.unsubscribe("osfeed:events")
                 raise
@@ -827,6 +838,15 @@ async def translate_message_on_demand(
 
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
+
+    # Publish event for real-time updates across all clients
+    await publish_message_translated(
+        message_id=message.id,
+        channel_id=message.channel_id,
+        translated_text=translated_text,
+        source_language=source_lang,
+        target_language=target_language
+    )
 
     return _message_to_response(message)
 

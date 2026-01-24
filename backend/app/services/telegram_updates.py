@@ -177,6 +177,18 @@ class TelegramUpdateHandler:
                 # Publish to Redis for SSE
                 await self._publish_new_message(msg)
 
+                # Trigger immediate translation (non-blocking)
+                # Extract serialized data while message is still in session context
+                if msg.original_text and msg.original_text.strip() and msg.needs_translation:
+                    from app.services.translation_service import translate_message_immediate
+                    asyncio.create_task(
+                        translate_message_immediate(
+                            message_id=msg.id,
+                            original_text=msg.original_text,
+                            channel_id=msg.channel_id
+                        )
+                    )
+
         except Exception as e:
             logger.exception(f"Error handling new message: {e}")
 

@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { api } from '@/lib/api/client'
-import { Message } from '@/lib/api/client'
+import { Message, TranslationUpdate } from '@/lib/api/client'
 
 interface UseMessageStreamOptions {
   enabled?: boolean
   channelId?: string
   channelIds?: string[]
   onMessages?: (messages: Message[], isRealtime: boolean) => void
+  onTranslation?: (update: TranslationUpdate) => void
 }
 
 export function useMessageStream(options: UseMessageStreamOptions = {}) {
-  const { enabled = true, channelId, channelIds, onMessages } = options
+  const { enabled = true, channelId, channelIds, onMessages, onTranslation } = options
   const [isConnected, setIsConnected] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -66,9 +67,17 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
-                const data = JSON.parse(line.slice(6))
-                if (data.messages && data.messages.length > 0) {
-                  onMessages?.(data.messages, data.type === 'realtime')
+                const payload = JSON.parse(line.slice(6))
+
+                // Handle translation events
+                if (payload.type === 'message:translated') {
+                  onTranslation?.(payload.data)
+                  continue
+                }
+
+                // Handle message events (existing behavior)
+                if (payload.messages && payload.messages.length > 0) {
+                  onMessages?.(payload.messages, payload.type === 'realtime')
                 }
               } catch (e) {
                 console.error('Error parsing SSE data', e)
@@ -85,7 +94,7 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
       })
     })
 
-  }, [enabled, channelId, channelIds, onMessages])
+  }, [enabled, channelId, channelIds, onMessages, onTranslation])
 
   useEffect(() => {
     connect()

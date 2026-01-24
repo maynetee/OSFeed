@@ -70,6 +70,11 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
             ) : null}
             <Timestamp value={message.published_at} />
             {message.source_language ? <Badge variant="muted">{message.source_language}</Badge> : null}
+            {message.needs_translation && !message.translated_text ? (
+              <Badge variant="outline" className="animate-pulse">
+                {t('messages.translating')}
+              </Badge>
+            ) : null}
             {message.translated_text ? <Badge variant="success">{t('messages.translated')}</Badge> : null}
           </div>
           <div className="flex items-center gap-2">

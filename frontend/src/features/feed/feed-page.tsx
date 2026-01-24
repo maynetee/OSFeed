@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
@@ -8,7 +8,7 @@ import { ExportDialog } from '@/components/exports/export-dialog'
 import { MessageFeed } from '@/components/messages/message-feed'
 import { MessageFilters } from '@/components/messages/message-filters'
 import { Button } from '@/components/ui/button'
-import { channelsApi, collectionsApi, messagesApi, MessageListResponse } from '@/lib/api/client'
+import { channelsApi, collectionsApi, messagesApi, MessageListResponse, TranslationUpdate } from '@/lib/api/client'
 import { cn } from '@/lib/cn'
 import { useMessageStream } from '@/hooks/use-message-stream'
 import { useFilterStore } from '@/stores/filter-store'
@@ -97,6 +97,31 @@ export function FeedPage() {
     },
   })
 
+  const handleTranslation = useCallback((update: TranslationUpdate) => {
+    // Update the message in the query cache
+    queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange], (oldData) => {
+      if (!oldData?.pages) return oldData
+
+      return {
+        ...oldData,
+        pages: oldData.pages.map((page) => ({
+          ...page,
+          messages: page.messages.map((msg) =>
+            msg.id === update.message_id
+              ? {
+                  ...msg,
+                  translated_text: update.translated_text,
+                  source_language: update.source_language,
+                  target_language: update.target_language,
+                  needs_translation: false,
+                }
+              : msg
+          ),
+        })),
+      }
+    })
+  }, [queryClient, activeChannelIds, dateRange])
+
   const { isConnected } = useMessageStream({
     channelIds: activeChannelIds,
     onMessages: (newMessages, isRealtime) => {
@@ -109,7 +134,7 @@ export function FeedPage() {
             // Filter out existing messages to avoid duplicates
             const existingIds = new Set(newPages.flatMap((p) => p.messages).map((m) => m.id))
             const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id))
-            
+
             if (uniqueNewMessages.length > 0) {
                 newPages[0] = {
                   ...newPages[0],
@@ -123,7 +148,8 @@ export function FeedPage() {
           }
         })
       }
-    }
+    },
+    onTranslation: handleTranslation,
   })
 
   const manualRefresh = async () => {
