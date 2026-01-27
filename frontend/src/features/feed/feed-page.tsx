@@ -62,21 +62,17 @@ export function FeedPage() {
     if (nextChannelIds.length !== channelIds.length) {
       setChannelIds(nextChannelIds)
     }
-    if (!filtersTouched && (channelIds.length > 0 || collectionIds.length > 0)) {
-      resetFilters()
-    }
-  }, [channelsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds])
 
-  useEffect(() => {
     const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
     const nextCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
     if (nextCollectionIds.length !== collectionIds.length) {
       setCollectionIds(nextCollectionIds)
     }
+
     if (!filtersTouched && (channelIds.length > 0 || collectionIds.length > 0)) {
       resetFilters()
     }
-  }, [collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setCollectionIds])
+  }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds, setCollectionIds])
 
   const messagesQuery = useInfiniteQuery({
     queryKey: ['messages', activeChannelIds, dateRange],
