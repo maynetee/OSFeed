@@ -1,3 +1,5 @@
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -161,7 +163,7 @@ async def export_stats_csv(
 @router.get("/trust")
 @response_cache(expire=settings.response_cache_ttl, namespace="stats-trust")
 async def get_trust_stats(
-    channel_ids: list[UUID] | None = Query(None),
+    channel_ids: Optional[List[UUID]] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):

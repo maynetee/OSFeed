@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 from functools import lru_cache
 from pathlib import Path
 import secrets
@@ -151,6 +151,13 @@ class Settings(BaseSettings):
 
     # Telegram API (User Account)
     telegram_api_id: int = 0
+
+    @field_validator("telegram_api_id", mode="before")
+    @classmethod
+    def parse_telegram_api_id(cls, v):
+        if v == "" or v is None:
+            return 0
+        return v
     telegram_api_hash: str = ""
     telegram_phone: str = ""
     telegram_session_path: str = "/app/data/telegram.session"
