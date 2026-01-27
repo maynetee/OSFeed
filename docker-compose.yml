@@ -1,45 +1,31 @@
 # Docker Compose - OSFeed Application (Coolify ready)
 #
-# IMPORTANT: Coolify's SERVICE_URL_* variables do NOT include the https:// prefix!
-# Example: SERVICE_URL_BACKEND=api.osfeed.com (not https://api.osfeed.com)
+# NETWORK STRATEGY:
+# - No networks section defined here — Coolify manages networks automatically
+# - Enable "Connect to Predefined Network" in Coolify UI for infra connectivity
+# - This avoids "external network not found" errors on preview deployments
 #
-# For the frontend build, we use API_URL instead which must include the full URL.
-# Set API_URL=https://api.osfeed.com in Coolify environment variables.
+# DOMAIN STRATEGY:
+# - Domains are set via Coolify UI docker_compose_domains (with https:// prefix)
+# - No explicit Traefik labels — Coolify auto-generates them from domains
 
 services:
   backend:
     build: ./backend
     restart: always
-    networks:
-      - coolify
-    labels:
-      - "coolify.fqdn=https://api.osfeed.com"
-      # Explicit Traefik labels (Coolify v4 bug workaround)
-      - "traefik.enable=true"
-      - "traefik.http.routers.osfeed-api.rule=Host(`api.osfeed.com`)"
-      - "traefik.http.routers.osfeed-api.entrypoints=http,https"
-      - "traefik.http.routers.osfeed-api.tls=true"
-      - "traefik.http.routers.osfeed-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.osfeed-api.loadbalancer.server.port=8000"
-      - "traefik.docker.network=coolify"
     environment:
-      # Database - using container names from docker-compose.infra.yml
       POSTGRES_HOST: osfeed-postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: osfeed_db
       POSTGRES_USER: osfeed_user
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      # Services - using container names from docker-compose.infra.yml
       QDRANT_URL: http://osfeed-qdrant:6333
       REDIS_URL: redis://osfeed-redis:6379/0
-      # App config
       APP_ENV: production
       APP_DEBUG: "false"
       SECRET_KEY: ${SECRET_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      # Frontend URL for CORS (Coolify's SERVICE_URL_FRONTEND lacks https:// prefix)
       FRONTEND_URL: ${FRONTEND_URL:-https://osfeed.com}
-      # Telegram
       TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
       TELEGRAM_SESSION_STRING: ${TELEGRAM_SESSION_STRING:-}
@@ -65,21 +51,8 @@ services:
       context: ./frontend
       target: production
       args:
-        # Use explicit API_URL env var (Coolify's SERVICE_URL_BACKEND lacks https:// prefix)
         VITE_API_URL: ${API_URL:-https://api.osfeed.com}
-    networks:
-      - coolify
     restart: always
-    labels:
-      - "coolify.fqdn=https://osfeed.com"
-      # Explicit Traefik labels (Coolify v4 bug workaround)
-      - "traefik.enable=true"
-      - "traefik.http.routers.osfeed-frontend.rule=Host(`osfeed.com`) || Host(`www.osfeed.com`)"
-      - "traefik.http.routers.osfeed-frontend.entrypoints=http,https"
-      - "traefik.http.routers.osfeed-frontend.tls=true"
-      - "traefik.http.routers.osfeed-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.osfeed-frontend.loadbalancer.server.port=80"
-      - "traefik.docker.network=coolify"
     expose:
       - "80"
     deploy:
@@ -88,13 +61,5 @@ services:
           cpus: '0.5'
           memory: 256M
 
-# NOTE: Explicitly declaring the coolify network
-# Coolify creates this network and we connect to it via "Connect to Predefined Network" option
-
-networks:
-  coolify:
-    external: true
-
 volumes:
   telegram_data:
-    # Named volume for Telegram session persistence
