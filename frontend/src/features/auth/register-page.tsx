@@ -47,6 +47,7 @@ export function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+  const [resendSent, setResendSent] = useState(false)
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -95,9 +96,10 @@ export function RegisterPage() {
     if (!registeredEmail) return
     try {
       await authApi.requestVerification(registeredEmail)
-      // Show some feedback that email was resent (you could add a toast here)
+      setResendSent(true)
     } catch {
       // Silently fail - don't reveal if email exists
+      setResendSent(true)
     }
   }
 
@@ -122,12 +124,18 @@ export function RegisterPage() {
             <p className="text-muted-foreground mb-4">
               Please click the link in the email to verify your account and complete registration.
             </p>
-            <p className="text-sm text-muted-foreground">
-              Didn't receive the email? Check your spam folder or{' '}
-              <button type="button" className="text-primary font-medium hover:underline" onClick={handleResendVerification}>
-                request a new link
-              </button>
-            </p>
+            {resendSent ? (
+              <p className="text-sm text-muted-foreground">
+                A new verification email has been sent. Please check your inbox.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Didn't receive the email? Check your spam folder or{' '}
+                <button type="button" className="text-primary font-medium hover:underline" onClick={handleResendVerification}>
+                  request a new link
+                </button>
+              </p>
+            )}
           </CardContent>
           <CardFooter className="justify-center border-t bg-muted/5 py-4">
             <Link to="/login" className="text-primary font-medium hover:underline">
