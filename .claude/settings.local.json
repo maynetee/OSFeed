@@ -14,7 +14,18 @@
       "Bash(docker volume:*)",
       "Bash(docker-compose logs:*)",
       "Bash(grep:*)",
-      "mcp__coolify__list_applications"
+      "Bash(git add:*)",
+      "Bash(git restore:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nchore: remove dev-only files for production deployment\n\nRemove obsolete documentation and scripts that are no longer needed\nnow that the project is deployed on Coolify:\n\n- Remove old deployment guides \\(VPS manual setup, Caddy HTTPS\\)\n- Remove market research documents\n- Remove AGENTS.md AI documentation\n- Remove .env templates \\(Coolify manages env vars\\)\n- Remove backend debug/dev scripts\n- Remove server setup script\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "mcp__coolify__get_server_resources",
+      "mcp__coolify__get_server_domains",
+      "mcp__coolify__update_application_env",
+      "mcp__coolify__create_application_env",
+      "WebSearch",
+      "WebFetch(domain:coolify.io)",
+      "WebFetch(domain:github.com)",
+      "mcp__coolify__bulk_update_application_envs",
+      "mcp__coolify__list_teams"
     ]
   }
 }
