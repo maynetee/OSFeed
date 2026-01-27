@@ -33,21 +33,27 @@ class AuthRateLimiter:
 
         Returns True if allowed, raises HTTPException if rate limited.
         """
-        redis = await self._get_redis()
-        full_key = f"auth_ratelimit:{key}"
+        try:
+            redis = await self._get_redis()
+            full_key = f"auth_ratelimit:{key}"
 
-        # Increment counter and set expiry
-        current = await redis.incr(full_key)
-        if current == 1:
-            await redis.expire(full_key, window_seconds)
+            # Increment counter and set expiry
+            current = await redis.incr(full_key)
+            if current == 1:
+                await redis.expire(full_key, window_seconds)
 
-        if current > max_requests:
-            ttl = await redis.ttl(full_key)
-            logger.warning(f"Rate limit exceeded for {key}")
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Too many requests. Try again in {ttl} seconds.",
-            )
+            if current > max_requests:
+                ttl = await redis.ttl(full_key)
+                logger.warning(f"Rate limit exceeded for {key}")
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Too many requests. Try again in {ttl} seconds.",
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            logger.warning("Redis unavailable - rate limiting disabled for this request")
+            return True
 
         return True
 
