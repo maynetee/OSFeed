@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, update, or_, tuple_, insert, and_
+from sqlalchemy import select, func, desc, update, or_, tuple_, insert, and_, literal
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 import asyncio
@@ -150,10 +150,10 @@ async def stream_messages(
         last_published_at = None
         last_message_id = None
 
-        # 1. Stream historical messages
-        while sent < limit:
-            current_batch = min(batch_size, limit - sent)
-            async with AsyncSessionLocal() as db:
+        # 1. Stream historical messages - reuse a single DB session for all batches
+        async with AsyncSessionLocal() as db:
+            while sent < limit:
+                current_batch = min(batch_size, limit - sent)
                 query = select(Message).options(selectinload(Message.channel))
                 query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
                 query = query.order_by(desc(Message.published_at), desc(Message.id))
@@ -161,28 +161,28 @@ async def stream_messages(
                 result = await db.execute(query)
                 messages = result.scalars().all()
 
-            if not messages:
-                break
+                if not messages:
+                    break
 
-            if offset == 0 and messages:
-                newest = messages[0]
-                last_published_at = newest.published_at
-                last_message_id = newest.id
+                if offset == 0 and messages:
+                    newest = messages[0]
+                    last_published_at = newest.published_at
+                    last_message_id = newest.id
 
-            payload = {
-                "messages": [
-                    _message_to_response(message).model_dump(mode="json")
-                    for message in messages
-                ],
-                "offset": offset,
-                "count": len(messages),
-                "type": "history"
-            }
-            yield f"data: {json.dumps(payload)}\n\n"
+                payload = {
+                    "messages": [
+                        _message_to_response(message).model_dump(mode="json")
+                        for message in messages
+                    ],
+                    "offset": offset,
+                    "count": len(messages),
+                    "type": "history"
+                }
+                yield f"data: {json.dumps(payload)}\n\n"
 
-            offset += len(messages)
-            sent += len(messages)
-            await asyncio.sleep(0)
+                offset += len(messages)
+                sent += len(messages)
+                await asyncio.sleep(0)
 
         # 2. Realtime tailing via Redis Pub/Sub
         if realtime:
@@ -277,12 +277,12 @@ async def search_messages(
     db: AsyncSession = Depends(get_db),
 ):
     """Search messages via full-text match on original/translated text."""
-    query = select(Message).options(selectinload(Message.channel)).where(
-        or_(
-            Message.original_text.ilike(f"%{q}%"),
-            Message.translated_text.ilike(f"%{q}%"),
-        )
+    # Use PostgreSQL trgm operators to leverage GIN index instead of ilike
+    search_filter = or_(
+        Message.original_text.op("%")(q),
+        func.coalesce(Message.translated_text, literal("")).op("%")(q),
     )
+    query = select(Message).options(selectinload(Message.channel)).where(search_filter)
     query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date)
 
     count_query = select(func.count()).select_from(query.subquery())

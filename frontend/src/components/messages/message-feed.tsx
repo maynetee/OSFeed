@@ -34,11 +34,32 @@ export const MessageFeed = memo(function MessageFeed({
     enabled: !isLoading,
   })
 
+  // Estimate row height based on message content length to reduce layout jumps
+  const estimateSize = useCallback(
+    (index: number) => {
+      const message = messages[index]
+      if (!message) return 180
+
+      const text = message.translated_text || message.original_text || ''
+      const charCount = text.length
+
+      // Base height: card chrome (header, metadata, padding) ~100px
+      // Each ~80 chars roughly corresponds to one line (~20px)
+      // Media adds ~200px
+      const baseHeight = 100
+      const textHeight = Math.ceil(charCount / 80) * 20
+      const mediaHeight = message.media_urls?.length ? 200 : 0
+
+      return baseHeight + textHeight + mediaHeight + 16 // 16px for gap
+    },
+    [messages]
+  )
+
   // Virtualizer instance
   const rowVirtualizer = useVirtualizer({
     count: messages.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 180, // Approximate height of a message card
+    estimateSize,
     overscan: 5,
   })
 

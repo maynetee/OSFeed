@@ -1,4 +1,5 @@
 from typing import Callable, Any
+from urllib.parse import parse_qsl, urlencode
 
 from fastapi_cache.decorator import cache
 
@@ -17,7 +18,8 @@ def user_aware_key_builder(
 ) -> str:
     user = kwargs.get("user")
     user_id = getattr(user, "id", "anonymous")
-    return f"{namespace}:{user_id}:{request.url.path}?{request.url.query}"
+    sorted_query = urlencode(sorted(parse_qsl(str(request.url.query))))
+    return f"{namespace}:{user_id}:{request.url.path}?{sorted_query}"
 
 
 def response_cache(expire: int, namespace: str):

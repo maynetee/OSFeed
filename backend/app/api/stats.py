@@ -8,10 +8,14 @@ from datetime import datetime, timedelta, timezone
 import csv
 from io import StringIO
 from uuid import UUID
+from typing import List
+
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models.message import Message, MessageTranslation
 from app.models.channel import Channel
+from app.models.collection import Collection, collection_channels
 from app.models.summary import Summary
 from app.models.user import User
 from app.models.api_usage import ApiUsage
@@ -275,14 +279,135 @@ async def get_translation_metrics(
     )
     tokens_saved = tokens_result.scalar() or 0
 
-    # Current implementation doesn't track hit counts in DB (only in Redis per-key)
-    # So we return placeholder values for now
-    hits = 0
-    hit_rate = 0.0
+    # Read real cache hit/miss counters from Redis
+    from app.services.cache import get_translation_cache_stats
+    cache_stats = await get_translation_cache_stats()
 
     return {
         "total_translations": total_cached,
-        "cache_hits": hits,
-        "cache_hit_rate": hit_rate,
+        "cache_hits": cache_stats["cache_hits"],
+        "cache_misses": cache_stats["cache_misses"],
+        "cache_hit_rate": cache_stats["cache_hit_rate"],
         "tokens_saved": tokens_saved,
     }
+
+
+class BatchStatsRequest(BaseModel):
+    collection_ids: List[UUID] = Field(..., max_length=50)
+
+
+@router.post("/batch")
+@response_cache(expire=settings.response_cache_ttl, namespace="stats-batch")
+async def get_batch_stats(
+    body: BatchStatsRequest,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return stats for multiple collections in a single response using batch queries."""
+    collection_ids = body.collection_ids
+
+    if not collection_ids:
+        return {"stats": {}}
+
+    # Verify user owns or has access to these collections
+    from app.models.collection_share import CollectionShare
+
+    result = await db.execute(
+        select(Collection)
+        .outerjoin(
+            CollectionShare,
+            (CollectionShare.collection_id == Collection.id) & (CollectionShare.user_id == user.id),
+        )
+        .where(
+            Collection.id.in_(collection_ids),
+            or_(Collection.user_id == user.id, CollectionShare.user_id == user.id),
+        )
+    )
+    collections = result.scalars().all()
+    accessible_ids = {c.id for c in collections}
+    global_ids = {c.id for c in collections if c.is_global}
+    non_global_ids = [cid for cid in accessible_ids if cid not in global_ids]
+
+    now = datetime.now(timezone.utc)
+    day_ago = now - timedelta(days=1)
+    week_ago = now - timedelta(days=7)
+
+    # Build collection -> channel_ids mapping
+    coll_channel_map: dict[UUID, list[UUID]] = {cid: [] for cid in accessible_ids}
+
+    if non_global_ids:
+        ch_result = await db.execute(
+            select(
+                collection_channels.c.collection_id,
+                collection_channels.c.channel_id,
+            ).where(collection_channels.c.collection_id.in_(non_global_ids))
+        )
+        for row in ch_result.all():
+            coll_channel_map[row.collection_id].append(row.channel_id)
+
+    if global_ids:
+        active_ch_result = await db.execute(
+            select(Channel.id).where(Channel.is_active == True)
+        )
+        all_active = [r[0] for r in active_ch_result.all()]
+        for gid in global_ids:
+            coll_channel_map[gid] = all_active
+
+    # Gather all unique channel IDs for batch message queries
+    all_channel_ids: set[UUID] = set()
+    for ch_ids in coll_channel_map.values():
+        all_channel_ids.update(ch_ids)
+
+    # Batch query: message counts grouped by channel_id for different time windows
+    channel_total: dict[UUID, int] = {}
+    channel_24h: dict[UUID, int] = {}
+    channel_7d: dict[UUID, int] = {}
+
+    if all_channel_ids:
+        # Total messages per channel
+        total_result = await db.execute(
+            select(Message.channel_id, func.count().label("cnt"))
+            .where(Message.channel_id.in_(all_channel_ids))
+            .group_by(Message.channel_id)
+        )
+        channel_total = {row.channel_id: row.cnt for row in total_result.all()}
+
+        # 24h messages per channel
+        result_24h = await db.execute(
+            select(Message.channel_id, func.count().label("cnt"))
+            .where(
+                Message.channel_id.in_(all_channel_ids),
+                Message.published_at >= day_ago,
+            )
+            .group_by(Message.channel_id)
+        )
+        channel_24h = {row.channel_id: row.cnt for row in result_24h.all()}
+
+        # 7d messages per channel
+        result_7d = await db.execute(
+            select(Message.channel_id, func.count().label("cnt"))
+            .where(
+                Message.channel_id.in_(all_channel_ids),
+                Message.published_at >= week_ago,
+            )
+            .group_by(Message.channel_id)
+        )
+        channel_7d = {row.channel_id: row.cnt for row in result_7d.all()}
+
+    # Aggregate per collection
+    stats: dict[str, dict] = {}
+    for cid in accessible_ids:
+        ch_ids = coll_channel_map[cid]
+        total = sum(channel_total.get(ch, 0) for ch in ch_ids)
+        last_24h = sum(channel_24h.get(ch, 0) for ch in ch_ids)
+        last_7d = sum(channel_7d.get(ch, 0) for ch in ch_ids)
+
+        stats[str(cid)] = {
+            "collection_id": str(cid),
+            "channel_count": len(ch_ids),
+            "message_count": total,
+            "message_count_24h": last_24h,
+            "message_count_7d": last_7d,
+        }
+
+    return {"stats": stats}

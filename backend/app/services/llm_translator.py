@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.models.message import MessageTranslation
 
 from app.config import get_settings
-from app.services.cache import get_redis_client
+from app.services.cache import get_redis_client, increment_translation_cache_hit, increment_translation_cache_miss
 from app.services.usage import record_api_usage
 
 logger = logging.getLogger(__name__)
@@ -251,6 +251,7 @@ class LLMTranslator:
                     ttl = self._adaptive_ttl(hits)
                     await self._redis.set(hit_key, hits, ex=ttl)
                     await self._redis.expire(cache_key, ttl)
+                    await increment_translation_cache_hit()
                     return cached
             except Exception:
                 pass
@@ -317,6 +318,7 @@ class LLMTranslator:
         if cached:
             return cached, source_lang, priority
 
+        await increment_translation_cache_miss()
         model_name = self._select_model(source_lang, priority)
         provider, resolved_model = self._resolve_model(model_name)
 

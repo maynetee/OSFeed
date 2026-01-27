@@ -75,6 +75,16 @@ class Message(Base):
         Index("ix_messages_translation_query", "channel_id", "needs_translation", "translation_priority"),
         # For stats queries (OPTIMIZATION_PLAN.md Phase 2)
         Index("ix_messages_stats_query", "published_at", "is_duplicate"),
+        # Composite index for filtered timeline queries (channel + date + dedup)
+        Index("ix_messages_channel_published_dedup", "channel_id", "published_at", "is_duplicate"),
+        # Fulltext GIN index on message text for search queries (PostgreSQL only)
+        Index(
+            "ix_messages_text_search",
+            "original_text",
+            "translated_text",
+            postgresql_using="gin",
+            postgresql_ops={"original_text": "gin_trgm_ops", "translated_text": "gin_trgm_ops"},
+        ),
     )
 
 

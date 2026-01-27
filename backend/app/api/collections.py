@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, update, or_
+from sqlalchemy import select, func, desc, update, or_, case
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 from typing import List, Optional
@@ -278,45 +278,84 @@ async def compare_collections(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    results = []
-    for collection_id in collection_ids:
-        collection, _ = await _get_collection_for_user(db, collection_id, user.id)
-        await db.refresh(collection, attribute_names=["channels"])
-        channel_ids = await _collection_channel_ids(db, collection)
-        if not channel_ids:
-            results.append(
-                {
-                    "collection_id": str(collection.id),
-                    "name": collection.name,
-                    "message_count_7d": 0,
-                    "channel_count": 0,
-                    "duplicate_rate": 0.0,
-                }
-            )
-            continue
-
-        week_ago = datetime.utcnow() - timedelta(days=7)
-        total_result = await db.execute(
-            select(func.count())
-            .select_from(Message)
-            .where(Message.channel_id.in_(channel_ids))
-            .where(Message.published_at >= week_ago)
+    # Batch-load all requested collections with channels in a single query
+    result = await db.execute(
+        select(Collection, CollectionShare.permission)
+        .options(selectinload(Collection.channels))
+        .outerjoin(
+            CollectionShare,
+            (CollectionShare.collection_id == Collection.id) & (CollectionShare.user_id == user.id),
         )
-        duplicates_result = await db.execute(
-            select(func.count())
-            .select_from(Message)
-            .where(Message.channel_id.in_(channel_ids))
+        .where(Collection.id.in_(collection_ids))
+    )
+    rows = result.all()
+
+    # Build lookup and verify access
+    collections_map: dict[UUID, Collection] = {}
+    for collection, permission in rows:
+        if collection.user_id != user.id and not permission:
+            raise HTTPException(status_code=403, detail="Not authorized to access this collection")
+        collections_map[collection.id] = collection
+
+    # Verify all requested collections were found
+    for cid in collection_ids:
+        if cid not in collections_map:
+            raise HTTPException(status_code=404, detail="Collection not found")
+
+    # Build per-collection channel_ids mapping
+    all_active_channels: Optional[List[Channel]] = None
+    collection_channel_map: dict[UUID, List[UUID]] = {}
+    for cid, collection in collections_map.items():
+        if collection.is_global:
+            if all_active_channels is None:
+                all_active_channels = await _load_all_channels(db)
+            collection_channel_map[cid] = [ch.id for ch in all_active_channels]
+        else:
+            collection_channel_map[cid] = [ch.id for ch in collection.channels]
+
+    # Gather all unique channel IDs for batch message counting
+    all_channel_ids = set()
+    for ch_ids in collection_channel_map.values():
+        all_channel_ids.update(ch_ids)
+
+    week_ago = datetime.utcnow() - timedelta(days=7)
+
+    # Batch query: message counts and duplicate counts per channel
+    channel_total_counts: dict[UUID, int] = {}
+    channel_dup_counts: dict[UUID, int] = {}
+    if all_channel_ids:
+        total_result = await db.execute(
+            select(Message.channel_id, func.count().label("cnt"))
+            .where(Message.channel_id.in_(list(all_channel_ids)))
+            .where(Message.published_at >= week_ago)
+            .group_by(Message.channel_id)
+        )
+        for row in total_result.all():
+            channel_total_counts[row.channel_id] = row.cnt
+
+        dup_result = await db.execute(
+            select(Message.channel_id, func.count().label("cnt"))
+            .where(Message.channel_id.in_(list(all_channel_ids)))
             .where(Message.published_at >= week_ago)
             .where(Message.is_duplicate == True)
+            .group_by(Message.channel_id)
         )
-        total = total_result.scalar() or 0
-        duplicates = duplicates_result.scalar() or 0
+        for row in dup_result.all():
+            channel_dup_counts[row.channel_id] = row.cnt
+
+    # Build results preserving requested order
+    results = []
+    for cid in collection_ids:
+        collection = collections_map[cid]
+        ch_ids = collection_channel_map[cid]
+        total = sum(channel_total_counts.get(ch_id, 0) for ch_id in ch_ids)
+        duplicates = sum(channel_dup_counts.get(ch_id, 0) for ch_id in ch_ids)
         results.append(
             {
                 "collection_id": str(collection.id),
                 "name": collection.name,
                 "message_count_7d": total,
-                "channel_count": len(channel_ids),
+                "channel_count": len(ch_ids),
                 "duplicate_rate": round(duplicates / total, 3) if total else 0.0,
             }
         )
@@ -449,30 +488,54 @@ async def get_collection_stats(
     day_ago = now - timedelta(days=1)
     week_ago = now - timedelta(days=7)
 
-    total_result = await db.execute(
-        select(func.count()).select_from(Message).where(Message.channel_id.in_(channel_ids))
+    # Query 1: Combined grouped query for counts, activity trend, and languages
+    # Group by (day, source_language) to derive all stats in a single pass
+    date_bucket = func.date(Message.published_at)
+    stats_result = await db.execute(
+        select(
+            date_bucket.label("day"),
+            Message.source_language,
+            func.count().label("count"),
+            func.sum(case((Message.is_duplicate == True, 1), else_=0)).label("dup_count"),
+        )
+        .where(Message.channel_id.in_(channel_ids))
+        .group_by(date_bucket, Message.source_language)
     )
-    total = total_result.scalar() or 0
+    stats_rows = stats_result.all()
 
-    last_day_result = await db.execute(
-        select(func.count())
-        .select_from(Message)
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.published_at >= day_ago)
-    )
-    last_week_result = await db.execute(
-        select(func.count())
-        .select_from(Message)
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.published_at >= week_ago)
-    )
-    duplicates_result = await db.execute(
-        select(func.count())
-        .select_from(Message)
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.is_duplicate == True)
-    )
+    # Derive all metrics from the grouped result in Python
+    total = 0
+    duplicates = 0
+    count_24h = 0
+    count_7d = 0
+    activity_by_day: dict = {}
+    languages: dict = {}
 
+    for row in stats_rows:
+        total += row.count
+        duplicates += row.dup_count
+
+        if row.day is not None:
+            row_date = row.day if isinstance(row.day, datetime) else datetime.combine(row.day, datetime.min.time())
+            if row_date >= day_ago:
+                count_24h += row.count
+            if row_date >= week_ago:
+                count_7d += row.count
+                # Activity trend: aggregate by day for last 7 days
+                day_str = str(row.day)
+                activity_by_day[day_str] = activity_by_day.get(day_str, 0) + row.count
+                # Languages: aggregate by language for last 7 days
+                if row.source_language:
+                    languages[row.source_language] = languages.get(row.source_language, 0) + row.count
+
+    activity_trend = [
+        {"date": day, "count": count}
+        for day, count in sorted(activity_by_day.items())
+    ]
+
+    duplicate_rate = round(duplicates / total, 3) if total else 0.0
+
+    # Query 2: Top channels by message count
     top_channels_result = await db.execute(
         select(Channel.id, Channel.title, func.count(Message.id).label("count"))
         .join(Message, Message.channel_id == Channel.id)
@@ -486,32 +549,10 @@ async def get_collection_stats(
         for row in top_channels_result.all()
     ]
 
-    date_bucket = func.date(Message.published_at)
-    activity_result = await db.execute(
-        select(date_bucket.label("day"), func.count().label("count"))
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.published_at >= week_ago)
-        .group_by(date_bucket)
-        .order_by(date_bucket)
-    )
-    activity_trend = [{"date": str(row.day), "count": row.count} for row in activity_result.all()]
-
-    languages_result = await db.execute(
-        select(Message.source_language, func.count().label("count"))
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.source_language.isnot(None))
-        .where(Message.published_at >= week_ago)
-        .group_by(Message.source_language)
-    )
-    languages = {row.source_language: row.count for row in languages_result.all() if row.source_language}
-
-    duplicates = duplicates_result.scalar() or 0
-    duplicate_rate = round(duplicates / total, 3) if total else 0.0
-
     return CollectionStatsResponse(
         message_count=total,
-        message_count_24h=last_day_result.scalar() or 0,
-        message_count_7d=last_week_result.scalar() or 0,
+        message_count_24h=count_24h,
+        message_count_7d=count_7d,
         channel_count=len(channel_ids),
         top_channels=top_channels,
         activity_trend=activity_trend,
