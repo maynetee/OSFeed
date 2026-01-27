@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, update, or_
+from sqlalchemy import select, func, desc, update, or_, case
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 from typing import List, Optional
@@ -488,30 +488,54 @@ async def get_collection_stats(
     day_ago = now - timedelta(days=1)
     week_ago = now - timedelta(days=7)
 
-    total_result = await db.execute(
-        select(func.count()).select_from(Message).where(Message.channel_id.in_(channel_ids))
+    # Query 1: Combined grouped query for counts, activity trend, and languages
+    # Group by (day, source_language) to derive all stats in a single pass
+    date_bucket = func.date(Message.published_at)
+    stats_result = await db.execute(
+        select(
+            date_bucket.label("day"),
+            Message.source_language,
+            func.count().label("count"),
+            func.sum(case((Message.is_duplicate == True, 1), else_=0)).label("dup_count"),
+        )
+        .where(Message.channel_id.in_(channel_ids))
+        .group_by(date_bucket, Message.source_language)
     )
-    total = total_result.scalar() or 0
+    stats_rows = stats_result.all()
 
-    last_day_result = await db.execute(
-        select(func.count())
-        .select_from(Message)
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.published_at >= day_ago)
-    )
-    last_week_result = await db.execute(
-        select(func.count())
-        .select_from(Message)
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.published_at >= week_ago)
-    )
-    duplicates_result = await db.execute(
-        select(func.count())
-        .select_from(Message)
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.is_duplicate == True)
-    )
+    # Derive all metrics from the grouped result in Python
+    total = 0
+    duplicates = 0
+    count_24h = 0
+    count_7d = 0
+    activity_by_day: dict = {}
+    languages: dict = {}
 
+    for row in stats_rows:
+        total += row.count
+        duplicates += row.dup_count
+
+        if row.day is not None:
+            row_date = row.day if isinstance(row.day, datetime) else datetime.combine(row.day, datetime.min.time())
+            if row_date >= day_ago:
+                count_24h += row.count
+            if row_date >= week_ago:
+                count_7d += row.count
+                # Activity trend: aggregate by day for last 7 days
+                day_str = str(row.day)
+                activity_by_day[day_str] = activity_by_day.get(day_str, 0) + row.count
+                # Languages: aggregate by language for last 7 days
+                if row.source_language:
+                    languages[row.source_language] = languages.get(row.source_language, 0) + row.count
+
+    activity_trend = [
+        {"date": day, "count": count}
+        for day, count in sorted(activity_by_day.items())
+    ]
+
+    duplicate_rate = round(duplicates / total, 3) if total else 0.0
+
+    # Query 2: Top channels by message count
     top_channels_result = await db.execute(
         select(Channel.id, Channel.title, func.count(Message.id).label("count"))
         .join(Message, Message.channel_id == Channel.id)
@@ -525,32 +549,10 @@ async def get_collection_stats(
         for row in top_channels_result.all()
     ]
 
-    date_bucket = func.date(Message.published_at)
-    activity_result = await db.execute(
-        select(date_bucket.label("day"), func.count().label("count"))
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.published_at >= week_ago)
-        .group_by(date_bucket)
-        .order_by(date_bucket)
-    )
-    activity_trend = [{"date": str(row.day), "count": row.count} for row in activity_result.all()]
-
-    languages_result = await db.execute(
-        select(Message.source_language, func.count().label("count"))
-        .where(Message.channel_id.in_(channel_ids))
-        .where(Message.source_language.isnot(None))
-        .where(Message.published_at >= week_ago)
-        .group_by(Message.source_language)
-    )
-    languages = {row.source_language: row.count for row in languages_result.all() if row.source_language}
-
-    duplicates = duplicates_result.scalar() or 0
-    duplicate_rate = round(duplicates / total, 3) if total else 0.0
-
     return CollectionStatsResponse(
         message_count=total,
-        message_count_24h=last_day_result.scalar() or 0,
-        message_count_7d=last_week_result.scalar() or 0,
+        message_count_24h=count_24h,
+        message_count_7d=count_7d,
         channel_count=len(channel_ids),
         top_channels=top_channels,
         activity_trend=activity_trend,
