@@ -278,45 +278,84 @@ async def compare_collections(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    results = []
-    for collection_id in collection_ids:
-        collection, _ = await _get_collection_for_user(db, collection_id, user.id)
-        await db.refresh(collection, attribute_names=["channels"])
-        channel_ids = await _collection_channel_ids(db, collection)
-        if not channel_ids:
-            results.append(
-                {
-                    "collection_id": str(collection.id),
-                    "name": collection.name,
-                    "message_count_7d": 0,
-                    "channel_count": 0,
-                    "duplicate_rate": 0.0,
-                }
-            )
-            continue
-
-        week_ago = datetime.utcnow() - timedelta(days=7)
-        total_result = await db.execute(
-            select(func.count())
-            .select_from(Message)
-            .where(Message.channel_id.in_(channel_ids))
-            .where(Message.published_at >= week_ago)
+    # Batch-load all requested collections with channels in a single query
+    result = await db.execute(
+        select(Collection, CollectionShare.permission)
+        .options(selectinload(Collection.channels))
+        .outerjoin(
+            CollectionShare,
+            (CollectionShare.collection_id == Collection.id) & (CollectionShare.user_id == user.id),
         )
-        duplicates_result = await db.execute(
-            select(func.count())
-            .select_from(Message)
-            .where(Message.channel_id.in_(channel_ids))
+        .where(Collection.id.in_(collection_ids))
+    )
+    rows = result.all()
+
+    # Build lookup and verify access
+    collections_map: dict[UUID, Collection] = {}
+    for collection, permission in rows:
+        if collection.user_id != user.id and not permission:
+            raise HTTPException(status_code=403, detail="Not authorized to access this collection")
+        collections_map[collection.id] = collection
+
+    # Verify all requested collections were found
+    for cid in collection_ids:
+        if cid not in collections_map:
+            raise HTTPException(status_code=404, detail="Collection not found")
+
+    # Build per-collection channel_ids mapping
+    all_active_channels: Optional[List[Channel]] = None
+    collection_channel_map: dict[UUID, List[UUID]] = {}
+    for cid, collection in collections_map.items():
+        if collection.is_global:
+            if all_active_channels is None:
+                all_active_channels = await _load_all_channels(db)
+            collection_channel_map[cid] = [ch.id for ch in all_active_channels]
+        else:
+            collection_channel_map[cid] = [ch.id for ch in collection.channels]
+
+    # Gather all unique channel IDs for batch message counting
+    all_channel_ids = set()
+    for ch_ids in collection_channel_map.values():
+        all_channel_ids.update(ch_ids)
+
+    week_ago = datetime.utcnow() - timedelta(days=7)
+
+    # Batch query: message counts and duplicate counts per channel
+    channel_total_counts: dict[UUID, int] = {}
+    channel_dup_counts: dict[UUID, int] = {}
+    if all_channel_ids:
+        total_result = await db.execute(
+            select(Message.channel_id, func.count().label("cnt"))
+            .where(Message.channel_id.in_(list(all_channel_ids)))
+            .where(Message.published_at >= week_ago)
+            .group_by(Message.channel_id)
+        )
+        for row in total_result.all():
+            channel_total_counts[row.channel_id] = row.cnt
+
+        dup_result = await db.execute(
+            select(Message.channel_id, func.count().label("cnt"))
+            .where(Message.channel_id.in_(list(all_channel_ids)))
             .where(Message.published_at >= week_ago)
             .where(Message.is_duplicate == True)
+            .group_by(Message.channel_id)
         )
-        total = total_result.scalar() or 0
-        duplicates = duplicates_result.scalar() or 0
+        for row in dup_result.all():
+            channel_dup_counts[row.channel_id] = row.cnt
+
+    # Build results preserving requested order
+    results = []
+    for cid in collection_ids:
+        collection = collections_map[cid]
+        ch_ids = collection_channel_map[cid]
+        total = sum(channel_total_counts.get(ch_id, 0) for ch_id in ch_ids)
+        duplicates = sum(channel_dup_counts.get(ch_id, 0) for ch_id in ch_ids)
         results.append(
             {
                 "collection_id": str(collection.id),
                 "name": collection.name,
                 "message_count_7d": total,
-                "channel_count": len(channel_ids),
+                "channel_count": len(ch_ids),
                 "duplicate_rate": round(duplicates / total, 3) if total else 0.0,
             }
         )
