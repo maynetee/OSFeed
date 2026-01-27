@@ -13,6 +13,16 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
+def _redact_email(email: str) -> str:
+    """Redact email address for safe logging (e.g., u***@example.com)."""
+    try:
+        local, domain = email.split("@")
+        return f"{local[0]}***@{domain}" if local else f"***@{domain}"
+    except (ValueError, IndexError):
+        return "***"
+
+
 # Template setup - load from backend/app/templates/emails/
 TEMPLATE_DIR = Path(__file__).parent.parent / "templates" / "emails"
 
@@ -65,6 +75,8 @@ class SMTPProvider(EmailProvider):
     async def send(self, to: str, subject: str, html: str, text: str) -> bool:
         """Send email via SMTP using aiosmtplib."""
         settings = get_settings()
+        redacted = _redact_email(to)
+        logger.info(f"SMTP: attempting to send email to {redacted}, subject='{subject}'")
         try:
             msg = MIMEMultipart("alternative")
             msg["Subject"] = subject
@@ -82,10 +94,26 @@ class SMTPProvider(EmailProvider):
                 password=settings.smtp_password if settings.smtp_password else None,
                 start_tls=settings.smtp_use_tls,
             )
-            logger.info(f"Email sent to {to}: {subject}")
+            logger.info(f"SMTP: email sent successfully to {redacted}")
             return True
+        except aiosmtplib.SMTPConnectError as e:
+            logger.error(
+                f"SMTP connection failed for {redacted}: host={settings.smtp_host}, "
+                f"port={settings.smtp_port}, error={e}"
+            )
+            return False
+        except aiosmtplib.SMTPAuthenticationError as e:
+            logger.error(f"SMTP authentication failed for {redacted}: {e}")
+            return False
+        except aiosmtplib.SMTPResponseException as e:
+            logger.error(
+                f"SMTP error for {redacted}: code={e.code}, message={e.message}"
+            )
+            return False
         except Exception as e:
-            logger.error(f"Failed to send email to {to}: {e}")
+            logger.error(
+                f"SMTP: unexpected error sending to {redacted}: {type(e).__name__}: {e}"
+            )
             return False
 
 
@@ -95,6 +123,8 @@ class ResendProvider(EmailProvider):
     async def send(self, to: str, subject: str, html: str, text: str) -> bool:
         """Send email via Resend API."""
         settings = get_settings()
+        redacted = _redact_email(to)
+        logger.info(f"Resend: attempting to send email to {redacted}, subject='{subject}'")
         try:
             import resend
             resend.api_key = settings.resend_api_key
@@ -106,10 +136,15 @@ class ResendProvider(EmailProvider):
                 "html": html,
                 "text": text,
             })
-            logger.info(f"Email sent via Resend to {to}: {subject}")
+            logger.info(f"Resend: email sent successfully to {redacted}")
             return True
+        except ImportError:
+            logger.error("Resend package not installed - cannot send email")
+            return False
         except Exception as e:
-            logger.error(f"Failed to send email via Resend to {to}: {e}")
+            logger.error(
+                f"Resend: failed to send email to {redacted}: {type(e).__name__}: {e}"
+            )
             return False
 
 
@@ -141,7 +176,7 @@ class EmailService:
         """Send password reset email."""
         settings = get_settings()
         if not settings.email_enabled:
-            logger.info(f"Email disabled - would send password reset to {email}")
+            logger.info(f"Email disabled - would send password reset to {_redact_email(email)}")
             return False
 
         provider = self._get_provider()
@@ -171,7 +206,7 @@ class EmailService:
         """Send email verification email."""
         settings = get_settings()
         if not settings.email_enabled:
-            logger.info(f"Email disabled - would send verification to {email}")
+            logger.info(f"Email disabled - would send verification to {_redact_email(email)}")
             return False
 
         provider = self._get_provider()
