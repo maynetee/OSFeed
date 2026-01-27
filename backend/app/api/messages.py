@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, update, or_, tuple_, insert, and_
+from sqlalchemy import select, func, desc, update, or_, tuple_, insert, and_, literal
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 import asyncio
@@ -277,12 +277,12 @@ async def search_messages(
     db: AsyncSession = Depends(get_db),
 ):
     """Search messages via full-text match on original/translated text."""
-    query = select(Message).options(selectinload(Message.channel)).where(
-        or_(
-            Message.original_text.ilike(f"%{q}%"),
-            Message.translated_text.ilike(f"%{q}%"),
-        )
+    # Use PostgreSQL trgm operators to leverage GIN index instead of ilike
+    search_filter = or_(
+        Message.original_text.op("%")(q),
+        func.coalesce(Message.translated_text, literal("")).op("%")(q),
     )
+    query = select(Message).options(selectinload(Message.channel)).where(search_filter)
     query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date)
 
     count_query = select(func.count()).select_from(query.subquery())
