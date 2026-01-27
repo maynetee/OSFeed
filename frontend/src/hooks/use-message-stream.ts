@@ -55,33 +55,40 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
 
         const decoder = new TextDecoder()
         let buffer = ''
+        const DATA_PREFIX_LEN = 6 // 'data: '.length
 
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
 
           buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n\n')
-          buffer = lines.pop() || ''
 
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const payload = JSON.parse(line.slice(6))
+          // Parse events inline using indexOf instead of split() to avoid
+          // allocating an intermediate array on every chunk
+          let delimIdx: number
+          while ((delimIdx = buffer.indexOf('\n\n')) !== -1) {
+            const event = buffer.substring(0, delimIdx)
+            buffer = buffer.substring(delimIdx + 2)
 
-                // Handle translation events
-                if (payload.type === 'message:translated') {
-                  onTranslation?.(payload.data)
-                  continue
-                }
+            // Fast char-code check before startsWith to skip non-data lines cheaply
+            if (event.length <= DATA_PREFIX_LEN || event.charCodeAt(0) !== 100 /* 'd' */) continue
+            if (event.charCodeAt(5) !== 32 /* ' ' */) continue
 
-                // Handle message events (existing behavior)
-                if (payload.messages && payload.messages.length > 0) {
-                  onMessages?.(payload.messages, payload.type === 'realtime')
-                }
-              } catch (e) {
-                console.error('Error parsing SSE data', e)
+            try {
+              const payload = JSON.parse(event.substring(DATA_PREFIX_LEN))
+
+              // Handle translation events
+              if (payload.type === 'message:translated') {
+                onTranslation?.(payload.data)
+                continue
               }
+
+              // Handle message events (existing behavior)
+              if (payload.messages && payload.messages.length > 0) {
+                onMessages?.(payload.messages, payload.type === 'realtime')
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data', e)
             }
           }
         }
