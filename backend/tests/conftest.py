@@ -36,7 +36,9 @@ def _ensure_test_db_dir(sqlite_db_path: Path) -> None:
 @pytest.fixture(autouse=True, scope="session")
 def _dispose_engine() -> None:
     yield
-    from app.database import engine
-    loop = asyncio.new_event_loop()
-    loop.run_until_complete(engine.dispose())
-    loop.close()
+    from app.database import get_engine
+    engine = get_engine()
+    if engine is not None:
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(engine.dispose())
+        loop.close()
