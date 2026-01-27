@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "002-propose-moi-des-ameliorations-de-performances-opti",
+  "state": "building",
+  "subtasks": {
+    "completed": 13,
+    "total": 15,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Integration & Verification",
+    "id": null,
+    "total": 2
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 14,
+    "started_at": "2026-01-27T23:48:18.566341"
+  },
+  "last_update": "2026-01-28T00:05:47.027901"
+}

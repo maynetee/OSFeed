@@ -104,3 +104,6 @@ local.settings.json
 # ----- Claude Code & OMC state -----
 .omc/
 .mcp-servers/
+
+# Auto Claude data directory
+.auto-claude/
