@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api/client'
+import { authApi } from '@/lib/api/client'
 
 const resetPasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -62,10 +62,7 @@ export function ResetPasswordPage() {
 
     setError(null)
     try {
-      await api.post('/api/auth/reset-password', {
-        token,
-        password: values.password,
-      })
+      await authApi.resetPassword(token, values.password)
 
       navigate('/login', {
         state: {
