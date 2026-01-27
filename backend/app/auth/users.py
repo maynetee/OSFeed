@@ -55,7 +55,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 lifetime_seconds=self.verification_token_lifetime_seconds,
             )
             # Send email in background (non-blocking)
-            asyncio.create_task(email_service.send_verification(user.email, token))
+            try:
+                asyncio.create_task(email_service.send_verification(user.email, token))
+                logger.info(f"Verification email task created for {user.email}")
+            except Exception as e:
+                logger.error(f"Failed to create verification email task for {user.email}: {e}")
+        else:
+            logger.warning(f"Email disabled - skipping verification email for {user.email}")
 
     async def on_after_login(
         self,
@@ -75,7 +81,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         logger.info(f"User {user.email} has requested a password reset.")
         if settings.email_enabled:
             # Token is passed by FastAPI-Users for this hook
-            asyncio.create_task(email_service.send_password_reset(user.email, token))
+            try:
+                asyncio.create_task(email_service.send_password_reset(user.email, token))
+                logger.info(f"Password reset email task created for {user.email}")
+            except Exception as e:
+                logger.error(f"Failed to create password reset email task for {user.email}: {e}")
+        else:
+            logger.warning(f"Email disabled - skipping password reset email for {user.email}")
 
     async def on_after_reset_password(
         self, user: User, request: Optional[Request] = None
@@ -90,7 +102,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         logger.info(f"Verification requested for {user.email}.")
         if settings.email_enabled:
             # Token is passed by FastAPI-Users for this hook
-            asyncio.create_task(email_service.send_verification(user.email, token))
+            try:
+                asyncio.create_task(email_service.send_verification(user.email, token))
+                logger.info(f"Verification email task created for {user.email}")
+            except Exception as e:
+                logger.error(f"Failed to create verification email task for {user.email}: {e}")
+        else:
+            logger.warning(f"Email disabled - skipping verification email for {user.email}")
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
