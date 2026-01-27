@@ -277,15 +277,15 @@ async def get_translation_metrics(
     )
     tokens_saved = tokens_result.scalar() or 0
 
-    # Current implementation doesn't track hit counts in DB (only in Redis per-key)
-    # So we return placeholder values for now
-    hits = 0
-    hit_rate = 0.0
+    # Read real cache hit/miss counters from Redis
+    from app.services.cache import get_translation_cache_stats
+    cache_stats = await get_translation_cache_stats()
 
     return {
         "total_translations": total_cached,
-        "cache_hits": hits,
-        "cache_hit_rate": hit_rate,
+        "cache_hits": cache_stats["cache_hits"],
+        "cache_misses": cache_stats["cache_misses"],
+        "cache_hit_rate": cache_stats["cache_hit_rate"],
         "tokens_saved": tokens_saved,
     }
 
