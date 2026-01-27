@@ -132,8 +132,8 @@ class Settings(BaseSettings):
     fetch_workers: int = 10  # Number of parallel fetch workers
 
     # Database pooling (PostgreSQL)
-    db_pool_size: int = 10
-    db_max_overflow: int = 20
+    db_pool_size: int = 20
+    db_max_overflow: int = 10
     db_pool_recycle: int = 1800
 
     # Deduplication
