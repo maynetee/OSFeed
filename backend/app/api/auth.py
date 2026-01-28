@@ -1,12 +1,14 @@
 """Authentication API routes for OSFeed."""
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_users.manager import BaseUserManager
+from fastapi_users.manager import BaseUserManager, UserAlreadyExists
 from fastapi_users.router.common import ErrorCode
 from fastapi_users.authentication import Strategy
+from fastapi_users import exceptions as fapi_exceptions
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
@@ -22,13 +24,45 @@ from app.services.auth_rate_limiter import (
     rate_limit_register,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="",
-    dependencies=[Depends(rate_limit_register)],
-)
+
+@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(rate_limit_register)])
+async def register(
+    request: Request,
+    user_create: UserCreate,
+    user_manager: BaseUserManager = Depends(get_user_manager),
+):
+    """Register a new user with detailed error logging."""
+    logger.info(f"Registration attempt for email: {user_create.email}")
+    try:
+        created_user = await user_manager.create(user_create, safe=True, request=request)
+        logger.info(f"Registration successful for email: {user_create.email}")
+        return created_user
+    except UserAlreadyExists:
+        logger.warning(f"Registration failed: email already exists ({user_create.email})")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ErrorCode.REGISTER_USER_ALREADY_EXISTS,
+        )
+    except fapi_exceptions.InvalidPasswordException as e:
+        logger.warning(f"Registration failed: invalid password for {user_create.email} - {e.reason}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": ErrorCode.REGISTER_INVALID_PASSWORD,
+                "reason": e.reason,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Registration failed with unexpected error for {user_create.email}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="REGISTER_UNEXPECTED_ERROR",
+        )
 
 router.include_router(
     fastapi_users.get_reset_password_router(),

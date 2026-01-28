@@ -25,18 +25,30 @@ const registerSchema = z.object({
 
 type RegisterFormValues = z.infer<typeof registerSchema>
 
-const getErrorMessage = (detail: string | undefined): string => {
+const getErrorMessage = (detail: string | { code: string; reason: string } | undefined): string => {
+  // Handle object-shaped error details (e.g. REGISTER_INVALID_PASSWORD returns {code, reason})
+  if (typeof detail === 'object' && detail !== null) {
+    switch (detail.code) {
+      case 'REGISTER_INVALID_PASSWORD':
+        return detail.reason || 'Password is too weak. Use at least 8 characters with letters and numbers'
+      default:
+        return detail.reason || 'Registration failed. Please try again.'
+    }
+  }
+
   switch (detail) {
     case 'REGISTER_USER_ALREADY_EXISTS':
       return 'An account with this email already exists'
     case 'REGISTER_INVALID_PASSWORD':
       return 'Password is too weak. Use at least 8 characters with letters and numbers'
+    case 'REGISTER_UNEXPECTED_ERROR':
+      return 'An unexpected error occurred. Please try again later.'
     case 'LOGIN_BAD_CREDENTIALS':
       return 'Invalid email or password'
     case 'LOGIN_USER_NOT_VERIFIED':
       return 'Please verify your email before logging in'
     default:
-      return detail || 'Registration failed. Please try again.'
+      return typeof detail === 'string' && detail ? detail : 'Registration failed. Please try again.'
   }
 }
 
@@ -87,7 +99,7 @@ export function RegisterPage() {
         navigate('/dashboard')
       }
     } catch (err) {
-      const axiosError = err as AxiosError<{ detail: string }>
+      const axiosError = err as AxiosError<{ detail: string | { code: string; reason: string } }>
       setError(getErrorMessage(axiosError.response?.data?.detail))
     }
   }
