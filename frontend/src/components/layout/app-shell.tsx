@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom'
 
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
-import { CommandPalette } from '@/components/layout/command-palette'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
 export function AppShell() {
@@ -17,7 +16,6 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
-      <CommandPalette />
     </div>
   )
 }
