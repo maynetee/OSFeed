@@ -1,6 +1,5 @@
 import { NavLink } from 'react-router-dom'
 import {
-  BookOpenText,
   Layers,
   LayoutDashboard,
   Newspaper,
@@ -8,7 +7,6 @@ import {
   Search,
   Settings,
   Sparkles,
-  Globe,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -19,10 +17,8 @@ import { statsApi } from '@/lib/api/client'
 
 const navItems = [
   { key: 'dashboard', to: '/', icon: LayoutDashboard },
-  { key: 'intelligence', to: '/intelligence', icon: Globe },
   { key: 'feed', to: '/feed', icon: Radio },
   { key: 'search', to: '/search', icon: Search },
-  { key: 'digests', to: '/digests', icon: BookOpenText },
   { key: 'channels', to: '/channels', icon: Newspaper },
   { key: 'collections', to: '/collections', icon: Layers },
   { key: 'exports', to: '/exports', icon: Sparkles },
