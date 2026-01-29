@@ -277,11 +277,20 @@ async def search_messages(
     db: AsyncSession = Depends(get_db),
 ):
     """Search messages via full-text match on original/translated text."""
-    # Use PostgreSQL trgm operators to leverage GIN index instead of ilike
-    search_filter = or_(
-        Message.original_text.op("%")(q),
-        func.coalesce(Message.translated_text, literal("")).op("%")(q),
-    )
+    # Use database-specific search filter
+    if settings.use_sqlite:
+        # SQLite: Use LIKE with case-insensitive matching
+        search_term = f"%{q}%"
+        search_filter = or_(
+            Message.original_text.ilike(search_term),
+            func.coalesce(Message.translated_text, literal("")).ilike(search_term),
+        )
+    else:
+        # PostgreSQL: Use trigram similarity for better performance
+        search_filter = or_(
+            Message.original_text.op("%")(q),
+            func.coalesce(Message.translated_text, literal("")).op("%")(q),
+        )
     query = select(Message).options(selectinload(Message.channel)).where(search_filter)
     query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date)
 
