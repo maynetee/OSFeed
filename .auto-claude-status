@@ -3,7 +3,7 @@
   "spec": "005-supprime-toutes-les-fonctionnalites-ai-sauf-la-tra",
   "state": "building",
   "subtasks": {
-    "completed": 9,
+    "completed": 12,
     "total": 33,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 1500,
+    "number": 1503,
     "started_at": "2026-01-29T11:02:09.126454"
   },
-  "last_update": "2026-01-29T14:03:45.418410"
+  "last_update": "2026-01-29T14:06:33.127927"
 }
