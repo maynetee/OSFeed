@@ -25,6 +25,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
         default=UserRole.VIEWER,
         nullable=False
     )
+    preferred_language = Column(String(10), default="en", nullable=False)
 
     # RGPD compliance fields
     consent_given_at = Column(DateTime(timezone=True), nullable=True)
