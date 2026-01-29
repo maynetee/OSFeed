@@ -9,7 +9,7 @@ from fastapi_cache.backends.redis import RedisBackend
 
 from app.config import get_settings
 from app.database import init_db
-from app.api import channels, messages, summaries, auth, collections, audit_logs, stats, alerts, intelligence
+from app.api import channels, messages, auth, collections, audit_logs, stats, alerts
 from app.jobs.collect_messages import collect_messages_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
 from app.jobs.purge_audit_logs import purge_audit_logs_job
@@ -129,12 +129,10 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(channels.router, prefix="/api/channels", tags=["channels"])
 app.include_router(messages.router, prefix="/api/messages", tags=["messages"])
-app.include_router(summaries.router, prefix="/api/summaries", tags=["summaries"])
 app.include_router(collections.router, prefix="/api/collections", tags=["collections"])
 app.include_router(audit_logs.router, prefix="/api/audit-logs", tags=["audit-logs"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
-app.include_router(intelligence.router, prefix="/api/intelligence", tags=["intelligence"])
 
 
 @app.get("/")
