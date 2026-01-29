@@ -126,10 +126,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware
+# CORS middleware - allow both www and non-www versions
+cors_origins = [
+    settings.frontend_url,
+    "http://localhost:5173",
+]
+# Add www variant if frontend_url doesn't have www
+if "://www." not in settings.frontend_url:
+    cors_origins.append(settings.frontend_url.replace("://", "://www."))
+# Add non-www variant if frontend_url has www
+elif "://www." in settings.frontend_url:
+    cors_origins.append(settings.frontend_url.replace("://www.", "://"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:5173"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
