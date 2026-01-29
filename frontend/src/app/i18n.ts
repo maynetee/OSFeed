@@ -298,6 +298,8 @@ const resources = {
         noMessagesDescription: 'Start a search or adjust filters to see the feed.',
         loadingFeed: 'Loading feed...',
         loadingMore: 'Loading...',
+        mediaAvailableOnTelegram: 'Media available on Telegram',
+        retry: 'Retry',
       },
       alerts: {
         notifications: 'Alerts',
@@ -600,6 +602,8 @@ const resources = {
         noMessagesDescription: 'Lancez une recherche ou ajustez les filtres pour afficher le flux.',
         loadingFeed: 'Chargement du flux...',
         loadingMore: 'Chargement...',
+        mediaAvailableOnTelegram: 'Média disponible sur Telegram',
+        retry: 'Réessayer',
       },
       alerts: {
         notifications: 'Alertes',
