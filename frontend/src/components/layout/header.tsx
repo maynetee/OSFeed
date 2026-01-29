@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Command, Menu, LogOut } from 'lucide-react'
+import { Menu, LogOut } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,6 @@ import { authApi } from '@/lib/api/client'
 export function Header() {
   const location = useLocation()
   const toggleSidebar = useUiStore((state) => state.toggleSidebar)
-  const setCommandPaletteOpen = useUiStore((state) => state.setCommandPaletteOpen)
   const logout = useUserStore((state) => state.logout)
   const { t } = useTranslation()
 
@@ -62,14 +61,6 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          className="hidden items-center gap-2 md:flex"
-          onClick={() => setCommandPaletteOpen(true)}
-        >
-          <Command className="h-4 w-4" />
-          {t('header.commandPalette')}
-        </Button>
         <NotificationCenter />
         <Button
           variant="outline"
