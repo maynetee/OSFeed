@@ -1,6 +1,6 @@
 import { useMemo, type ComponentType } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LayoutDashboard, Radio, BookOpenText, Layers, Settings, Sparkles } from 'lucide-react'
+import { Search, LayoutDashboard, Radio, Layers, Settings, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { useUiStore } from '@/stores/ui-store'
@@ -44,14 +44,6 @@ export function useCommandPalette() {
         icon: Search,
         action: () => navigate('/search'),
         keywords: t('commandPalette.keywords.search'),
-      },
-      {
-        id: 'nav-digests',
-        label: t('digests.title'),
-        shortcut: 'Cmd D',
-        icon: BookOpenText,
-        action: () => navigate('/digests'),
-        keywords: t('commandPalette.keywords.digests'),
       },
       {
         id: 'nav-collections',
