@@ -3,13 +3,13 @@
   "spec": "005-supprime-toutes-les-fonctionnalites-ai-sauf-la-tra",
   "state": "building",
   "subtasks": {
-    "completed": 12,
+    "completed": 20,
     "total": 33,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Backend Models Cleanup",
+    "current": "Frontend Cleanup",
     "id": null,
     "total": 4
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 1503,
+    "number": 1511,
     "started_at": "2026-01-29T11:02:09.126454"
   },
-  "last_update": "2026-01-29T14:06:33.127927"
+  "last_update": "2026-01-29T14:16:58.189717"
 }
