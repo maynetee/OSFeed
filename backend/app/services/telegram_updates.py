@@ -16,6 +16,7 @@ from app.database import AsyncSessionLocal
 from app.models.channel import Channel
 from app.models.message import Message
 from app.services.telegram_client import get_telegram_client
+from app.services.translation_service import should_channel_translate
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
@@ -219,6 +220,11 @@ class TelegramUpdateHandler:
         if tg_msg.date:
             published_at = tg_msg.date.replace(tzinfo=timezone.utc)
 
+        # Determine if translation is needed based on channel subscribers' languages
+        needs_translation = False
+        if text.strip():
+            needs_translation = await should_channel_translate(channel.id)
+
         return Message(
             channel_id=channel.id,
             telegram_message_id=tg_msg.id,
@@ -227,7 +233,7 @@ class TelegramUpdateHandler:
             media_urls=[],
             published_at=published_at,
             fetched_at=datetime.now(timezone.utc),
-            needs_translation=bool(text.strip()),
+            needs_translation=needs_translation,
             is_duplicate=False,
             originality_score=100
         )
