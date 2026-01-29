@@ -5,7 +5,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_users.manager import BaseUserManager, UserAlreadyExists
+from fastapi_users.manager import BaseUserManager
+from fastapi_users.exceptions import UserAlreadyExists
 from fastapi_users.router.common import ErrorCode
 from fastapi_users.authentication import Strategy
 from fastapi_users import exceptions as fapi_exceptions
