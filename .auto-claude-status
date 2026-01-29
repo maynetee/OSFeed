@@ -1,15 +1,15 @@
 {
   "active": true,
-  "spec": "002-propose-moi-des-ameliorations-de-performances-opti",
+  "spec": "007-souvent-pour-ajouter-un-channel-ca-ne-marche-pas-l",
   "state": "building",
   "subtasks": {
-    "completed": 13,
-    "total": 15,
+    "completed": 5,
+    "total": 8,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Integration & Verification",
+    "current": "Frontend UI Components",
     "id": null,
     "total": 2
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 14,
-    "started_at": "2026-01-27T23:48:18.566341"
+    "number": 1489,
+    "started_at": "2026-01-29T10:58:59.072365"
   },
-  "last_update": "2026-01-28T00:05:47.027901"
+  "last_update": "2026-01-29T14:04:26.788982"
 }
