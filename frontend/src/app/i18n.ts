@@ -309,6 +309,7 @@ const resources = {
         loadingMore: 'Loading...',
         mediaAvailableOnTelegram: 'Media available on Telegram',
         retry: 'Retry',
+        showMedia: 'Show media',
       },
       alerts: {
         notifications: 'Alerts',
@@ -622,6 +623,7 @@ const resources = {
         loadingMore: 'Chargement...',
         mediaAvailableOnTelegram: 'Média disponible sur Telegram',
         retry: 'Réessayer',
+        showMedia: 'Afficher le média',
       },
       alerts: {
         notifications: 'Alertes',

@@ -1,5 +1,5 @@
-import { memo, useCallback, useMemo } from 'react'
-import { ExternalLink, MessageSquareText } from 'lucide-react'
+import { memo, useCallback, useMemo, useState } from 'react'
+import { ExternalLink, Image, MessageSquareText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +18,8 @@ interface MessageCardProps {
 
 export const MessageCard = memo(function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
   const { t } = useTranslation()
+  const [showMedia, setShowMedia] = useState(false)
+
   const duplicateScore = useMemo(() => {
     if (typeof message.originality_score !== 'number') return null
     return Math.max(0, Math.min(100, 100 - message.originality_score))
@@ -93,7 +95,19 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
           ) : null}
         </div>
 
-        {showTelegramEmbed ? (
+        {showTelegramEmbed && !showMedia ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMedia(true)}
+            className="w-fit"
+          >
+            <Image className="mr-1.5 h-3.5 w-3.5" />
+            {t('messages.showMedia')}
+          </Button>
+        ) : null}
+
+        {showTelegramEmbed && showMedia ? (
           <TelegramEmbed
             channelUsername={message.channel_username!}
             messageId={message.telegram_message_id!}
