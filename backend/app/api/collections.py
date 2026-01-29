@@ -14,14 +14,11 @@ from app.models.collection import Collection, collection_channels
 from app.models.collection_share import CollectionShare
 from app.models.channel import Channel
 from app.models.message import Message
-from app.models.summary import Summary
 from app.models.user import User
 from app.schemas.collection import CollectionCreate, CollectionResponse, CollectionUpdate, CollectionStatsResponse
 from app.schemas.collection_share import CollectionShareCreate, CollectionShareResponse
-from app.schemas.summary import SummaryResponse, SummaryListResponse
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
-from app.services.summarizer import generate_daily_summary
 
 router = APIRouter()
 
@@ -558,48 +555,6 @@ async def get_collection_stats(
         activity_trend=activity_trend,
         duplicate_rate=duplicate_rate,
         languages=languages,
-    )
-
-
-@router.post("/{collection_id}/digest", response_model=SummaryResponse)
-async def generate_collection_digest(
-    collection_id: UUID,
-    user: User = Depends(current_active_user),
-):
-    filters = {"collections": [str(collection_id)]}
-    summary = await generate_daily_summary(user_id=user.id, filters=filters, collection_id=collection_id)
-    return summary
-
-
-@router.get("/{collection_id}/digests", response_model=SummaryListResponse)
-async def list_collection_digests(
-    collection_id: UUID,
-    limit: int = 10,
-    offset: int = 0,
-    user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
-):
-    await _get_collection_for_user(db, collection_id, user.id)
-    query = (
-        select(Summary)
-        .where(Summary.user_id == user.id)
-        .where(Summary.collection_id == collection_id)
-        .order_by(desc(Summary.generated_at))
-    )
-    count_result = await db.execute(
-        select(func.count())
-        .select_from(Summary)
-        .where(Summary.user_id == user.id)
-        .where(Summary.collection_id == collection_id)
-    )
-    total = count_result.scalar() or 0
-    result = await db.execute(query.limit(limit).offset(offset))
-    summaries = result.scalars().all()
-    return SummaryListResponse(
-        summaries=summaries,
-        total=total,
-        page=offset // limit + 1,
-        page_size=limit,
     )
 
 
