@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import {
   Layers,
-  LayoutDashboard,
   Newspaper,
   Radio,
   Search,
@@ -16,7 +15,6 @@ import { useUiStore } from '@/stores/ui-store'
 import { statsApi } from '@/lib/api/client'
 
 const navItems = [
-  { key: 'dashboard', to: '/', icon: LayoutDashboard },
   { key: 'feed', to: '/feed', icon: Radio },
   { key: 'search', to: '/search', icon: Search },
   { key: 'channels', to: '/channels', icon: Newspaper },
@@ -68,7 +66,6 @@ export function Sidebar() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === '/'}
               className={({ isActive }) =>
                 cn(
                   'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',

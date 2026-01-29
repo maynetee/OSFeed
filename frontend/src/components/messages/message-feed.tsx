@@ -46,11 +46,19 @@ export const MessageFeed = memo(function MessageFeed({
       // Base height: card chrome (header, metadata, padding) ~100px
       // Each ~80 chars roughly corresponds to one line (~20px)
       // Media adds ~200px
+      // Telegram embed adds ~400px when channel_username, telegram_message_id, and media_type (photo/video) exist
       const baseHeight = 100
       const textHeight = Math.ceil(charCount / 80) * 20
       const mediaHeight = message.media_urls?.length ? 200 : 0
 
-      return baseHeight + textHeight + mediaHeight + 16 // 16px for gap
+      // Check if Telegram embed will be rendered (matches showTelegramEmbed condition in message-card.tsx)
+      const showsTelegramEmbed =
+        message.channel_username &&
+        message.telegram_message_id &&
+        (message.media_type === 'photo' || message.media_type === 'video')
+      const embedHeight = showsTelegramEmbed ? 400 : 0
+
+      return baseHeight + textHeight + mediaHeight + embedHeight + 16 // 16px for gap
     },
     [messages]
   )

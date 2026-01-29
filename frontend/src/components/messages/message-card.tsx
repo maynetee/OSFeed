@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { DuplicateBadge } from '@/components/messages/duplicate-badge'
+import { TelegramEmbed } from '@/components/messages/telegram-embed'
 import { Timestamp } from '@/components/common/timestamp'
 import type { Message } from '@/lib/api/client'
 
@@ -32,6 +33,11 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
   const telegramLink = message.channel_username
     ? `https://t.me/${message.channel_username}/${message.telegram_message_id}`
     : null
+
+  const showTelegramEmbed =
+    message.channel_username &&
+    message.telegram_message_id &&
+    (message.media_type === 'photo' || message.media_type === 'video')
 
   const handleCopy = useCallback(() => onCopy?.(message), [onCopy, message])
   const handleExport = useCallback(() => onExport?.(message), [onExport, message])
@@ -86,6 +92,13 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
             </div>
           ) : null}
         </div>
+
+        {showTelegramEmbed ? (
+          <TelegramEmbed
+            channelUsername={message.channel_username!}
+            messageId={message.telegram_message_id!}
+          />
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={handleCopy}>

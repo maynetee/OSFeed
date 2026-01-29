@@ -26,26 +26,11 @@ const resources = {
         dark: 'Dark',
         system: 'System',
       },
-      commandPalette: {
-        placeholder: 'Type a command...',
-        empty: 'No results.',
-        navigation: 'Navigation',
-        keywords: {
-          dashboard: 'home overview metrics',
-          feed: 'messages live',
-          search: 'query explore',
-          digests: 'summary brief',
-          collections: 'themes',
-          exports: 'export pdf csv',
-          settings: 'preferences',
-        },
-      },
       branding: {
         tagline: 'Intelligence, not noise',
       },
       header: {
         workspace: 'Workspace',
-        commandPalette: 'Command Palette',
         toggleSidebar: 'Toggle sidebar',
       },
       sidebar: {
@@ -198,6 +183,15 @@ const resources = {
         assignCollectionsTitle: 'Assign collections',
         addError: 'Failed to add channel',
         refreshInfo: 'Refresh info',
+        singleMode: 'Single',
+        bulkMode: 'Bulk',
+        bulkDescription: 'Add multiple channels at once (one per line or comma-separated).',
+        bulkPlaceholder: '@channel1\n@channel2\n@channel3',
+        bulkValidation: 'Enter at least one channel',
+        bulkAddSubmitting: 'Adding channels...',
+        bulkResults: '{{success}} added, {{failed}} failed',
+        bulkSucceeded: 'Added successfully',
+        bulkFailed: 'Failed to add',
       },
       collections: {
         title: 'Collections',
@@ -313,6 +307,8 @@ const resources = {
         noMessagesDescription: 'Start a search or adjust filters to see the feed.',
         loadingFeed: 'Loading feed...',
         loadingMore: 'Loading...',
+        mediaAvailableOnTelegram: 'Media available on Telegram',
+        retry: 'Retry',
       },
       alerts: {
         notifications: 'Alerts',
@@ -345,26 +341,11 @@ const resources = {
         dark: 'Sombre',
         system: 'Systeme',
       },
-      commandPalette: {
-        placeholder: 'Tapez une commande...',
-        empty: 'Aucun resultat.',
-        navigation: 'Navigation',
-        keywords: {
-          dashboard: 'accueil vue ensemble indicateurs',
-          feed: 'messages flux',
-          search: 'recherche explorer',
-          digests: 'digest resume',
-          collections: 'themes',
-          exports: 'export pdf csv',
-          settings: 'preferences',
-        },
-      },
       branding: {
         tagline: 'Intelligence, pas bruit',
       },
       header: {
         workspace: 'Espace de travail',
-        commandPalette: 'Palette de commandes',
         toggleSidebar: 'Basculer la navigation',
       },
       sidebar: {
@@ -515,6 +496,15 @@ const resources = {
         assignCollectionsTitle: 'Assigner aux collections',
         addError: "Echec de l'ajout du canal",
         refreshInfo: 'Actualiser infos',
+        singleMode: 'Individuel',
+        bulkMode: 'Multiple',
+        bulkDescription: 'Ajoutez plusieurs canaux à la fois (un par ligne ou séparés par des virgules).',
+        bulkPlaceholder: '@canal1\n@canal2\n@canal3',
+        bulkValidation: 'Entrez au moins un canal',
+        bulkAddSubmitting: 'Ajout des canaux...',
+        bulkResults: '{{success}} ajoutés, {{failed}} échoués',
+        bulkSucceeded: 'Ajouté avec succès',
+        bulkFailed: "Échec de l'ajout",
       },
       collections: {
         title: 'Collections',
@@ -630,6 +620,8 @@ const resources = {
         noMessagesDescription: 'Lancez une recherche ou ajustez les filtres pour afficher le flux.',
         loadingFeed: 'Chargement du flux...',
         loadingMore: 'Chargement...',
+        mediaAvailableOnTelegram: 'Média disponible sur Telegram',
+        retry: 'Réessayer',
       },
       alerts: {
         notifications: 'Alertes',

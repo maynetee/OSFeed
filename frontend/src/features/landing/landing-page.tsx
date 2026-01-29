@@ -18,9 +18,9 @@ export function LandingPage() {
     const navigate = useNavigate()
     const { tokens } = useUserStore()
 
-    // Redirect to dashboard if already logged in
+    // Redirect to feed if already logged in
     if (tokens?.accessToken) {
-        navigate('/dashboard')
+        navigate('/feed')
         return null
     }
 

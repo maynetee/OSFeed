@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from uuid import UUID
 from app.schemas.fetch_job import FetchJobStatus
 
@@ -29,3 +29,20 @@ class ChannelResponse(ChannelBase):
     fetch_job: Optional[FetchJobStatus] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BulkChannelCreate(BaseModel):
+    usernames: List[str]
+
+
+class BulkChannelFailure(BaseModel):
+    username: str
+    error: str
+
+
+class BulkChannelResponse(BaseModel):
+    succeeded: List[ChannelResponse]
+    failed: List[BulkChannelFailure]
+    total: int
+    success_count: int
+    failure_count: int
