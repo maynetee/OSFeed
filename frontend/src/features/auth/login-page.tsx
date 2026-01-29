@@ -63,7 +63,7 @@ export function LoginPage() {
         name: userResponse.data.email.split('@')[0],
       })
 
-      navigate('/dashboard')
+      navigate('/feed')
     } catch (err) {
       const axiosError = err as AxiosError<{ detail: string }>
       setError(getErrorMessage(axiosError.response?.data?.detail))
