@@ -1,6 +1,6 @@
 import { useMemo, type ComponentType } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, LayoutDashboard, Radio, BookOpenText, Layers, Settings, Sparkles } from 'lucide-react'
+import { Search, Radio, BookOpenText, Layers, Settings, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { useUiStore } from '@/stores/ui-store'
@@ -21,14 +21,6 @@ export function useCommandPalette() {
 
   const commands = useMemo<CommandItem[]>(
     () => [
-      {
-        id: 'nav-dashboard',
-        label: t('navigation.dashboard'),
-        shortcut: 'Cmd H',
-        icon: LayoutDashboard,
-        action: () => navigate('/'),
-        keywords: t('commandPalette.keywords.dashboard'),
-      },
       {
         id: 'nav-feed',
         label: t('navigation.feed'),
