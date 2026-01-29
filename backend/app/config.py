@@ -74,22 +74,11 @@ class Settings(BaseSettings):
     password_reset_token_expire_minutes: int = 30
     email_verification_token_expire_hours: int = 24
 
-    # Qdrant Vector Store
-    qdrant_url: str = ""
-    qdrant_api_key: str = ""
-    qdrant_collection_name: str = "osfeed-embeddings"
-    qdrant_distance: str = "cosine"
-    qdrant_timeout_seconds: float = 5.0
-
     # Redis Cache
     redis_url: str = ""
     redis_cache_ttl_seconds: int = 86400
     enable_response_cache: bool = True
     response_cache_ttl: int = 30
-
-    # Embeddings (UPDATED: OpenAI Defaults)
-    embedding_model: str = "text-embedding-3-small"
-    embedding_dimension: int = 1536
 
     # Translation concurrency
     translation_concurrency: int = 20  # Increased from 10 for better throughput
@@ -135,10 +124,6 @@ class Settings(BaseSettings):
     db_pool_size: int = 20
     db_max_overflow: int = 10
     db_pool_recycle: int = 1800
-
-    # Deduplication
-    dedup_similarity_threshold: float = 0.85
-    dedup_top_k: int = 5
 
     # Audit Logs
     audit_log_retention_days: int = 365
