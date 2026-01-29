@@ -11,7 +11,7 @@ import { collectionsApi, messagesApi } from '@/lib/api/client'
 
 export function SearchPage() {
   const [query, setQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('semantic')
+  const [activeTab, setActiveTab] = useState('keyword')
   const [collectionIds, setCollectionIds] = useState<string[]>([])
   const { t } = useTranslation()
 
@@ -28,19 +28,6 @@ export function SearchPage() {
         .flatMap((collection) => collection.channel_ids) ?? []
     return ids.length ? Array.from(new Set(ids)) : undefined
   }, [collectionsQuery.data, collectionIds])
-
-  const semanticQuery = useQuery({
-    queryKey: ['search', 'semantic', query, searchChannelIds],
-    queryFn: async () =>
-      (
-        await messagesApi.searchSemantic({
-          q: query,
-          top_k: 20,
-          channel_ids: searchChannelIds,
-        })
-      ).data,
-    enabled: query.length > 2,
-  })
 
   const keywordQuery = useQuery({
     queryKey: ['search', 'keyword', query, searchChannelIds],
@@ -118,24 +105,9 @@ export function SearchPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="semantic">{t('search.semantic')}</TabsTrigger>
           <TabsTrigger value="keyword">{t('search.keyword')}</TabsTrigger>
           <TabsTrigger value="entities">{t('search.entities')}</TabsTrigger>
         </TabsList>
-        <TabsContent value="semantic">
-          {query.length < 3 ? (
-            <Card>
-              <CardContent className="py-10 text-sm text-foreground/60">
-                {t('search.minChars')}
-              </CardContent>
-            </Card>
-          ) : (
-            <MessageFeed
-              messages={semanticQuery.data?.messages ?? []}
-              isLoading={semanticQuery.isLoading}
-            />
-          )}
-        </TabsContent>
         <TabsContent value="keyword">
           {query.length < 3 ? (
             <Card>
