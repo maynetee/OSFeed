@@ -5,12 +5,12 @@ from sqlalchemy.orm import selectinload
 from uuid import UUID
 import logging
 
-from app.database import get_db, AsyncSessionLocal
+from app.database import get_db
 from app.models.channel import Channel, user_channels
 from app.models.fetch_job import FetchJob
 from app.models.collection import Collection
 from app.models.user import User
-from app.schemas.channel import ChannelCreate, ChannelResponse
+from app.schemas.channel import ChannelCreate, ChannelResponse, BulkChannelCreate, BulkChannelResponse, BulkChannelFailure
 from app.services.fetch_queue import enqueue_fetch_job
 import re
 from app.auth.users import current_active_user
@@ -74,6 +74,7 @@ async def _get_latest_fetch_jobs(db: AsyncSession, channel_ids: list[UUID]) -> d
 async def add_channel(
     channel_data: ChannelCreate,
     user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Add a new Telegram channel to follow.
 
@@ -91,8 +92,200 @@ async def add_channel(
     if not re.match(r"^[a-zA-Z][\w\d]{3,30}[a-zA-Z\d]$", username):
         raise HTTPException(status_code=400, detail="Invalid Telegram username format. Must be 5-32 chars, start with letter.")
 
-    # Telegram integration has been removed - only allow linking to existing channels
-    async with AsyncSessionLocal() as db:
+    try:
+        # Check if channel already exists
+        result = await db.execute(
+            select(Channel).where(Channel.username == username)
+        )
+        existing_channel = result.scalar_one_or_none()
+
+        channel_to_use = None
+        is_new = False
+
+        if existing_channel:
+            # Check if user already has this channel
+            link_result = await db.execute(
+                select(user_channels).where(
+                    and_(
+                        user_channels.c.user_id == user.id,
+                        user_channels.c.channel_id == existing_channel.id
+                    )
+                )
+            )
+            existing_link = link_result.first()
+
+            if existing_link:
+                # Link exists - ensure channel is active
+                if not existing_channel.is_active:
+                    # Reactivate and return the channel
+                    existing_channel.is_active = True
+                    channel_to_use = existing_channel
+                else:
+                    # Channel is active and linked - already in user's list
+                    raise HTTPException(status_code=400, detail="Channel already exists in your list")
+            else:
+                # Channel exists but user doesn't have it linked yet
+                # Ensure it's active and create the link
+                if not existing_channel.is_active:
+                    existing_channel.is_active = True
+
+                await db.execute(
+                    insert(user_channels).values(
+                        user_id=user.id,
+                        channel_id=existing_channel.id
+                    )
+                )
+                channel_to_use = existing_channel
+        else:
+            # Channel doesn't exist - create via Telegram
+            telegram_client = get_telegram_client()
+
+            # Check JoinChannel limit before proceeding
+            if not await telegram_client.can_join_channel():
+                if settings.telegram_join_channel_queue_enabled:
+                    # Queue for later processing
+                    await queue_channel_join(username, user.id)
+                    raise HTTPException(
+                        status_code=202,
+                        detail="Daily channel join limit reached. Your request has been queued."
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=429,
+                        detail="Daily channel join limit reached. Please try again tomorrow."
+                    )
+
+            try:
+                # Resolve and join channel via Telegram
+                channel_info = await telegram_client.resolve_channel(username)
+                await telegram_client.join_public_channel(username)
+                await telegram_client.record_channel_join()
+
+                # Create new channel record
+                channel_to_use = Channel(
+                    username=username,
+                    telegram_id=channel_info['telegram_id'],
+                    title=channel_info['title'],
+                    description=channel_info.get('description'),
+                    subscriber_count=channel_info.get('subscribers', 0),
+                    is_active=True
+                )
+                db.add(channel_to_use)
+                is_new = True
+
+            except ValueError as e:
+                # Invalid username, private channel, etc.
+                raise HTTPException(status_code=400, detail=str(e))
+
+        # Assign to collections (for both new and existing linked channels)
+        collections_result = await db.execute(
+            select(Collection)
+            .options(selectinload(Collection.channels))
+            .where(Collection.user_id == user.id)
+        )
+        collections = collections_result.scalars().all()
+
+        # Re-check collections for the user
+        channel_lang = channel_to_use.detected_language
+        search_text = f"{channel_to_use.title} {channel_to_use.description or ''}".lower()
+
+        for collection in collections:
+            # Check if already in collection to avoid dupes
+            if channel_to_use in collection.channels:
+                continue
+
+            if collection.is_global:
+                continue
+            if collection.is_default:
+                collection.channels.append(channel_to_use)
+                continue
+            if collection.auto_assign_languages and channel_lang:
+                if channel_lang in (collection.auto_assign_languages or []):
+                    collection.channels.append(channel_to_use)
+                    continue
+            if collection.auto_assign_keywords:
+                if any(keyword.lower() in search_text for keyword in collection.auto_assign_keywords or []):
+                    collection.channels.append(channel_to_use)
+                    continue
+            if collection.auto_assign_tags and channel_to_use.tags:
+                if any(tag in (collection.auto_assign_tags or []) for tag in channel_to_use.tags):
+                    collection.channels.append(channel_to_use)
+
+        record_audit_event(
+            db,
+            user_id=user.id,
+            action="channel.create" if is_new else "channel.link",
+            resource_type="channel",
+            resource_id=str(channel_to_use.id),
+            metadata={"username": username, "is_new": is_new},
+        )
+        await db.commit()
+        await db.refresh(channel_to_use)
+
+        # Enqueue fetch job (enqueue_fetch_job handles deduplication if already running)
+        job = await enqueue_fetch_job(channel_to_use.id, channel_to_use.username, days=7)
+
+        response = ChannelResponse.model_validate(channel_to_use).model_dump()
+        if job:
+            response["fetch_job"] = FetchJobStatus.model_validate(job).model_dump()
+        else:
+            response["fetch_job"] = None
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Error adding channel")
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+@router.post("/bulk", response_model=BulkChannelResponse)
+async def add_channels_bulk(
+    bulk_data: BulkChannelCreate,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Add multiple Telegram channels at once.
+
+    Processes channels sequentially to respect Telegram rate limits.
+    Returns partial results - some channels may succeed while others fail.
+
+    Requires authentication.
+    """
+    succeeded: List[ChannelResponse] = []
+    failed: List[BulkChannelFailure] = []
+
+    if not bulk_data.usernames:
+        return BulkChannelResponse(
+            succeeded=[],
+            failed=[],
+            total=0,
+            success_count=0,
+            failure_count=0,
+        )
+
+    for raw_username in bulk_data.usernames:
+        # Clean username - remove URL prefix if present
+        username = raw_username.strip()
+        if not username:
+            continue
+
+        if username.startswith("https://t.me/"):
+            username = username.replace("https://t.me/", "")
+        if username.startswith("t.me/"):
+            username = username.replace("t.me/", "")
+        username = username.lstrip("@")
+
+        # Validate username format
+        if not re.match(r"^[a-zA-Z][\w\d]{3,30}[a-zA-Z\d]$", username):
+            failed.append(BulkChannelFailure(
+                username=raw_username,
+                error="Invalid Telegram username format. Must be 5-32 chars, start with letter."
+            ))
+            continue
+
         try:
             # Check if channel already exists
             result = await db.execute(
@@ -116,17 +309,20 @@ async def add_channel(
                 existing_link = link_result.first()
 
                 if existing_link:
-                    # Link exists - ensure channel is active
+                    # Link exists
                     if not existing_channel.is_active:
-                        # Reactivate and return the channel
+                        # Reactivate the channel
                         existing_channel.is_active = True
                         channel_to_use = existing_channel
                     else:
                         # Channel is active and linked - already in user's list
-                        raise HTTPException(status_code=400, detail="Channel already exists in your list")
+                        failed.append(BulkChannelFailure(
+                            username=username,
+                            error="Channel already exists in your list"
+                        ))
+                        continue
                 else:
                     # Channel exists but user doesn't have it linked yet
-                    # Ensure it's active and create the link
                     if not existing_channel.is_active:
                         existing_channel.is_active = True
 
@@ -146,15 +342,17 @@ async def add_channel(
                     if settings.telegram_join_channel_queue_enabled:
                         # Queue for later processing
                         await queue_channel_join(username, user.id)
-                        raise HTTPException(
-                            status_code=202,
-                            detail="Daily channel join limit reached. Your request has been queued."
-                        )
+                        failed.append(BulkChannelFailure(
+                            username=username,
+                            error="Daily channel join limit reached. Request has been queued."
+                        ))
+                        continue
                     else:
-                        raise HTTPException(
-                            status_code=429,
-                            detail="Daily channel join limit reached. Please try again tomorrow."
-                        )
+                        failed.append(BulkChannelFailure(
+                            username=username,
+                            error="Daily channel join limit reached. Please try again tomorrow."
+                        ))
+                        continue
 
                 try:
                     # Resolve and join channel via Telegram
@@ -176,7 +374,11 @@ async def add_channel(
 
                 except ValueError as e:
                     # Invalid username, private channel, etc.
-                    raise HTTPException(status_code=400, detail=str(e))
+                    failed.append(BulkChannelFailure(
+                        username=username,
+                        error=str(e)
+                    ))
+                    continue
 
             # Assign to collections (for both new and existing linked channels)
             collections_result = await db.execute(
@@ -185,16 +387,13 @@ async def add_channel(
                 .where(Collection.user_id == user.id)
             )
             collections = collections_result.scalars().all()
-            
-            # Re-check collections for the user
+
             channel_lang = channel_to_use.detected_language
             search_text = f"{channel_to_use.title} {channel_to_use.description or ''}".lower()
-            
+
             for collection in collections:
-                # Check if already in collection to avoid dupes
                 if channel_to_use in collection.channels:
                     continue
-
                 if collection.is_global:
                     continue
                 if collection.is_default:
@@ -218,9 +417,11 @@ async def add_channel(
                 action="channel.create" if is_new else "channel.link",
                 resource_type="channel",
                 resource_id=str(channel_to_use.id),
-                metadata={"username": username, "is_new": is_new},
+                metadata={"username": username, "is_new": is_new, "bulk": True},
             )
-            await db.commit()
+
+            # Flush to get the channel ID for the response
+            await db.flush()
             await db.refresh(channel_to_use)
 
             # Invalidate translation cache since user-channel association changed
@@ -234,15 +435,27 @@ async def add_channel(
                 response["fetch_job"] = FetchJobStatus.model_validate(job).model_dump()
             else:
                 response["fetch_job"] = None
-                
-            return response
-            
-        except HTTPException:
-            raise
+
+            succeeded.append(ChannelResponse.model_validate(response))
+
         except Exception as e:
-            logger.exception("Error adding channel")
-            await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+            logger.exception(f"Error adding channel {username} in bulk operation")
+            failed.append(BulkChannelFailure(
+                username=username,
+                error=f"Error: {str(e)}"
+            ))
+            continue
+
+    # Commit all successful changes
+    await db.commit()
+
+    return BulkChannelResponse(
+        succeeded=succeeded,
+        failed=failed,
+        total=len(bulk_data.usernames),
+        success_count=len(succeeded),
+        failure_count=len(failed),
+    )
 
 
 @router.get("", response_model=List[ChannelResponse])

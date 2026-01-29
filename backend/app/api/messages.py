@@ -15,7 +15,6 @@ from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
-from app.services.vector_store import vector_store
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
@@ -277,11 +276,20 @@ async def search_messages(
     db: AsyncSession = Depends(get_db),
 ):
     """Search messages via full-text match on original/translated text."""
-    # Use PostgreSQL trgm operators to leverage GIN index instead of ilike
-    search_filter = or_(
-        Message.original_text.op("%")(q),
-        func.coalesce(Message.translated_text, literal("")).op("%")(q),
-    )
+    # Use database-specific search filter
+    if settings.use_sqlite:
+        # SQLite: Use LIKE with case-insensitive matching
+        search_term = f"%{q}%"
+        search_filter = or_(
+            Message.original_text.ilike(search_term),
+            func.coalesce(Message.translated_text, literal("")).ilike(search_term),
+        )
+    else:
+        # PostgreSQL: Use trigram similarity for better performance
+        search_filter = or_(
+            Message.original_text.op("%")(q),
+            func.coalesce(Message.translated_text, literal("")).op("%")(q),
+        )
     query = select(Message).options(selectinload(Message.channel)).where(search_filter)
     query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date)
 
@@ -310,76 +318,6 @@ async def search_messages(
         page=offset // limit + 1 if not cursor else 1,
         page_size=limit,
         next_cursor=next_cursor,
-    )
-
-
-@router.get("/search/semantic", response_model=MessageListResponse)
-async def search_messages_semantic(
-    q: str = Query(..., min_length=3),
-    channel_ids: Optional[list[UUID]] = Query(None),
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-    top_k: int = Query(20, ge=1, le=100),
-    user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Search messages using semantic similarity."""
-    if not vector_store.is_ready:
-        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
-
-    raw_filter: dict = {}
-    
-    from app.models.channel import user_channels
-    user_channel_ids_result = await db.execute(
-        select(user_channels.c.channel_id).where(user_channels.c.user_id == user.id)
-    )
-    user_channel_ids = [str(row.channel_id) for row in user_channel_ids_result.all()]
-
-    if not user_channel_ids:
-        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
-
-    if channel_ids:
-        allowed_ids = set(user_channel_ids)
-        requested_ids = set(str(cid) for cid in channel_ids)
-        final_ids = list(allowed_ids.intersection(requested_ids))
-        if not final_ids:
-             return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
-        raw_filter["channel_id"] = {"": final_ids}
-    else:
-        raw_filter["channel_id"] = {"": user_channel_ids}
-
-    if start_date or end_date:
-        ts_filter: dict = {}
-        if start_date:
-            ts_filter[""] = int(start_date.timestamp())
-        if end_date:
-            ts_filter[""] = int(end_date.timestamp())
-        raw_filter["published_at_ts"] = ts_filter
-
-    matches = await vector_store.query_similar(text=q, top_k=top_k, filter=raw_filter or None)
-    if not matches:
-        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
-
-    ordered_ids = [match["id"] for match in matches]
-    result = await db.execute(
-        select(Message).options(selectinload(Message.channel)).where(Message.id.in_(ordered_ids))
-    )
-    messages = result.scalars().all()
-    message_map = {str(message.id): message for message in messages}
-
-    ordered_messages = []
-    for match in matches:
-        message = message_map.get(str(match["id"]))
-        if not message:
-            continue
-        message.similarity_score = match.get("score")
-        ordered_messages.append(message)
-
-    return MessageListResponse(
-        messages=[_message_to_response(message) for message in ordered_messages],
-        total=len(ordered_messages),
-        page=1,
-        page_size=top_k,
     )
 
 
@@ -849,54 +787,3 @@ async def translate_message_on_demand(
     )
 
     return _message_to_response(message)
-
-
-@router.get("/{message_id}/similar", response_model=MessageListResponse)
-async def get_similar_messages(
-    message_id: UUID,
-    top_k: int = Query(5, ge=1, le=20),
-    user: User = Depends(current_active_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get similar messages based on semantic vectors."""
-    if not vector_store.is_ready:
-        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
-
-    result = await db.execute(
-        select(Message).options(selectinload(Message.channel)).where(Message.id == message_id)
-    )
-    message = result.scalar_one_or_none()
-    if not message:
-        raise HTTPException(status_code=404, detail="Message not found")
-
-    text = message.translated_text or message.original_text or ""
-    if not text:
-        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
-
-    matches = await vector_store.query_similar(text=text, top_k=top_k + 1)
-    matches = [match for match in matches if str(match.get("id")) != str(message_id)]
-
-    ordered_ids = [match["id"] for match in matches]
-    if not ordered_ids:
-        return MessageListResponse(messages=[], total=0, page=1, page_size=top_k)
-
-    result = await db.execute(
-        select(Message).options(selectinload(Message.channel)).where(Message.id.in_(ordered_ids))
-    )
-    messages = result.scalars().all()
-    message_map = {str(item.id): item for item in messages}
-
-    ordered_messages = []
-    for match in matches:
-        similar_message = message_map.get(str(match["id"]))
-        if not similar_message:
-            continue
-        similar_message.similarity_score = match.get("score")
-        ordered_messages.append(similar_message)
-
-    return MessageListResponse(
-        messages=[_message_to_response(message) for message in ordered_messages],
-        total=len(ordered_messages),
-        page=1,
-        page_size=top_k,
-    )

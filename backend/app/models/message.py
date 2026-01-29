@@ -35,23 +35,6 @@ class Message(Base):
     originality_score = Column(SmallInteger, default=100)  # 0-100
     duplicate_group_id = Column(UUID(as_uuid=True), nullable=True, index=True)
 
-    # Vector store reference
-    embedding_id = Column(String(255), nullable=True)
-
-    # AI Clustering & Analysis
-    cluster_id = Column(UUID(as_uuid=True), ForeignKey("narrative_clusters.id", ondelete="SET NULL"), nullable=True, index=True)
-    novelty_score = Column(SmallInteger, nullable=True)
-    velocity_score = Column(SmallInteger, nullable=True)
-
-    # Named entities extracted (JSON - works with both SQLite and PostgreSQL)
-    entities = Column(
-        JSON,
-        default={"persons": [], "locations": [], "organizations": []},
-        nullable=True
-    )
-
-    entities_rel = relationship("Entity", secondary="message_entity_association", back_populates="messages")
-
     # Timestamps with timezone
     published_at = Column(DateTime(timezone=True), index=True)
     fetched_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -59,7 +42,6 @@ class Message(Base):
 
     # Relationships
     channel = relationship("Channel", back_populates="messages")
-    cluster = relationship("NarrativeCluster", back_populates="messages")
     translations = relationship("MessageTranslation", back_populates="message", cascade="all, delete-orphan")
 
     # Composite indexes for common queries

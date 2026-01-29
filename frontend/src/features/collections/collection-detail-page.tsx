@@ -4,7 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { useTranslation } from 'react-i18next'
 import { RefreshCw } from 'lucide-react'
 
-import { collectionsApi, messagesApi, summariesApi } from '@/lib/api/client'
+import { collectionsApi, messagesApi } from '@/lib/api/client'
 import type { Collection } from '@/lib/api/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,7 +14,6 @@ import { CollectionManager } from '@/components/collections/collection-manager'
 import { CollectionExportDialog } from '@/components/collections/collection-export-dialog'
 import { CollectionAlerts } from '@/components/collections/collection-alerts'
 import { CollectionShares } from '@/components/collections/collection-shares'
-import { DigestCard } from '@/components/digests/digest-card'
 import { Timestamp } from '@/components/common/timestamp'
 import { cn } from '@/lib/cn'
 import { useMessagePolling } from '@/hooks/use-message-polling'
@@ -57,18 +56,6 @@ export function CollectionDetailPage() {
       return nextOffset < lastPage.total ? nextOffset : undefined
     },
     enabled: Boolean(collectionQuery.data?.channel_ids?.length),
-  })
-
-  const digestQuery = useInfiniteQuery({
-    queryKey: ['collection-digests', id],
-    initialPageParam: 0,
-    queryFn: async ({ pageParam }) =>
-      (await collectionsApi.digests(id as string, { limit: 5, offset: pageParam })).data,
-    getNextPageParam: (lastPage) => {
-      const nextOffset = lastPage.page * lastPage.page_size
-      return nextOffset < lastPage.total ? nextOffset : undefined
-    },
-    enabled: Boolean(id),
   })
 
   const updateCollection = useMutation({
@@ -119,18 +106,9 @@ export function CollectionDetailPage() {
     onSuccess: () => navigate('/collections'),
   })
 
-  const generateDigest = useMutation({
-    mutationFn: () => collectionsApi.generateDigest(id as string),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['collection-digests', id] }),
-  })
-
   const messages = useMemo(
     () => messagesQuery.data?.pages.flatMap((page) => page.messages) ?? [],
     [messagesQuery.data],
-  )
-  const digests = useMemo(
-    () => digestQuery.data?.pages.flatMap((page) => page.summaries) ?? [],
-    [digestQuery.data],
   )
 
   const downloadBlob = (data: Blob, filename: string) => {
@@ -176,9 +154,6 @@ export function CollectionDetailPage() {
             </Button>
             <Button variant="outline" onClick={() => setExportOpen(true)}>
               {t('collections.export')}
-            </Button>
-            <Button variant="outline" onClick={() => generateDigest.mutate()}>
-              {generateDigest.isPending ? t('digests.generating') : t('collections.generateDigest')}
             </Button>
             <Button variant="outline" onClick={() => deleteCollection.mutate()}>
               {t('collections.delete')}
@@ -226,47 +201,6 @@ export function CollectionDetailPage() {
                 }
               }}
             />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="py-6">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold">{t('collections.digestTitle')}</h3>
-            <Button variant="outline" onClick={() => generateDigest.mutate()}>
-              {generateDigest.isPending ? t('digests.generating') : t('digests.generate')}
-            </Button>
-          </div>
-          <div className="mt-4 flex flex-col gap-3">
-            {digests.length ? (
-              digests.map((digest) => (
-                <DigestCard
-                  key={digest.id}
-                  digest={digest}
-                  onOpen={(digestId) => navigate(`/digests/${digestId}`)}
-                  onExportPdf={async (digestId) => {
-                    const response = await summariesApi.exportPdf(digestId)
-                    downloadBlob(response.data, `digest-${digestId}.pdf`)
-                  }}
-                  onExportHtml={async (digestId) => {
-                    const response = await summariesApi.exportHtml(digestId)
-                    downloadBlob(new Blob([response.data], { type: 'text/html' }), `digest-${digestId}.html`)
-                  }}
-                />
-              ))
-            ) : (
-              <p className="text-sm text-foreground/60">{t('collections.noDigests')}</p>
-            )}
-            {digestQuery.hasNextPage ? (
-              <Button
-                variant="outline"
-                onClick={() => digestQuery.fetchNextPage()}
-                disabled={digestQuery.isFetchingNextPage}
-              >
-                {digestQuery.isFetchingNextPage ? t('messages.loadingMore') : t('digests.loadMore')}
-              </Button>
-            ) : null}
           </div>
         </CardContent>
       </Card>

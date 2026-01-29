@@ -16,7 +16,6 @@ from app.database import get_db
 from app.models.message import Message, MessageTranslation
 from app.models.channel import Channel
 from app.models.collection import Collection, collection_channels
-from app.models.summary import Summary
 from app.models.user import User
 from app.models.api_usage import ApiUsage
 from app.auth.users import current_active_user
@@ -73,17 +72,11 @@ async def get_overview_stats(
         .where(Message.is_duplicate == True)
     )
 
-    # Summaries (user scoped via collections or implicit channel access - simpler to just count global for now or filter by user's collections, 
-    # but Summary model logic might be different. For safely, let's keep it global or fix later if needed, 
-    # but the task is about messages/channels. Let's assume summaries are system-wide or per-collection which user owns.)
-    summaries_total = await db.execute(select(func.count()).select_from(Summary))
-
     return {
         "total_messages": total_messages.scalar() or 0,
         "active_channels": total_channels.scalar() or 0,
         "messages_last_24h": messages_24h.scalar() or 0,
         "duplicates_last_24h": duplicates_24h.scalar() or 0,
-        "summaries_total": summaries_total.scalar() or 0,
     }
 
 

@@ -2,10 +2,8 @@
 
 This job runs periodically to:
 1. Sync messages from all active channels
-2. Run deduplication on new messages
-3. Trigger translation for untranslated messages
+2. Trigger translation for untranslated messages
 """
-import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import List
@@ -14,19 +12,12 @@ from sqlalchemy import select, func, and_
 
 from app.models.message import Message
 from app.models.channel import Channel
-from app.services.deduplicator import deduplicator
 from app.services.telegram_client import get_telegram_client
 from app.services.fetch_queue import enqueue_fetch_job
 from app.database import AsyncSessionLocal
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-# Lock for cross-channel deduplication synchronization
-_dedup_lock = asyncio.Lock()
-
-# Chunk size for loading messages during deduplication to bound memory usage
-DEDUP_CHUNK_SIZE = 500
 
 
 async def collect_messages_job() -> None:
@@ -71,7 +62,7 @@ async def collect_messages_job() -> None:
         else:
             logger.info(f"Syncing {len(channels_to_sync)} channels")
 
-            # Enqueue fetch jobs (fetch_queue handles rate limiting and deduplication)
+            # Enqueue fetch jobs (fetch_queue handles rate limiting)
             for channel in channels_to_sync:
                 try:
                     await enqueue_fetch_job(
@@ -81,9 +72,6 @@ async def collect_messages_job() -> None:
                     )
                 except Exception as e:
                     logger.error(f"Failed to enqueue fetch for {channel.username}: {e}")
-
-        # Run deduplication on recent messages
-        await _run_chunked_deduplication()
 
         logger.info("Message collection job completed")
 
@@ -233,54 +221,3 @@ async def _process_telegram_message(tg_msg, channel: Channel) -> Message:
         is_duplicate=False,
         originality_score=100
     )
-
-
-async def _run_chunked_deduplication() -> None:
-    """Run cross-channel deduplication in chunks.
-
-    This function processes recent messages to identify duplicates
-    using vector similarity matching.
-    """
-    async with _dedup_lock:
-        logger.info("Running cross-channel deduplication (with lock)...")
-        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
-
-        async with AsyncSessionLocal() as db:
-            count_result = await db.execute(
-                select(func.count(Message.id))
-                .where(Message.published_at >= cutoff_time)
-            )
-            total_count = count_result.scalar() or 0
-
-        if total_count == 0:
-            logger.info("No recent messages to deduplicate")
-            return
-
-        logger.info(f"Deduplicating {total_count} messages in chunks of {DEDUP_CHUNK_SIZE}")
-
-        processed = 0
-        offset = 0
-
-        while offset < total_count:
-            async with AsyncSessionLocal() as db:
-                chunk_result = await db.execute(
-                    select(Message)
-                    .where(Message.published_at >= cutoff_time)
-                    .order_by(Message.published_at.desc())
-                    .offset(offset)
-                    .limit(DEDUP_CHUNK_SIZE)
-                )
-                chunk_messages = list(chunk_result.scalars().all())
-
-                if not chunk_messages:
-                    break
-
-                await deduplicator.mark_duplicates(chunk_messages, cutoff_time=cutoff_time)
-                await db.commit()
-
-                processed += len(chunk_messages)
-                logger.debug(f"Deduplication progress: {processed}/{total_count}")
-
-            offset += DEDUP_CHUNK_SIZE
-
-        logger.info(f"Deduplication completed for {processed} messages")

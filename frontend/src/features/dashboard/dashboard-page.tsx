@@ -9,7 +9,7 @@ import { KpiCard } from '@/components/stats/kpi-card'
 import { TrendChart } from '@/components/stats/trend-chart'
 import { ChannelRanking } from '@/components/stats/channel-ranking'
 import { EmptyState } from '@/components/common/empty-state'
-import { statsApi, channelsApi, collectionsApi, summariesApi } from '@/lib/api/client'
+import { statsApi, channelsApi, collectionsApi } from '@/lib/api/client'
 
 export function DashboardPage() {
   const { t } = useTranslation()
@@ -58,26 +58,6 @@ export function DashboardPage() {
     [collectionOptions, selectedCollection],
   )
   const selectedChannelIds = selectedCollectionData?.channel_ids ?? []
-
-  const digestQuery = useQuery({
-    queryKey: ['dashboard', 'digest', selectedCollection],
-    queryFn: async () => {
-      try {
-        if (selectedCollection === 'all') {
-          const response = await summariesApi.getDaily()
-          return response.data
-        }
-        const response = await collectionsApi.digests(selectedCollection, { limit: 1, offset: 0 })
-        return response.data.summaries[0] ?? null
-      } catch {
-        return null
-      }
-    },
-    enabled: selectedCollection === 'all'
-      ? (channelsQuery.data?.length ?? 0) > 0
-      : selectedChannelIds.length > 0,
-    retry: false,
-  })
 
   const trustQuery = useQuery({
     queryKey: ['dashboard', 'trust', selectedCollection, selectedChannelIds],
@@ -134,12 +114,6 @@ export function DashboardPage() {
     ? messagesByChannelQuery.data ?? []
     : (collectionStats?.top_channels ?? [])
 
-  const digest = digestQuery.data
-  const digestLines = (digest?.content ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 3)
   const trustStats = trustQuery.data
 
   return (
@@ -178,45 +152,7 @@ export function DashboardPage() {
         />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <Card className="overflow-hidden">
-          <CardHeader className="flex items-start justify-between gap-4 md:flex-row md:items-center">
-            <div>
-              <CardTitle>{t('dashboard.digestTitle')}</CardTitle>
-              <p className="text-sm text-foreground/60">{t('dashboard.digestSubtitle')}</p>
-            </div>
-            <Button variant="outline">{t('dashboard.digestAction')}</Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {digestQuery.isLoading ? (
-              <p className="text-sm text-foreground/60">{t('digests.loading')}</p>
-            ) : digest ? (
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
-                <p className="text-sm font-semibold">
-                  {digest.title ?? t('digests.title')}
-                </p>
-                <p className="text-xs text-foreground/60">
-                  {t('digests.cardMeta', {
-                    messages: digest.message_count,
-                    duplicates: digest.duplicates_filtered ?? 0,
-                  })}
-                </p>
-                {digestLines.length ? (
-                  <div className="mt-3 space-y-2 text-sm text-foreground/70">
-                    {digestLines.map((line, index) => (
-                      <p key={`${digest.id}-${index}`}>{line}</p>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-4 text-sm text-foreground/60">
-                {t('digests.emptyDescription')}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
+      <section className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>{t('dashboard.trustTitle')}</CardTitle>

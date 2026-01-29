@@ -49,6 +49,16 @@ export function ChannelsPage() {
     },
   })
 
+  const addBulkChannels = useMutation({
+    mutationFn: async (usernames: string[]) => {
+      const response = await channelsApi.addBulk(usernames)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['channels'] })
+    },
+  })
+
   const deleteChannel = useMutation({
     mutationFn: (id: string) => channelsApi.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['channels'] }),
@@ -84,6 +94,7 @@ export function ChannelsPage() {
         </div>
         <AddChannelDialog
           onSubmit={(username) => addChannel.mutateAsync(username)}
+          onBulkSubmit={(usernames) => addBulkChannels.mutateAsync(usernames)}
           open={addDialogOpen}
           onOpenChange={handleDialogOpenChange}
         />
