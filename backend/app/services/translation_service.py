@@ -12,6 +12,8 @@ from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
 from app.models.message import Message
+from app.models.channel import Channel, user_channels
+from app.models.user import User
 from app.config import get_settings
 from app.services.translator import translator
 from app.services.translation_pool import run_translation
@@ -19,6 +21,85 @@ from app.services.events import publish_message_translated
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+async def should_channel_translate(channel_id: UUID) -> bool:
+    """Determine if a channel's messages should be translated.
+
+    This function checks whether any user who has added this channel has a
+    preferred language different from the channel's detected language.
+
+    Returns True if translation is needed (any user language differs from channel language).
+    Returns False if no translation needed (all users match channel language).
+
+    Edge cases:
+    - No detected_language on channel -> True (default to translate)
+    - No users have added the channel -> True (default to translate)
+    - User without preferred_language -> Uses default 'en' (handled by model default)
+
+    Args:
+        channel_id: UUID of the channel to check
+
+    Returns:
+        True if translation is needed, False otherwise
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            # 1. Get channel's detected_language
+            stmt = select(Channel).where(Channel.id == channel_id)
+            result = await db.execute(stmt)
+            channel = result.scalar_one_or_none()
+
+            if not channel:
+                logger.warning(f"Channel {channel_id} not found, defaulting to translate")
+                return True
+
+            channel_language = channel.detected_language
+
+            # 2. If channel has no detected language, default to translating
+            if not channel_language:
+                logger.debug(
+                    f"Channel {channel_id}: no detected_language, defaulting to translate"
+                )
+                return True
+
+            # 3. Get all users who have added this channel
+            stmt = (
+                select(User)
+                .join(user_channels, User.id == user_channels.c.user_id)
+                .where(user_channels.c.channel_id == channel_id)
+            )
+            result = await db.execute(stmt)
+            users = result.scalars().all()
+
+            # 4. If no users have added the channel, default to translating
+            if not users:
+                logger.debug(
+                    f"Channel {channel_id}: no users, defaulting to translate"
+                )
+                return True
+
+            # 5. Check if any user's preferred language differs from channel language
+            for user in users:
+                user_language = user.preferred_language or settings.preferred_language
+                if user_language != channel_language:
+                    logger.debug(
+                        f"Channel {channel_id}: user {user.id} has language '{user_language}' "
+                        f"different from channel language '{channel_language}', translation needed"
+                    )
+                    return True
+
+            # 6. All users match channel language - no translation needed
+            logger.debug(
+                f"Channel {channel_id}: all users match channel language "
+                f"'{channel_language}', skipping translation"
+            )
+            return False
+
+    except Exception as e:
+        logger.exception(f"Failed to check translation need for channel {channel_id}: {e}")
+        # Default to translating on error to be safe
+        return True
 
 
 async def translate_message_immediate(
