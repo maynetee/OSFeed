@@ -18,14 +18,12 @@ from app.models import (
     FetchJob,
     Message,
     MessageTranslation,
-    Summary,
     User,
     Collection,
     CollectionShare,
     AuditLog,
     Alert,
     ApiUsage,
-    NarrativeCluster,
 )
 
 # this is the Alembic Config object
