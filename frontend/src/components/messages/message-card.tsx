@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { DuplicateBadge } from '@/components/messages/duplicate-badge'
+import { TelegramEmbed } from '@/components/messages/telegram-embed'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Timestamp } from '@/components/common/timestamp'
 import { EntityTags } from '@/components/digests/entity-tags'
@@ -38,6 +39,11 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
   const telegramLink = message.channel_username
     ? `https://t.me/${message.channel_username}/${message.telegram_message_id}`
     : null
+
+  const showTelegramEmbed =
+    message.channel_username &&
+    message.telegram_message_id &&
+    (message.media_type === 'photo' || message.media_type === 'video')
 
   const similarQuery = useQuery({
     queryKey: ['messages', message.id, 'similar'],
@@ -104,6 +110,13 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
             </div>
           ) : null}
         </div>
+
+        {showTelegramEmbed ? (
+          <TelegramEmbed
+            channelUsername={message.channel_username!}
+            messageId={message.telegram_message_id!}
+          />
+        ) : null}
 
         {message.entities ? (
           <div className="grid gap-3 md:grid-cols-3">
