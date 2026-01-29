@@ -96,7 +96,7 @@ export function RegisterPage() {
           name: userResponse.data.email.split('@')[0],
         })
 
-        navigate('/dashboard')
+        navigate('/feed')
       }
     } catch (err) {
       const axiosError = err as AxiosError<{ detail: string | { code: string; reason: string } }>

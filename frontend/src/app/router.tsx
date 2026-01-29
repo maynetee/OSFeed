@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 
 import { AppShell } from '@/components/layout/app-shell'
 
-const DashboardPage = lazy(() => import('@/features/dashboard/dashboard-page').then((m) => ({ default: m.DashboardPage })))
 const FeedPage = lazy(() => import('@/features/feed/feed-page').then((m) => ({ default: m.FeedPage })))
 const SearchPage = lazy(() => import('@/features/search/search-page').then((m) => ({ default: m.SearchPage })))
 const DigestsPage = lazy(() => import('@/features/digests/digests-page').then((m) => ({ default: m.DigestsPage })))
@@ -40,7 +39,7 @@ export function AppRouter() {
 
         <Route element={<AuthGuard />}>
           <Route element={<AppShell />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard" element={<Navigate to="/feed" replace />} />
             <Route path="/feed" element={<FeedPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/digests" element={<DigestsPage />} />
@@ -53,11 +52,6 @@ export function AppRouter() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/intelligence" element={<IntelligenceDashboardPage />} />
             <Route path="/intelligence/clusters/:id" element={<ClusterDetailPage />} />
-            {/* Redirect / to /dashboard if we unintentionally fall through, 
-                though LandingPage handles the auth check check too. 
-                Actually, to be safe, if we are in this guarded block, we are authed. 
-                But this route is outside / path so it won't catch /. 
-            */}
           </Route>
         </Route>
 
