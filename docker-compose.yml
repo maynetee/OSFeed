@@ -1,13 +1,11 @@
 # Docker Compose - OSFeed Application (Coolify ready)
 #
 # NETWORK STRATEGY:
-# - No networks section defined here — Coolify manages networks automatically
-# - Enable "Connect to Predefined Network" in Coolify UI for infra connectivity
-# - This avoids "external network not found" errors on preview deployments
+# - Explicitly connect to 'coolify' external network for Traefik routing
+# - Also use default network for internal container communication
 #
-# DOMAIN STRATEGY:
-# - coolify.fqdn labels with https:// prefix set on each service
-# - "Raw Compose Deployment" is enabled so Coolify respects these labels
+# TRAEFIK ROUTING:
+# - Labels explicitly defined for proper routing via Coolify's Traefik proxy
 
 services:
   backend:
@@ -15,6 +13,19 @@ services:
     restart: always
     labels:
       - "coolify.fqdn=https://api.osfeed.com"
+      - "coolify.managed=true"
+      - "coolify.applicationId=6"
+      - "coolify.type=application"
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-http.entryPoints=http"
+      - "traefik.http.routers.backend-http.rule=Host(`api.osfeed.com`)"
+      - "traefik.http.routers.backend-http.middlewares=redirect-to-https"
+      - "traefik.http.routers.backend-https.entryPoints=https"
+      - "traefik.http.routers.backend-https.rule=Host(`api.osfeed.com`)"
+      - "traefik.http.routers.backend-https.tls=true"
+      - "traefik.http.routers.backend-https.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
     environment:
       POSTGRES_HOST: osfeed-postgres
       POSTGRES_PORT: "5432"
@@ -31,11 +42,24 @@ services:
       TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
       TELEGRAM_SESSION_STRING: ${TELEGRAM_SESSION_STRING:-}
+      # Email configuration
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-OSFeed}
     expose:
       - "8000"
     volumes:
       - telegram_data:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    networks:
+      - coolify
+      - default
     deploy:
       resources:
         limits:
@@ -57,8 +81,23 @@ services:
     restart: always
     labels:
       - "coolify.fqdn=https://osfeed.com"
+      - "coolify.managed=true"
+      - "coolify.applicationId=6"
+      - "coolify.type=application"
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend-http.entryPoints=http"
+      - "traefik.http.routers.frontend-http.rule=Host(`osfeed.com`) || Host(`www.osfeed.com`)"
+      - "traefik.http.routers.frontend-http.middlewares=redirect-to-https"
+      - "traefik.http.routers.frontend-https.entryPoints=https"
+      - "traefik.http.routers.frontend-https.rule=Host(`osfeed.com`) || Host(`www.osfeed.com`)"
+      - "traefik.http.routers.frontend-https.tls=true"
+      - "traefik.http.routers.frontend-https.tls.certresolver=letsencrypt"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
     expose:
       - "80"
+    networks:
+      - coolify
+      - default
     deploy:
       resources:
         limits:
@@ -67,3 +106,8 @@ services:
 
 volumes:
   telegram_data:
+
+networks:
+  coolify:
+    external: true
+  default:
