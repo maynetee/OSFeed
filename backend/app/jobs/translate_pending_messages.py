@@ -12,6 +12,7 @@ from app.models.message import Message
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
 from app.services.events import publish_message_translated
+from app.services.translation_service import should_channel_translate
 
 
 settings = get_settings()
@@ -54,10 +55,32 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
         row for row in rows if row.id not in empty_id_set
     ]
 
+    # Check which channels need translation based on user language preferences
+    channel_ids = set(row.channel_id for row in non_empty_rows)
+    channel_translate_status: dict = {}
+    for channel_id in channel_ids:
+        channel_translate_status[channel_id] = await should_channel_translate(channel_id)
+
+    # Filter rows: skip messages from channels that don't need translation
+    skip_translation_ids = [
+        row.id for row in non_empty_rows
+        if not channel_translate_status.get(row.channel_id, True)
+    ]
+    skip_translation_id_set = set(skip_translation_ids)
+    rows_to_translate = [
+        row for row in non_empty_rows if row.id not in skip_translation_id_set
+    ]
+
+    if skip_translation_ids:
+        logger.info(
+            f"Skipping translation for {len(skip_translation_ids)} messages "
+            f"(channel language matches all user preferences)"
+        )
+
     translations: list[tuple] = []
-    if non_empty_rows:
+    if rows_to_translate:
         grouped: dict[tuple[str, str | None], list] = {}
-        for row in non_empty_rows:
+        for row in rows_to_translate:
             target_lang = row.target_language or settings.preferred_language
             source_lang = row.source_language
             grouped.setdefault((target_lang, source_lang), []).append(row)
@@ -98,6 +121,22 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
                     translation_priority="skip",
                 )
             )
+
+        # Mark messages from channels that don't need translation as skipped
+        if skip_translation_ids:
+            await db.execute(
+                update(Message)
+                .where(Message.id.in_(skip_translation_ids))
+                .values(
+                    needs_translation=False,
+                    translated_at=None,
+                    translation_priority="skip",
+                )
+            )
+
+        # Commit skip updates if there are no translations to process
+        if (empty_ids or skip_translation_ids) and not translations:
+            await db.commit()
 
         if translations:
             translated_at = datetime.now(timezone.utc)

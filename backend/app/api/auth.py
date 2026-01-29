@@ -24,6 +24,8 @@ from app.services.auth_rate_limiter import (
     rate_limit_request_verify,
     rate_limit_register,
 )
+from app.services.translation_service import invalidate_channel_translation_cache
+from app.models.channel import user_channels
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,10 @@ router.include_router(
 
 class RefreshRequest(BaseModel):
     refresh_token: str
+
+
+class LanguageUpdateRequest(BaseModel):
+    language: str
 
 
 @router.post("/login")
@@ -201,6 +207,27 @@ async def request_data_deletion(
         "status": "success",
         "message": "Your account has been deactivated. Personal data will be anonymized within 30 days.",
     }
+
+
+@router.patch("/me/language", response_model=UserRead, summary="Update user language preference")
+async def update_language(
+    payload: LanguageUpdateRequest,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current user's preferred language."""
+    user.preferred_language = payload.language
+    await db.commit()
+    await db.refresh(user)
+
+    # Invalidate translation cache for all user's channels
+    user_channel_ids_result = await db.execute(
+        select(user_channels.c.channel_id).where(user_channels.c.user_id == user.id)
+    )
+    for row in user_channel_ids_result.all():
+        await invalidate_channel_translation_cache(row.channel_id)
+
+    return user
 
 
 @router.post("/logout", summary="Logout user")

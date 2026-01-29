@@ -6,19 +6,171 @@ Called after message ingestion to translate content in the background.
 
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
 from app.models.message import Message
+from app.models.channel import Channel, user_channels
+from app.models.user import User
 from app.config import get_settings
 from app.services.translator import translator
 from app.services.translation_pool import run_translation
 from app.services.events import publish_message_translated
+from app.services.cache import get_redis_client
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# Channel translation decision cache settings
+CHANNEL_TRANSLATE_CACHE_PREFIX = "channel:translate:"
+CHANNEL_TRANSLATE_CACHE_TTL = 300  # 5 minutes
+
+
+async def get_cached_channel_translation_status(channel_id: UUID) -> Optional[bool]:
+    """Get cached channel translation decision from Redis.
+
+    Args:
+        channel_id: UUID of the channel
+
+    Returns:
+        True if translation is needed, False if not needed,
+        None if not cached (cache miss)
+    """
+    client = get_redis_client()
+    if client is None:
+        return None
+    try:
+        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+        value = await client.get(key)
+        if value is None:
+            return None
+        return value == "1"
+    except Exception:
+        logger.debug(f"Failed to get cached translation status for channel {channel_id}")
+        return None
+
+
+async def set_cached_channel_translation_status(channel_id: UUID, should_translate: bool) -> None:
+    """Set cached channel translation decision in Redis.
+
+    Args:
+        channel_id: UUID of the channel
+        should_translate: Whether translation is needed for this channel
+    """
+    client = get_redis_client()
+    if client is None:
+        return
+    try:
+        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+        value = "1" if should_translate else "0"
+        await client.setex(key, CHANNEL_TRANSLATE_CACHE_TTL, value)
+        logger.debug(f"Cached translation status for channel {channel_id}: {should_translate}")
+    except Exception:
+        logger.debug(f"Failed to cache translation status for channel {channel_id}")
+
+
+async def invalidate_channel_translation_cache(channel_id: UUID) -> None:
+    """Invalidate cached channel translation decision in Redis.
+
+    Call this when:
+    - A user is added/removed from a channel
+    - A user's preferred language changes
+    - Channel's detected language changes
+
+    Args:
+        channel_id: UUID of the channel to invalidate cache for
+    """
+    client = get_redis_client()
+    if client is None:
+        return
+    try:
+        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+        await client.delete(key)
+        logger.debug(f"Invalidated translation cache for channel {channel_id}")
+    except Exception:
+        logger.debug(f"Failed to invalidate translation cache for channel {channel_id}")
+
+
+async def should_channel_translate(channel_id: UUID) -> bool:
+    """Determine if a channel's messages should be translated.
+
+    This function checks whether any user who has added this channel has a
+    preferred language different from the channel's detected language.
+
+    Returns True if translation is needed (any user language differs from channel language).
+    Returns False if no translation needed (all users match channel language).
+
+    Edge cases:
+    - No detected_language on channel -> True (default to translate)
+    - No users have added the channel -> True (default to translate)
+    - User without preferred_language -> Uses default 'en' (handled by model default)
+
+    Args:
+        channel_id: UUID of the channel to check
+
+    Returns:
+        True if translation is needed, False otherwise
+    """
+    try:
+        async with AsyncSessionLocal() as db:
+            # 1. Get channel's detected_language
+            stmt = select(Channel).where(Channel.id == channel_id)
+            result = await db.execute(stmt)
+            channel = result.scalar_one_or_none()
+
+            if not channel:
+                logger.warning(f"Channel {channel_id} not found, defaulting to translate")
+                return True
+
+            channel_language = channel.detected_language
+
+            # 2. If channel has no detected language, default to translating
+            if not channel_language:
+                logger.debug(
+                    f"Channel {channel_id}: no detected_language, defaulting to translate"
+                )
+                return True
+
+            # 3. Get all users who have added this channel
+            stmt = (
+                select(User)
+                .join(user_channels, User.id == user_channels.c.user_id)
+                .where(user_channels.c.channel_id == channel_id)
+            )
+            result = await db.execute(stmt)
+            users = result.scalars().all()
+
+            # 4. If no users have added the channel, default to translating
+            if not users:
+                logger.debug(
+                    f"Channel {channel_id}: no users, defaulting to translate"
+                )
+                return True
+
+            # 5. Check if any user's preferred language differs from channel language
+            for user in users:
+                user_language = user.preferred_language or settings.preferred_language
+                if user_language != channel_language:
+                    logger.debug(
+                        f"Channel {channel_id}: user {user.id} has language '{user_language}' "
+                        f"different from channel language '{channel_language}', translation needed"
+                    )
+                    return True
+
+            # 6. All users match channel language - no translation needed
+            logger.debug(
+                f"Channel {channel_id}: all users match channel language "
+                f"'{channel_language}', skipping translation"
+            )
+            return False
+
+    except Exception as e:
+        logger.exception(f"Failed to check translation need for channel {channel_id}: {e}")
+        # Default to translating on error to be safe
+        return True
 
 
 async def translate_message_immediate(
