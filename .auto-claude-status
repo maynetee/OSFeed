@@ -1,15 +1,15 @@
 {
   "active": true,
-  "spec": "007-souvent-pour-ajouter-un-channel-ca-ne-marche-pas-l",
+  "spec": "008-supprime-les-palettes-de-commandes-et-fonctionnali",
   "state": "building",
   "subtasks": {
-    "completed": 5,
-    "total": 8,
+    "completed": 1,
+    "total": 11,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Frontend UI Components",
+    "current": "Delete Dedicated Files",
     "id": null,
     "total": 2
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 1489,
-    "started_at": "2026-01-29T10:58:59.072365"
+    "number": 2,
+    "started_at": "2026-01-29T10:57:24.352863"
   },
-  "last_update": "2026-01-29T14:04:26.788982"
+  "last_update": "2026-01-29T10:58:11.284819"
 }

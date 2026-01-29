@@ -26,26 +26,11 @@ const resources = {
         dark: 'Dark',
         system: 'System',
       },
-      commandPalette: {
-        placeholder: 'Type a command...',
-        empty: 'No results.',
-        navigation: 'Navigation',
-        keywords: {
-          dashboard: 'home overview metrics',
-          feed: 'messages live',
-          search: 'query explore',
-          digests: 'summary brief',
-          collections: 'themes',
-          exports: 'export pdf csv',
-          settings: 'preferences',
-        },
-      },
       branding: {
         tagline: 'Intelligence, not noise',
       },
       header: {
         workspace: 'Workspace',
-        commandPalette: 'Command Palette',
         toggleSidebar: 'Toggle sidebar',
       },
       sidebar: {
@@ -322,6 +307,8 @@ const resources = {
         noMessagesDescription: 'Start a search or adjust filters to see the feed.',
         loadingFeed: 'Loading feed...',
         loadingMore: 'Loading...',
+        mediaAvailableOnTelegram: 'Media available on Telegram',
+        retry: 'Retry',
       },
       alerts: {
         notifications: 'Alerts',
@@ -354,26 +341,11 @@ const resources = {
         dark: 'Sombre',
         system: 'Systeme',
       },
-      commandPalette: {
-        placeholder: 'Tapez une commande...',
-        empty: 'Aucun resultat.',
-        navigation: 'Navigation',
-        keywords: {
-          dashboard: 'accueil vue ensemble indicateurs',
-          feed: 'messages flux',
-          search: 'recherche explorer',
-          digests: 'digest resume',
-          collections: 'themes',
-          exports: 'export pdf csv',
-          settings: 'preferences',
-        },
-      },
       branding: {
         tagline: 'Intelligence, pas bruit',
       },
       header: {
         workspace: 'Espace de travail',
-        commandPalette: 'Palette de commandes',
         toggleSidebar: 'Basculer la navigation',
       },
       sidebar: {
@@ -648,6 +620,8 @@ const resources = {
         noMessagesDescription: 'Lancez une recherche ou ajustez les filtres pour afficher le flux.',
         loadingFeed: 'Chargement du flux...',
         loadingMore: 'Chargement...',
+        mediaAvailableOnTelegram: 'Média disponible sur Telegram',
+        retry: 'Réessayer',
       },
       alerts: {
         notifications: 'Alertes',
