@@ -88,6 +88,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LanguageUpdateRequest(BaseModel):
+    language: str
+
+
 @router.post("/login")
 async def login(
     request: Request,
@@ -201,6 +205,19 @@ async def request_data_deletion(
         "status": "success",
         "message": "Your account has been deactivated. Personal data will be anonymized within 30 days.",
     }
+
+
+@router.patch("/me/language", response_model=UserRead, summary="Update user language preference")
+async def update_language(
+    payload: LanguageUpdateRequest,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the current user's preferred language."""
+    user.preferred_language = payload.language
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 
 @router.post("/logout", summary="Logout user")
