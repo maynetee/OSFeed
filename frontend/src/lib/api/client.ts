@@ -286,10 +286,25 @@ export interface ChannelInfoUpdate {
   error?: string
 }
 
+export interface BulkChannelFailure {
+  username: string
+  error: string
+}
+
+export interface BulkAddResponse {
+  succeeded: Channel[]
+  failed: BulkChannelFailure[]
+  total: number
+  success_count: number
+  failure_count: number
+}
+
 export const channelsApi = {
   list: () => api.get<Channel[]>('/api/channels'),
   get: (id: string) => api.get<Channel>(`/api/channels/${id}`),
   add: (username: string) => api.post<Channel>('/api/channels', { username }),
+  addBulk: (usernames: string[]) =>
+    api.post<BulkAddResponse>('/api/channels/bulk', { usernames }),
   delete: (id: string) => api.delete(`/api/channels/${id}`),
   refresh: (channelIds?: string[]) =>
     api.post<{ job_ids: string[] }>('/api/channels/refresh', {
