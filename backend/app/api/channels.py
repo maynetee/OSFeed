@@ -17,6 +17,7 @@ from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
 from app.services.telegram_client import get_telegram_client
 from app.services.channel_join_queue import queue_channel_join
+from app.services.translation_service import invalidate_channel_translation_cache
 from typing import List, Optional
 from pydantic import BaseModel
 from app.schemas.fetch_job import FetchJobStatus
@@ -221,6 +222,9 @@ async def add_channel(
             )
             await db.commit()
             await db.refresh(channel_to_use)
+
+            # Invalidate translation cache since user-channel association changed
+            await invalidate_channel_translation_cache(channel_to_use.id)
 
             # Enqueue fetch job (enqueue_fetch_job handles deduplication if already running)
             job = await enqueue_fetch_job(channel_to_use.id, channel_to_use.username, days=7)
