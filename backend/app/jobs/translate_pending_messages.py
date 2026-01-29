@@ -11,8 +11,6 @@ from app.database import AsyncSessionLocal
 from app.models.message import Message
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
-from app.services.clustering import ClusteringService
-from app.services.ner_extractor import NERService
 from app.services.events import publish_message_translated
 
 
@@ -103,7 +101,6 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
 
         if translations:
             translated_at = datetime.now(timezone.utc)
-            processed_ids = []
 
             # Collect translation data for events
             translation_events = []
@@ -121,7 +118,6 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
                         translation_priority=priority,
                     )
                 )
-                processed_ids.append(message_id)
 
                 # Collect for later publishing (after commit)
                 translation_events.append({
@@ -143,31 +139,4 @@ async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -
                     source_language=event_data['source_language'],
                     target_language=event_data['target_language']
                 )
-            
-            if processed_ids:
-                try:
-                    result = await db.execute(select(Message).where(Message.id.in_(processed_ids)))
-                    messages = result.scalars().all()
-                    
-                    clustering_service = ClusteringService(db)
-                    ner_service = NERService(db)
-                    
-                    count_clustered = 0
-                    count_ner = 0
-                    
-                    for msg in messages:
-                        is_relevant = await clustering_service.process_single_message(msg)
-                        
-                        if is_relevant:
-                            count_clustered += 1
-                            has_entities = await ner_service.extract_and_save(msg)
-                            if has_entities:
-                                count_ner += 1
-                                
-                    if count_clustered > 0:
-                        await db.commit()
-                        logger.info(f"Intelligence Pipeline: Clustered {count_clustered}, NER {count_ner} messages")
-                        
-                except Exception as e:
-                    logger.error(f"Intelligence Pipeline failed: {e}")
 
