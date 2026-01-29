@@ -145,13 +145,11 @@ export interface Message {
   is_duplicate: boolean
   originality_score?: number | null
   duplicate_group_id: string | null
-  embedding_id?: string | null
   entities?: {
     persons?: string[]
     locations?: string[]
     organizations?: string[]
   } | null
-  similarity_score?: number | null
   needs_translation?: boolean
   translation_priority?: string | null
 }
@@ -166,33 +164,6 @@ export interface TranslationUpdate {
 
 export interface MessageListResponse {
   messages: Message[]
-  total: number
-  page: number
-  page_size: number
-}
-
-export interface Summary {
-  id: string
-  digest_type: string
-  collection_id?: string | null
-  title?: string
-  content: string
-  content_html?: string | null
-  entities?: {
-    persons: string[]
-    locations: string[]
-    organizations: string[]
-  } | null
-  message_count: number
-  channels_covered?: number
-  duplicates_filtered?: number
-  generated_at: string
-  period_start: string
-  period_end: string
-}
-
-export interface SummaryListResponse {
-  summaries: Summary[]
   total: number
   page: number
   page_size: number
@@ -344,18 +315,6 @@ export const messagesApi = {
     api.get<MessageListResponse>('/api/messages/search', {
       params: buildParams(params),
     }),
-  searchSemantic: (params: {
-    q: string
-    channel_ids?: string[]
-    top_k?: number
-    start_date?: string
-    end_date?: string
-  }) =>
-    api.get<MessageListResponse>('/api/messages/search/semantic', {
-      params: buildParams(params),
-    }),
-  similar: (id: string, params?: { top_k?: number }) =>
-    api.get<MessageListResponse>(`/api/messages/${id}/similar`, { params }),
   fetchHistorical: (channelId: string, days: number = 7) =>
     api.post(`/api/messages/fetch-historical/${channelId}?days=${days}`),
   translate: (targetLanguage: string, channelId?: string) =>
@@ -386,18 +345,6 @@ export const messagesApi = {
       params: params ? buildParams(params) : undefined,
       responseType: 'blob',
     }),
-}
-
-export const summariesApi = {
-  getDaily: () => api.get<Summary>('/api/summaries/daily'),
-  get: (id: string) => api.get<Summary>(`/api/summaries/${id}`),
-  list: (params?: { digest_type?: string; limit?: number; offset?: number; collection_id?: string }) =>
-    api.get<SummaryListResponse>('/api/summaries', { params }),
-  generate: (filters?: Record<string, string[]>) =>
-    api.post<Summary>('/api/summaries/generate', { digest_type: 'daily', filters }),
-  exportHtml: (id: string) => api.get(`/api/summaries/${id}/export/html`),
-  exportPdf: (id: string) =>
-    api.get(`/api/summaries/${id}/export/pdf`, { responseType: 'blob' }),
 }
 
 export const collectionsApi = {
@@ -443,9 +390,6 @@ export const collectionsApi = {
       '/api/collections/compare',
       { params: buildParams({ collection_ids }) },
     ),
-  digests: (id: string, params?: { limit?: number; offset?: number }) =>
-    api.get<SummaryListResponse>(`/api/collections/${id}/digests`, { params }),
-  generateDigest: (id: string) => api.post<Summary>(`/api/collections/${id}/digest`),
   exportMessages: (id: string, params?: { format?: string; start_date?: string; end_date?: string; limit?: number }) =>
     api.post(`/api/collections/${id}/export`, null, { params: params ? buildParams(params) : undefined, responseType: params?.format === 'pdf' ? 'blob' : undefined }),
   shares: (id: string) => api.get(`/api/collections/${id}/shares`),

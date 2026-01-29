@@ -1,7 +1,5 @@
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
 from sqlalchemy import Column, String, DateTime, Integer, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
 import enum
@@ -38,9 +36,6 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # Refresh token (hashed)
     refresh_token_hash = Column(String(128), nullable=True)
     refresh_token_expires_at = Column(DateTime(timezone=True), nullable=True)
-
-    # Relationships
-    summaries = relationship("Summary", backref="user", passive_deletes=True)
 
     def __repr__(self) -> str:
         return f"<User {self.email} ({self.role.value})>"

@@ -25,11 +25,6 @@ export function useKeyboardShortcuts() {
         navigate('/search')
       }
 
-      if (key === 'd') {
-        event.preventDefault()
-        navigate('/digests')
-      }
-
       if (key === 'e') {
         event.preventDefault()
         navigate('/exports')
