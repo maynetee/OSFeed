@@ -6,6 +6,7 @@ Called after message ingestion to translate content in the background.
 
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -18,9 +19,79 @@ from app.config import get_settings
 from app.services.translator import translator
 from app.services.translation_pool import run_translation
 from app.services.events import publish_message_translated
+from app.services.cache import get_redis_client
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# Channel translation decision cache settings
+CHANNEL_TRANSLATE_CACHE_PREFIX = "channel:translate:"
+CHANNEL_TRANSLATE_CACHE_TTL = 300  # 5 minutes
+
+
+async def get_cached_channel_translation_status(channel_id: UUID) -> Optional[bool]:
+    """Get cached channel translation decision from Redis.
+
+    Args:
+        channel_id: UUID of the channel
+
+    Returns:
+        True if translation is needed, False if not needed,
+        None if not cached (cache miss)
+    """
+    client = get_redis_client()
+    if client is None:
+        return None
+    try:
+        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+        value = await client.get(key)
+        if value is None:
+            return None
+        return value == "1"
+    except Exception:
+        logger.debug(f"Failed to get cached translation status for channel {channel_id}")
+        return None
+
+
+async def set_cached_channel_translation_status(channel_id: UUID, should_translate: bool) -> None:
+    """Set cached channel translation decision in Redis.
+
+    Args:
+        channel_id: UUID of the channel
+        should_translate: Whether translation is needed for this channel
+    """
+    client = get_redis_client()
+    if client is None:
+        return
+    try:
+        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+        value = "1" if should_translate else "0"
+        await client.setex(key, CHANNEL_TRANSLATE_CACHE_TTL, value)
+        logger.debug(f"Cached translation status for channel {channel_id}: {should_translate}")
+    except Exception:
+        logger.debug(f"Failed to cache translation status for channel {channel_id}")
+
+
+async def invalidate_channel_translation_cache(channel_id: UUID) -> None:
+    """Invalidate cached channel translation decision in Redis.
+
+    Call this when:
+    - A user is added/removed from a channel
+    - A user's preferred language changes
+    - Channel's detected language changes
+
+    Args:
+        channel_id: UUID of the channel to invalidate cache for
+    """
+    client = get_redis_client()
+    if client is None:
+        return
+    try:
+        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+        await client.delete(key)
+        logger.debug(f"Invalidated translation cache for channel {channel_id}")
+    except Exception:
+        logger.debug(f"Failed to invalidate translation cache for channel {channel_id}")
 
 
 async def should_channel_translate(channel_id: UUID) -> bool:
