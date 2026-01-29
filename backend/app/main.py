@@ -11,12 +11,9 @@ from app.config import get_settings
 from app.database import init_db
 from app.api import channels, messages, summaries, auth, collections, audit_logs, stats, alerts, intelligence
 from app.jobs.collect_messages import collect_messages_job
-from app.jobs.generate_summaries import generate_summaries_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
 from app.jobs.purge_audit_logs import purge_audit_logs_job
 from app.jobs.alerts import evaluate_alerts_job
-from app.jobs.clustering import run_clustering_job
-from app.jobs.ner_extraction import run_ner_job
 from app.services.fetch_queue import start_fetch_worker, stop_fetch_worker
 from app.services.telegram_client import cleanup_telegram_client
 from app.services.rate_limiter import cleanup_rate_limiter
@@ -60,10 +57,6 @@ async def lifespan(app: FastAPI):
         # Collect messages every 5 minutes
         scheduler.add_job(collect_messages_job, 'interval', minutes=5, id='collect_messages')
 
-        # Generate daily summary at configured time
-        hour, minute = map(int, settings.summary_time.split(':'))
-        scheduler.add_job(generate_summaries_job, 'cron', hour=hour, minute=minute, id='daily_summary')
-
         # Purge audit logs based on retention settings
         purge_hour, purge_minute = map(int, settings.audit_log_purge_time.split(':'))
         scheduler.add_job(purge_audit_logs_job, 'cron', hour=purge_hour, minute=purge_minute, id='purge_audit_logs')
@@ -85,20 +78,6 @@ async def lifespan(app: FastAPI):
             'interval',
             minutes=5,
             id='translate_pending_messages',
-        )
-
-        scheduler.add_job(
-            run_clustering_job,
-            'interval',
-            minutes=60,
-            id='clustering_job',
-        )
-
-        scheduler.add_job(
-            run_ner_job,
-            'interval',
-            minutes=60,
-            id='ner_job',
         )
 
         scheduler.start()
