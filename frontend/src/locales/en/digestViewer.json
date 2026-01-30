@@ -1,0 +1,6 @@
+{
+  "loading": "Loading digest...",
+  "empty": "No digest available.",
+  "entities": "Entities",
+  "channels": "{{count}} channels"
+}

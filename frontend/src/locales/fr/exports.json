@@ -1,0 +1,11 @@
+{
+  "title": "Exports",
+  "subtitle": "Exporter vos analyses",
+  "description": "Choisissez un format pour partager vos signaux.",
+  "exportCsv": "Exporter CSV",
+  "exportPdf": "Exporter PDF",
+  "exportHtml": "Exporter HTML",
+  "exportStatsCsv": "Exporter Stats CSV",
+  "dialogTitle": "Exporter les signaux",
+  "dialogDescription": "Choisissez un format pour partager vos messages ou statistiques."
+}

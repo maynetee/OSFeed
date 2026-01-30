@@ -1,0 +1,4 @@
+{
+  "status": "Status",
+  "statusSummary": "{{duplicates}}% duplicates filtered, {{messages}} messages today."
+}

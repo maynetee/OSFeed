@@ -1,0 +1,12 @@
+{
+  "title": "Settings",
+  "subtitle": "Preferences",
+  "notificationsTitle": "Notifications",
+  "notificationsDescription": "Enable alerts on strong signals.",
+  "notificationEmail": "Email",
+  "notificationTelegram": "Telegram",
+  "languageTitle": "Interface language",
+  "languageDescription": "Syncs message translations.",
+  "languageLabel": "Language",
+  "translating": "Translating..."
+}

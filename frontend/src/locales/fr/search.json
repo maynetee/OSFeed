@@ -1,0 +1,10 @@
+{
+  "title": "Recherche",
+  "subtitle": "Rechercher dans les signaux",
+  "placeholder": "Rechercher un sujet, une entite, un canal...",
+  "launch": "Lancer",
+  "semantic": "Semantique",
+  "keyword": "Mot-cle",
+  "entities": "Entites",
+  "minChars": "Tapez au moins 3 caracteres pour lancer la recherche."
+}

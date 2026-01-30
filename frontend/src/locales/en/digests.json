@@ -1,0 +1,11 @@
+{
+  "title": "Daily Digest",
+  "subtitle": "Digest history",
+  "generate": "Generate new digest",
+  "generating": "Generating...",
+  "cardMeta": "{{messages}} messages · {{duplicates}}% duplicates filtered",
+  "loadMore": "Load more",
+  "loading": "Loading digests...",
+  "emptyTitle": "No digest",
+  "emptyDescription": "Generate a digest to get started."
+}

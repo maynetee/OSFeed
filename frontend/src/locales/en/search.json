@@ -1,0 +1,10 @@
+{
+  "title": "Search",
+  "subtitle": "Search within signals",
+  "placeholder": "Search a topic, an entity, a channel...",
+  "launch": "Search",
+  "semantic": "Semantic",
+  "keyword": "Keyword",
+  "entities": "Entities",
+  "minChars": "Type at least 3 characters to start searching."
+}
