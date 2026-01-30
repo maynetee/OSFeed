@@ -54,6 +54,37 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     scheduler_enabled: bool = True
 
+    # Security Headers
+    security_headers_enabled: bool = True  # Enable security headers middleware
+    security_csp_enabled: bool = True  # Enable Content-Security-Policy header
+    security_csp_directives: str = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    security_hsts_enabled: bool = True  # Enable Strict-Transport-Security header
+    security_hsts_max_age: int = 31536000  # HSTS max-age in seconds (1 year)
+    security_hsts_include_subdomains: bool = True  # Include subdomains in HSTS
+    security_x_frame_options: str = "DENY"  # X-Frame-Options value (DENY, SAMEORIGIN)
+    security_x_content_type_options: bool = True  # Enable X-Content-Type-Options: nosniff
+    security_referrer_policy: str = "strict-origin-when-cross-origin"  # Referrer-Policy value
+    security_permissions_policy: str = (
+        "geolocation=(), "
+        "microphone=(), "
+        "camera=(), "
+        "payment=(), "
+        "usb=(), "
+        "magnetometer=(), "
+        "gyroscope=(), "
+        "accelerometer=()"
+    )
+
     # Email Configuration
     email_enabled: bool = False  # Default to False so app works without email
     email_provider: str = "smtp"  # "smtp", "resend"
