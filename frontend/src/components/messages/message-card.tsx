@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { DuplicateBadge } from '@/components/messages/duplicate-badge'
-import { TelegramEmbed } from '@/components/messages/telegram-embed'
+import { MediaPreview } from '@/components/messages/telegram-embed'
 import { Timestamp } from '@/components/common/timestamp'
 import type { Message } from '@/lib/api/client'
 
@@ -108,9 +108,11 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
         ) : null}
 
         {showTelegramEmbed && showMedia ? (
-          <TelegramEmbed
+          <MediaPreview
+            messageId={message.id}
+            mediaType={message.media_type as 'photo' | 'video'}
             channelUsername={message.channel_username!}
-            messageId={message.telegram_message_id!}
+            telegramMessageId={message.telegram_message_id!}
           />
         ) : null}
 

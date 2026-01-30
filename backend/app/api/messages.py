@@ -24,7 +24,10 @@ from datetime import datetime, timezone
 from typing import Optional
 import base64
 import csv
+import logging
 from io import StringIO, BytesIO
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
@@ -695,6 +698,86 @@ async def export_messages_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.get("/{message_id}/media")
+async def get_message_media(
+    message_id: UUID,
+    user: User = Depends(current_active_user),
+):
+    """Proxy media from Telegram without storing it on the server.
+
+    Streams the media bytes directly from Telegram to the client.
+    """
+    from app.models.channel import user_channels
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Message)
+            .options(selectinload(Message.channel))
+            .join(Channel, Message.channel_id == Channel.id)
+            .join(
+                user_channels,
+                and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id),
+            )
+            .where(Message.id == message_id)
+        )
+        message = result.scalar_one_or_none()
+
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if not message.media_type or message.media_type not in ("photo", "video"):
+        raise HTTPException(status_code=404, detail="No media available for this message")
+
+    channel_username = message.channel.username if message.channel else None
+    if not channel_username:
+        raise HTTPException(status_code=404, detail="Channel username not available")
+
+    telegram_message_id = message.telegram_message_id
+
+    try:
+        from app.services.telegram_client import get_telegram_client
+
+        telegram = get_telegram_client()
+        client = await telegram.get_client()
+
+        # Get the specific Telegram message to access its media
+        tg_messages = await client.get_messages(channel_username, ids=[telegram_message_id])
+        if not tg_messages or not tg_messages[0]:
+            raise HTTPException(status_code=404, detail="Telegram message not found")
+
+        tg_msg = tg_messages[0]
+        if not tg_msg.media:
+            raise HTTPException(status_code=404, detail="No media in Telegram message")
+
+        # Download media to memory
+        media_bytes = BytesIO()
+        await client.download_media(tg_msg, file=media_bytes)
+        media_bytes.seek(0)
+
+        # Determine content type
+        if message.media_type == "photo":
+            content_type = "image/jpeg"
+        elif message.media_type == "video":
+            content_type = "video/mp4"
+        else:
+            content_type = "application/octet-stream"
+
+        return StreamingResponse(
+            media_bytes,
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=86400",
+                "Content-Disposition": "inline",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to fetch media for message {message_id}: {e}")
+        raise HTTPException(status_code=502, detail="Failed to fetch media from Telegram")
 
 
 @router.get("/{message_id}", response_model=MessageResponse)
