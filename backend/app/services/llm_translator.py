@@ -701,8 +701,14 @@ class LLMTranslator:
                 await self._redis.set(cache_key, translated, ex=ttl)
                 await self._redis.set(self._cache_hit_key(cache_key), 1, ex=ttl)
             except Exception:
+                # LRU eviction: remove oldest entry if cache is full
+                if len(self.cache) >= settings.translation_memory_cache_max_size:
+                    self.cache.popitem(last=False)
                 self.cache[cache_key] = (translated, 1)
         else:
+            # LRU eviction: remove oldest entry if cache is full
+            if len(self.cache) >= settings.translation_memory_cache_max_size:
+                self.cache.popitem(last=False)
             self.cache[cache_key] = (translated, 1)
 
 
