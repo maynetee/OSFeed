@@ -68,6 +68,7 @@ def _apply_message_filters(
     channel_ids: Optional[list[UUID]],
     start_date: Optional[datetime],
     end_date: Optional[datetime],
+    media_types: Optional[list[str]] = None,
 ):
     query = query.join(Channel, Message.channel_id == Channel.id).join(
         user_channels,
@@ -85,6 +86,22 @@ def _apply_message_filters(
     if end_date:
         query = query.where(Message.published_at <= end_date)
 
+    if media_types:
+        # Handle "text" filter specially - it means messages with no media
+        if "text" in media_types:
+            # If text is the only filter, show only text messages
+            if len(media_types) == 1:
+                query = query.where(Message.media_type.is_(None))
+            else:
+                # If text + other types, show text OR the other media types
+                other_types = [mt for mt in media_types if mt != "text"]
+                query = query.where(
+                    or_(Message.media_type.is_(None), Message.media_type.in_(other_types))
+                )
+        else:
+            # Only non-text media types selected
+            query = query.where(Message.media_type.in_(media_types))
+
     return query
 
 
@@ -98,12 +115,13 @@ async def list_messages(
     cursor: Optional[str] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get paginated message feed with optional filters."""
     query = select(Message).options(selectinload(Message.channel))
-    query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
+    query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
@@ -142,6 +160,7 @@ async def stream_messages(
     batch_size: int = Query(20, ge=1, le=100),
     limit: int = Query(200, ge=1, le=1000),
     realtime: bool = Query(False),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
     """Stream messages via SSE. Uses Redis Pub/Sub for realtime updates."""
@@ -157,7 +176,7 @@ async def stream_messages(
             while sent < limit:
                 current_batch = min(batch_size, limit - sent)
                 query = select(Message).options(selectinload(Message.channel))
-                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
+                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at), desc(Message.id))
                 query = query.limit(current_batch).offset(offset)
                 result = await db.execute(query)
@@ -222,7 +241,7 @@ async def stream_messages(
                     if event_type == "message:new":
                         async with AsyncSessionLocal() as db:
                             query = select(Message).options(selectinload(Message.channel))
-                            query = _apply_message_filters(query, user.id, channel_id, channel_ids, None, None)
+                            query = _apply_message_filters(query, user.id, channel_id, channel_ids, None, None, media_types)
 
                             if last_message_id:
                                 query = query.where(
@@ -275,6 +294,7 @@ async def search_messages(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     cursor: Optional[str] = Query(None),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -285,7 +305,7 @@ async def search_messages(
         func.coalesce(Message.translated_text, literal("")).ilike(search_term),
     )
     query = select(Message).options(selectinload(Message.channel)).where(search_filter)
-    query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date)
+    query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date, media_types)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
@@ -479,15 +499,16 @@ async def export_messages_csv(
     channel_ids: Optional[list[UUID]] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
     async def csv_generator():
         output = StringIO()
         writer = csv.writer(output)
-        
+
         writer.writerow([
             "message_id", "channel_title", "channel_username", "published_at",
-            "original_text", "translated_text", "source_language", 
+            "original_text", "translated_text", "source_language",
             "target_language", "is_duplicate"
         ])
         yield output.getvalue()
@@ -496,11 +517,11 @@ async def export_messages_csv(
 
         batch_size = 500
         offset = 0
-        
+
         while True:
             async with AsyncSessionLocal() as db:
                 query = select(Message, Channel).join(Channel)
-                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
+                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(batch_size).offset(offset)
                 
@@ -548,6 +569,7 @@ async def export_messages_html(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     limit: int = Query(200, ge=1, le=5000),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
     from html import escape
@@ -562,13 +584,13 @@ async def export_messages_html(
         batch_size = 100
         offset = 0
         processed = 0
-        
+
         while processed < limit:
             curr_limit = min(batch_size, limit - processed)
-            
+
             async with AsyncSessionLocal() as db:
                 query = select(Message, Channel).join(Channel)
-                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
+                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(curr_limit).offset(offset)
                 result = await db.execute(query)
@@ -653,11 +675,12 @@ async def export_messages_pdf(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     limit: int = Query(200, ge=1, le=1000),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
     async with AsyncSessionLocal() as db:
         query = select(Message, Channel).join(Channel)
-        query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
+        query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
         query = query.order_by(desc(Message.published_at))
         query = query.limit(limit)
         result = await db.execute(query)
