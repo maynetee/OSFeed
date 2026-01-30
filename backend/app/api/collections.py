@@ -24,6 +24,7 @@ from app.utils.export import (
     generate_csv_row,
     generate_html_article,
     generate_html_template,
+    generate_pdf_bytes,
     MESSAGE_CSV_COLUMNS,
 )
 
@@ -627,29 +628,20 @@ async def export_collection_messages(
         )
 
     if format == "pdf":
-        from fpdf import FPDF
-
         result = await db.execute(query.order_by(desc(Message.published_at)).limit(limit))
         rows = result.all()
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        pdf.set_font("Helvetica", size=14)
-        pdf.cell(0, 10, f"OSFeed - {collection.name}", ln=True)
-        pdf.set_font("Helvetica", size=11)
-        for message, channel in rows:
-            header = f"{channel.title} (@{channel.username}) - {message.published_at}"
-            pdf.multi_cell(0, 8, header)
-            pdf.set_font("Helvetica", size=10)
-            pdf.multi_cell(0, 6, message.translated_text or message.original_text or "")
-            if message.translated_text and message.original_text:
-                pdf.set_font("Helvetica", size=9)
-                pdf.multi_cell(0, 6, f"Original: {message.original_text}")
-            pdf.ln(2)
-            pdf.set_font("Helvetica", size=11)
+        from html import escape
 
-        output = pdf.output(dest="S")
-        pdf_bytes = output.encode("latin-1", errors="ignore") if isinstance(output, str) else output
+        html_parts = [generate_html_template("OSFeed - Collection Export")]
+        html_parts.append(f"<h1>Collection: {escape(collection.name)}</h1>")
+        if collection.description:
+            html_parts.append(f"<p>{escape(collection.description)}</p>")
+        for message, channel in rows:
+            html_parts.append(generate_html_article(message, channel))
+        html_parts.append("</body></html>")
+        html = "".join(html_parts)
+
+        pdf_bytes = generate_pdf_bytes(html)
         return StreamingResponse(
             BytesIO(pdf_bytes),
             media_type="application/pdf",
