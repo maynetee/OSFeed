@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import logging
 import re
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -43,7 +44,7 @@ class LLMTranslator:
         self.openai_model = settings.openai_model
         self.gemini_api_key = settings.gemini_api_key
         self.gemini_model = settings.gemini_model
-        self.cache: dict[str, tuple[str, int]] = {}
+        self.cache: OrderedDict[str, tuple[str, int]] = OrderedDict()
         self._client = None
         self._redis = get_redis_client()
 
