@@ -104,7 +104,7 @@ async def test_security_headers_on_api_endpoints():
 
         # Test authenticated API endpoint
         auth_response = await client.get(
-            "/api/users/me",
+            "/api/stats/overview",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         assert auth_response.status_code == 200
@@ -139,7 +139,7 @@ async def test_security_headers_on_error_responses():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Test 401 Unauthorized (no auth token)
-        response = await client.get("/api/users/me")
+        response = await client.get("/api/stats/overview")
         assert response.status_code == 401
 
         # Verify security headers are present on error responses
