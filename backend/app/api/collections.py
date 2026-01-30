@@ -463,6 +463,7 @@ async def delete_collection(
 
 
 @router.get("/{collection_id}/stats", response_model=CollectionStatsResponse)
+@response_cache(expire=60, namespace="collection-stats")
 async def get_collection_stats(
     collection_id: UUID,
     user: User = Depends(current_active_user),
