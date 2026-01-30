@@ -51,12 +51,12 @@ export const MessageFeed = memo(function MessageFeed({
       const textHeight = Math.ceil(charCount / 80) * 20
       const mediaHeight = message.media_urls?.length ? 200 : 0
 
-      // Check if Telegram embed will be rendered (matches showTelegramEmbed condition in message-card.tsx)
-      const showsTelegramEmbed =
+      // Check if media preview button will be rendered (matches showTelegramEmbed condition in message-card.tsx)
+      const showsMediaButton =
         message.channel_username &&
         message.telegram_message_id &&
         (message.media_type === 'photo' || message.media_type === 'video')
-      const embedHeight = showsTelegramEmbed ? 400 : 0
+      const embedHeight = showsMediaButton ? 40 : 0
 
       return baseHeight + textHeight + mediaHeight + embedHeight + 16 // 16px for gap
     },
