@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
 
     # Authentication - JWT
-    secret_key: str = secrets.token_urlsafe(32)  # Generate random if not set
+    secret_key: str  # Required from environment
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60  # 1 hour
     refresh_token_expire_days: int = 7
