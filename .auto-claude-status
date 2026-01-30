@@ -3,7 +3,7 @@
   "spec": "012-split-api-client-ts-into-types-and-api-modules",
   "state": "building",
   "subtasks": {
-    "completed": 13,
+    "completed": 14,
     "total": 16,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 239,
+    "number": 240,
     "started_at": "2026-01-30T11:46:06.306849"
   },
-  "last_update": "2026-01-30T15:15:41.641938"
+  "last_update": "2026-01-30T15:17:16.246406"
 }
