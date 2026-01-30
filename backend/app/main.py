@@ -19,6 +19,7 @@ from app.services.telegram_client import cleanup_telegram_client
 from app.services.rate_limiter import cleanup_rate_limiter
 from app.services.channel_join_queue import process_join_queue
 from app.services.telegram_updates import start_update_handler, stop_update_handler
+from app.middleware.security_headers import SecurityHeadersMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -124,6 +125,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["auth"])
