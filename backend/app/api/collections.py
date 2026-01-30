@@ -19,6 +19,7 @@ from app.schemas.collection import CollectionCreate, CollectionResponse, Collect
 from app.schemas.collection_share import CollectionShareCreate, CollectionShareResponse
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
+from app.utils.response_cache import response_cache
 
 router = APIRouter()
 
@@ -119,6 +120,7 @@ async def list_collections(
 
 
 @router.get("/overview")
+@response_cache(expire=60, namespace="collections-overview")
 async def get_collections_overview(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -461,6 +463,7 @@ async def delete_collection(
 
 
 @router.get("/{collection_id}/stats", response_model=CollectionStatsResponse)
+@response_cache(expire=60, namespace="collection-stats")
 async def get_collection_stats(
     collection_id: UUID,
     user: User = Depends(current_active_user),
