@@ -102,6 +102,7 @@ async def list_collections(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Step 1: Fetch user's collections with channels loaded for non-global collections
     result = await db.execute(
         select(Collection)
         .options(selectinload(Collection.channels))
@@ -112,10 +113,33 @@ async def list_collections(
         .where(or_(Collection.user_id == user.id, CollectionShare.user_id == user.id))
     )
     collections = result.scalars().all()
+
+    if not collections:
+        return []
+
+    # Step 2: Identify global collections
+    has_global = any(c.is_global for c in collections)
+
+    # Step 3: Load all active channel IDs once if any global collections exist
+    all_active_channel_ids = []
+    if has_global:
+        all_active_channels_result = await db.execute(
+            select(Channel.id).where(Channel.is_active == True)
+        )
+        all_active_channel_ids = [row[0] for row in all_active_channels_result.all()]
+
+    # Step 4: Build responses using cached channel data
     responses = []
     for collection in collections:
-        channel_ids = await _collection_channel_ids(db, collection)
+        if collection.is_global:
+            # Use cached all active channel IDs for global collections
+            channel_ids = all_active_channel_ids
+        else:
+            # Use already-loaded channels from selectinload
+            channel_ids = [channel.id for channel in collection.channels]
+
         responses.append(_collection_response(collection, channel_ids))
+
     return responses
 
 
