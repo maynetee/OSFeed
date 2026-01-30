@@ -10,7 +10,7 @@ import json
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
-from app.utils.export import MESSAGE_CSV_COLUMNS, create_csv_writer, generate_csv_row
+from app.utils.export import MESSAGE_CSV_COLUMNS, create_csv_writer, generate_csv_row, generate_html_template, generate_html_article
 from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse
@@ -544,22 +544,17 @@ async def export_messages_html(
     limit: int = Query(200, ge=1, le=5000),
     user: User = Depends(current_active_user),
 ):
-    from html import escape
-
     async def html_generator():
-        yield "<!DOCTYPE html><html lang='fr'><head><meta charset='utf-8'><title>OSFeed - Messages</title>"
-        yield "<style>body{font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;padding:24px;}"
-        yield "h1{font-size:20px;}article{margin:16px 0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;}"
-        yield "small{color:#64748b;}</style></head><body>"
+        yield generate_html_template("OSFeed - Messages")
         yield "<h1>Export messages</h1>"
 
         batch_size = 100
         offset = 0
         processed = 0
-        
+
         while processed < limit:
             curr_limit = min(batch_size, limit - processed)
-            
+
             async with AsyncSessionLocal() as db:
                 query = select(Message, Channel).join(Channel)
                 query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
@@ -567,27 +562,20 @@ async def export_messages_html(
                 query = query.limit(curr_limit).offset(offset)
                 result = await db.execute(query)
                 rows = result.all()
-            
+
             if not rows:
                 break
 
             chunk = []
             for message, channel in rows:
-                chunk.append("<article>")
-                chunk.append(
-                    f"<small>{escape(channel.title)} · {escape(channel.username)} · {message.published_at}</small>"
-                )
-                chunk.append(f"<p>{escape(message.translated_text or message.original_text or '')}</p>")
-                if message.translated_text and message.original_text:
-                    chunk.append(f"<p><small>Original: {escape(message.original_text)}</small></p>")
-                chunk.append("</article>")
-            
+                chunk.append(generate_html_article(message, channel))
+
             yield "".join(chunk)
-            
+
             count = len(rows)
             processed += count
             offset += count
-            
+
             if count < curr_limit:
                 break
 
