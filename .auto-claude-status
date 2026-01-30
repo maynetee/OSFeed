@@ -3,23 +3,23 @@
   "spec": "013-externalize-frontend-translations-to-json-files",
   "state": "building",
   "subtasks": {
-    "completed": 3,
+    "completed": 11,
     "total": 12,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Extract Translations to JSON",
+    "current": "Cleanup",
     "id": null,
-    "total": 6
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 5,
+    "number": 238,
     "started_at": "2026-01-30T11:45:24.808592"
   },
-  "last_update": "2026-01-30T11:59:05.019822"
+  "last_update": "2026-01-30T15:15:34.802863"
 }
