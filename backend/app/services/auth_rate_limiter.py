@@ -124,3 +124,18 @@ async def rate_limit_register(request: Request):
             max_requests=5,
             window_seconds=3600,  # 1 hour
         )
+
+
+async def rate_limit_login(request: Request):
+    """Rate limit dependency for login endpoint (5 requests per 15 minutes)."""
+    # Skip rate limiting for OPTIONS (CORS preflight)
+    if request.method == "OPTIONS":
+        return
+    limiter = get_auth_rate_limiter()
+    if limiter:
+        client_ip = request.client.host if request.client else "unknown"
+        await limiter.check_rate_limit(
+            key=f"login:{client_ip}",
+            max_requests=5,
+            window_seconds=900,  # 15 minutes
+        )
