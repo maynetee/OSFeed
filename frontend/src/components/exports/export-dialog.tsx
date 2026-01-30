@@ -78,6 +78,15 @@ export function ExportDialog({ open, onOpenChange, filters }: ExportDialogProps)
               >
                 {t('exports.exportStatsCsv')}
               </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  const response = await statsApi.exportJson(7)
+                  downloadBlob(response.data, 'stats.json')
+                }}
+              >
+                {t('exports.exportStatsJson')}
+              </Button>
             </div>
           </CardContent>
         </Card>

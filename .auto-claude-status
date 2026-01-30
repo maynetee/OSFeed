@@ -1,17 +1,17 @@
 {
   "active": true,
-  "spec": "016-add-lru-eviction-to-in-memory-translation-cache",
+  "spec": "021-tighten-cors-configuration-with-explicit-allowed-m",
   "state": "building",
   "subtasks": {
     "completed": 2,
-    "total": 6,
+    "total": 4,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Implement LRU Cache",
+    "current": "Testing and Verification",
     "id": null,
-    "total": 3
+    "total": 2
   },
   "workers": {
     "active": 0,
@@ -19,7 +19,7 @@
   },
   "session": {
     "number": 4,
-    "started_at": "2026-01-30T11:46:01.435381"
+    "started_at": "2026-01-30T11:45:38.230528"
   },
-  "last_update": "2026-01-30T11:57:19.084109"
+  "last_update": "2026-01-30T11:56:43.029813"
 }
