@@ -251,3 +251,121 @@ async def test_permissions_policy_restricts_features():
 
         for feature in dangerous_features:
             assert feature in permissions
+
+
+@pytest.mark.asyncio
+async def test_security_headers_can_be_disabled(monkeypatch):
+    """Test that security headers can be disabled via settings."""
+    import importlib
+    monkeypatch.setenv("SECURITY_HEADERS_ENABLED", "false")
+
+    # Clear settings cache and reload modules to pick up new env vars
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+    import app.middleware.security_headers
+    import app.main
+    importlib.reload(app.middleware.security_headers)
+    importlib.reload(app.main)
+
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+    from app.database import init_db
+
+    await init_db()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health")
+
+        # Should not have security headers when disabled
+        assert "X-Frame-Options" not in response.headers
+        assert "Content-Security-Policy" not in response.headers
+
+
+@pytest.mark.asyncio
+async def test_custom_csp_directives(monkeypatch):
+    """Test that custom CSP directives are used when configured."""
+    import importlib
+    custom_csp = "default-src 'none'; script-src 'self'"
+    monkeypatch.setenv("SECURITY_CSP_DIRECTIVES", custom_csp)
+
+    # Clear settings cache and reload modules to pick up new env vars
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+    import app.middleware.security_headers
+    import app.main
+    importlib.reload(app.middleware.security_headers)
+    importlib.reload(app.main)
+
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+    from app.database import init_db
+
+    await init_db()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health")
+
+        assert response.headers.get("Content-Security-Policy") == custom_csp
+
+
+@pytest.mark.asyncio
+async def test_hsts_configuration(monkeypatch):
+    """Test that HSTS settings are configurable."""
+    import importlib
+    monkeypatch.setenv("SECURITY_HSTS_MAX_AGE", "86400")  # 1 day
+    monkeypatch.setenv("SECURITY_HSTS_INCLUDE_SUBDOMAINS", "false")
+
+    # Clear settings cache and reload modules to pick up new env vars
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+    import app.middleware.security_headers
+    import app.main
+    importlib.reload(app.middleware.security_headers)
+    importlib.reload(app.main)
+
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+    from app.database import init_db
+
+    await init_db()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health")
+
+        hsts = response.headers.get("Strict-Transport-Security")
+        assert "max-age=86400" in hsts
+        assert "includeSubDomains" not in hsts
+
+
+@pytest.mark.asyncio
+async def test_x_frame_options_configurable(monkeypatch):
+    """Test that X-Frame-Options can be configured."""
+    import importlib
+    monkeypatch.setenv("SECURITY_X_FRAME_OPTIONS", "SAMEORIGIN")
+
+    # Clear settings cache and reload modules to pick up new env vars
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+    import app.middleware.security_headers
+    import app.main
+    importlib.reload(app.middleware.security_headers)
+    importlib.reload(app.main)
+
+    from app.main import app
+    from httpx import AsyncClient, ASGITransport
+    from app.database import init_db
+
+    await init_db()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health")
+
+        assert response.headers.get("X-Frame-Options") == "SAMEORIGIN"

@@ -5,6 +5,8 @@ from starlette.requests import Request
 from starlette.responses import Response
 import logging
 
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +32,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             **options: Optional configuration (for future extensibility)
         """
         super().__init__(app)
+        self.settings = get_settings()
         self.options = options
         logger.info("Security headers middleware initialized")
 
@@ -46,45 +49,32 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """
         response = await call_next(request)
 
-        # Content Security Policy - Restrictive policy for API
-        # For API endpoints, we want to prevent any content execution
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self'"
-        )
+        # Check if security headers are enabled
+        if not self.settings.security_headers_enabled:
+            return response
 
-        # Prevent clickjacking - don't allow framing
-        response.headers["X-Frame-Options"] = "DENY"
+        # Content-Security-Policy (if enabled)
+        if self.settings.security_csp_enabled:
+            response.headers["Content-Security-Policy"] = self.settings.security_csp_directives
 
-        # Prevent MIME-sniffing
-        response.headers["X-Content-Type-Options"] = "nosniff"
+        # X-Frame-Options
+        response.headers["X-Frame-Options"] = self.settings.security_x_frame_options
 
-        # Enforce HTTPS (max-age: 1 year)
-        # Note: Only applies when accessed via HTTPS
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
+        # X-Content-Type-Options (if enabled)
+        if self.settings.security_x_content_type_options:
+            response.headers["X-Content-Type-Options"] = "nosniff"
 
-        # Control referrer information - send origin only for cross-origin
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # Strict-Transport-Security (if enabled)
+        if self.settings.security_hsts_enabled:
+            hsts_value = f"max-age={self.settings.security_hsts_max_age}"
+            if self.settings.security_hsts_include_subdomains:
+                hsts_value += "; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = hsts_value
 
-        # Permissions Policy - disable potentially dangerous features
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), "
-            "microphone=(), "
-            "camera=(), "
-            "payment=(), "
-            "usb=(), "
-            "magnetometer=(), "
-            "gyroscope=(), "
-            "accelerometer=()"
-        )
+        # Referrer-Policy
+        response.headers["Referrer-Policy"] = self.settings.security_referrer_policy
+
+        # Permissions-Policy
+        response.headers["Permissions-Policy"] = self.settings.security_permissions_policy
 
         return response
