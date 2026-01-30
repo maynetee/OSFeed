@@ -3,23 +3,23 @@
   "spec": "012-split-api-client-ts-into-types-and-api-modules",
   "state": "building",
   "subtasks": {
-    "completed": 7,
+    "completed": 13,
     "total": 16,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Extract API Module Functions",
+    "current": "Verify Backward Compatibility",
     "id": null,
-    "total": 7
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 233,
+    "number": 239,
     "started_at": "2026-01-30T11:46:06.306849"
   },
-  "last_update": "2026-01-30T15:03:47.525627"
+  "last_update": "2026-01-30T15:15:41.641938"
 }
