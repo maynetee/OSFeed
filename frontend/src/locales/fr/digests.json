@@ -1,0 +1,11 @@
+{
+  "title": "Daily Digest",
+  "subtitle": "Historique des digests",
+  "generate": "Generer nouveau digest",
+  "generating": "Generation...",
+  "cardMeta": "{{messages}} messages · {{duplicates}}% duplicatas filtres",
+  "loadMore": "Charger plus",
+  "loading": "Chargement des digests...",
+  "emptyTitle": "Aucun digest",
+  "emptyDescription": "Generez un digest pour commencer."
+}

@@ -1,0 +1,10 @@
+{
+  "title": "Filtres",
+  "subtitle": "Affinez le flux en temps reel.",
+  "period": "Periode",
+  "channels": "Canaux",
+  "collections": "Collections",
+  "clear": "Tout afficher",
+  "active": "Filtres actifs : {{count}}/{{total}} canaux",
+  "all": "Tout"
+}

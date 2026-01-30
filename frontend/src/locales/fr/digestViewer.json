@@ -1,0 +1,6 @@
+{
+  "loading": "Chargement du digest...",
+  "empty": "Aucun digest disponible.",
+  "entities": "Entites",
+  "channels": "{{count}} canaux"
+}
