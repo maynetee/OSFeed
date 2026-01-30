@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import logging
 import re
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
@@ -43,7 +44,7 @@ class LLMTranslator:
         self.openai_model = settings.openai_model
         self.gemini_api_key = settings.gemini_api_key
         self.gemini_model = settings.gemini_model
-        self.cache: dict[str, tuple[str, int]] = {}
+        self.cache: OrderedDict[str, tuple[str, int]] = OrderedDict()
         self._client = None
         self._redis = get_redis_client()
 
@@ -258,6 +259,7 @@ class LLMTranslator:
         if cache_key in self.cache:
             cached, hits = self.cache[cache_key]
             self.cache[cache_key] = (cached, hits + 1)
+            self.cache.move_to_end(cache_key)
             return cached
         return None
 
@@ -699,8 +701,14 @@ class LLMTranslator:
                 await self._redis.set(cache_key, translated, ex=ttl)
                 await self._redis.set(self._cache_hit_key(cache_key), 1, ex=ttl)
             except Exception:
+                # LRU eviction: remove oldest entry if cache is full
+                if len(self.cache) >= settings.translation_memory_cache_max_size:
+                    self.cache.popitem(last=False)
                 self.cache[cache_key] = (translated, 1)
         else:
+            # LRU eviction: remove oldest entry if cache is full
+            if len(self.cache) >= settings.translation_memory_cache_max_size:
+                self.cache.popitem(last=False)
             self.cache[cache_key] = (translated, 1)
 
 

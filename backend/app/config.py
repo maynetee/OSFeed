@@ -117,6 +117,9 @@ class Settings(BaseSettings):
     translation_cache_max_ttl: int = 2592000  # 30 days max TTL
     translation_cache_hit_multiplier: float = 1.5  # TTL multiplier per hit
 
+    # Translation memory cache
+    translation_memory_cache_max_size: int = 1000  # Max number of entries in LRU cache
+
     # Fetch parallelization
     fetch_workers: int = 10  # Number of parallel fetch workers
 
