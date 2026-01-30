@@ -432,6 +432,8 @@ export const statsApi = {
     api.get<TrustStats>('/api/stats/trust', { params: params ? buildParams(params) : undefined }),
   exportCsv: (days: number = 7) =>
     api.get('/api/stats/export/csv', { params: { days }, responseType: 'blob' }),
+  exportJson: (days: number = 7) =>
+    api.get('/api/stats/export/json', { params: { days }, responseType: 'blob' }),
 }
 
 export const exportsApi = {
