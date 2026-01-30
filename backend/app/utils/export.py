@@ -1,8 +1,14 @@
 """Export utilities for CSV, HTML, and PDF generation."""
 import csv
 from html import escape
-from io import StringIO
+from io import StringIO, BytesIO
 from typing import Any, Optional
+
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except ImportError:
+    WEASYPRINT_AVAILABLE = False
 
 
 # Standard CSV columns for message exports
@@ -98,3 +104,26 @@ def generate_html_article(message: Any, channel: Any) -> str:
 
     parts.append("</article>")
     return "".join(parts)
+
+
+def generate_pdf_bytes(html_content: str) -> bytes:
+    """Generate PDF bytes from HTML content.
+
+    Args:
+        html_content: Complete HTML document string
+
+    Returns:
+        bytes: PDF file content as bytes
+
+    Raises:
+        RuntimeError: If weasyprint is not available
+    """
+    if not WEASYPRINT_AVAILABLE:
+        raise RuntimeError(
+            "weasyprint is not installed. Install it with: pip install weasyprint"
+        )
+
+    pdf_buffer = BytesIO()
+    HTML(string=html_content).write_pdf(pdf_buffer)
+    pdf_buffer.seek(0)
+    return pdf_buffer.getvalue()
