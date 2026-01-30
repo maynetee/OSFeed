@@ -304,6 +304,8 @@ export const messagesApi = {
       params: params ? buildParams(params) : undefined,
     }),
   get: (id: string) => api.get<Message>(`/api/messages/${id}`),
+  getSimilar: (messageId: string) =>
+    api.get<MessageListResponse>(`/api/messages/${messageId}/similar`),
   search: (params: {
     q: string
     channel_ids?: string[]

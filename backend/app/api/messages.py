@@ -12,7 +12,7 @@ from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
 from app.models.channel import Channel
 from app.models.user import User
-from app.schemas.message import MessageResponse, MessageListResponse
+from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
 from app.config import get_settings
@@ -787,6 +787,60 @@ async def get_message(
         raise HTTPException(status_code=404, detail="Message not found")
 
     return _message_to_response(message)
+
+
+@router.get("/{message_id}/similar", response_model=SimilarMessagesResponse)
+@response_cache(expire=300, namespace="messages-similar")
+async def get_similar_messages(
+    message_id: UUID,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get similar messages based on duplicate_group_id."""
+    result = await db.execute(
+        select(Message).where(Message.id == message_id)
+    )
+    source_message = result.scalar_one_or_none()
+
+    if not source_message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if not source_message.duplicate_group_id:
+        return SimilarMessagesResponse(
+            messages=[],
+            total=0,
+            page=1,
+            page_size=0,
+            duplicate_group_id=None,
+        )
+
+    query = (
+        select(Message)
+        .options(selectinload(Message.channel))
+        .join(Channel, Message.channel_id == Channel.id)
+        .join(
+            user_channels,
+            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id)
+        )
+        .where(
+            and_(
+                Message.duplicate_group_id == source_message.duplicate_group_id,
+                Message.id != message_id
+            )
+        )
+        .order_by(desc(Message.published_at), desc(Message.id))
+    )
+
+    result = await db.execute(query)
+    messages = result.scalars().all()
+
+    return SimilarMessagesResponse(
+        messages=[_message_to_response(message) for message in messages],
+        total=len(messages),
+        page=1,
+        page_size=len(messages),
+        duplicate_group_id=source_message.duplicate_group_id,
+    )
 
 
 @router.post("/{message_id}/translate", response_model=MessageResponse)
