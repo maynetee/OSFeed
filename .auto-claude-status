@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "008-supprime-les-palettes-de-commandes-et-fonctionnali",
+  "spec": "027-extend-realtime-events-for-alert-triggers",
   "state": "building",
   "subtasks": {
-    "completed": 1,
-    "total": 11,
+    "completed": 2,
+    "total": 3,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Delete Dedicated Files",
+    "current": "End-to-End Verification",
     "id": null,
-    "total": 2
+    "total": 1
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 2,
-    "started_at": "2026-01-29T10:57:24.352863"
+    "number": 229,
+    "started_at": "2026-01-30T11:45:04.067020"
   },
-  "last_update": "2026-01-29T10:58:11.284819"
+  "last_update": "2026-01-30T15:00:03.295801"
 }
