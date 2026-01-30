@@ -1,17 +1,17 @@
 {
   "active": true,
-  "spec": "017-add-response-caching-to-collection-stats-and-overv",
+  "spec": "021-tighten-cors-configuration-with-explicit-allowed-m",
   "state": "building",
   "subtasks": {
     "completed": 2,
-    "total": 3,
+    "total": 4,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Add Cache Decorators",
+    "current": "Testing and Verification",
     "id": null,
-    "total": 3
+    "total": 2
   },
   "workers": {
     "active": 0,
@@ -19,7 +19,7 @@
   },
   "session": {
     "number": 4,
-    "started_at": "2026-01-30T11:45:11.682841"
+    "started_at": "2026-01-30T11:45:38.230528"
   },
-  "last_update": "2026-01-30T11:53:50.725782"
+  "last_update": "2026-01-30T11:56:43.029813"
 }
