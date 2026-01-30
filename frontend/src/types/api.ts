@@ -6,4 +6,4 @@ export type {
   MessagesByDay,
   StatsOverview,
   MessageListResponse,
-} from '@/lib/api/client'
+} from '@/lib/api/types'
