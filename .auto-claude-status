@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "008-supprime-les-palettes-de-commandes-et-fonctionnali",
+  "spec": "029-add-database-indexes-for-high-frequency-query-patt",
   "state": "building",
   "subtasks": {
-    "completed": 1,
-    "total": 11,
+    "completed": 4,
+    "total": 5,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Delete Dedicated Files",
+    "current": "Database Index Implementation",
     "id": null,
-    "total": 2
+    "total": 5
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 2,
-    "started_at": "2026-01-29T10:57:24.352863"
+    "number": 230,
+    "started_at": "2026-01-30T11:45:02.560570"
   },
-  "last_update": "2026-01-29T10:58:11.284819"
+  "last_update": "2026-01-30T15:02:50.498215"
 }
