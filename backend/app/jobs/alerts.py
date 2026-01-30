@@ -7,6 +7,7 @@ from app.models.collection import Collection
 from app.models.channel import Channel
 from app.models.message import Message
 from app.models.collection import collection_channels
+from app.services.events import publish_alert_triggered
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,22 @@ async def evaluate_alerts_job():
             )
             session.add(trigger)
             alert.last_triggered_at = datetime.utcnow()
+
+            # Flush to get trigger.id before publishing event
+            await session.flush()
+
+            # Publish alert:triggered event (fire-and-forget)
+            try:
+                await publish_alert_triggered(
+                    alert_id=alert.id,
+                    trigger_id=trigger.id,
+                    alert_name=alert.name,
+                    summary=summary,
+                    message_count=count
+                )
+                logger.debug(f"Published alert:triggered event for alert {alert.name}")
+            except Exception as e:
+                logger.error(f"Failed to publish alert:triggered event for alert {alert.name}: {e}")
 
         await session.commit()
 
