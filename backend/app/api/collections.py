@@ -19,6 +19,7 @@ from app.schemas.collection import CollectionCreate, CollectionResponse, Collect
 from app.schemas.collection_share import CollectionShareCreate, CollectionShareResponse
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
+from app.utils.export import create_csv_writer, generate_csv_row, MESSAGE_CSV_COLUMNS
 
 router = APIRouter()
 
@@ -584,35 +585,14 @@ async def export_collection_messages(
     if format == "csv":
         result = await db.execute(query.order_by(desc(Message.published_at)))
         rows = result.all()
-        output = StringIO()
-        writer = csv.writer(output)
+        writer, output = create_csv_writer()
         writer.writerow(["collection", collection.name])
         writer.writerow(["description", collection.description or ""])
         writer.writerow(["channels", len(channel_ids)])
         writer.writerow([])
-        writer.writerow([
-            "message_id",
-            "channel_title",
-            "channel_username",
-            "published_at",
-            "original_text",
-            "translated_text",
-            "source_language",
-            "target_language",
-            "is_duplicate",
-        ])
+        writer.writerow(MESSAGE_CSV_COLUMNS)
         for message, channel in rows:
-            writer.writerow([
-                str(message.id),
-                channel.title,
-                channel.username,
-                message.published_at,
-                message.original_text or "",
-                message.translated_text or "",
-                message.source_language or "",
-                message.target_language or "",
-                message.is_duplicate,
-            ])
+            writer.writerow(generate_csv_row(message, channel))
         output.seek(0)
         filename = f"osfeed-collection-{collection_id}.csv"
         return StreamingResponse(
