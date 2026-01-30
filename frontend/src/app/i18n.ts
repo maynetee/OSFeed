@@ -1,7 +1,5 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
-
-// Import English translations
 import enNavigation from '../locales/en/navigation.json'
 import enCommon from '../locales/en/common.json'
 import enTheme from '../locales/en/theme.json'
@@ -21,8 +19,6 @@ import enCollections from '../locales/en/collections.json'
 import enSettings from '../locales/en/settings.json'
 import enMessages from '../locales/en/messages.json'
 import enAlerts from '../locales/en/alerts.json'
-
-// Import French translations
 import frNavigation from '../locales/fr/navigation.json'
 import frCommon from '../locales/fr/common.json'
 import frTheme from '../locales/fr/theme.json'
@@ -43,65 +39,61 @@ import frSettings from '../locales/fr/settings.json'
 import frMessages from '../locales/fr/messages.json'
 import frAlerts from '../locales/fr/alerts.json'
 
-const resources = {
-  en: {
-    translation: {
-      navigation: enNavigation,
-      common: enCommon,
-      theme: enTheme,
-      branding: enBranding,
-      header: enHeader,
-      sidebar: enSidebar,
-      auth: enAuth,
-      dashboard: enDashboard,
-      feed: enFeed,
-      filters: enFilters,
-      search: enSearch,
-      digests: enDigests,
-      digestViewer: enDigestViewer,
-      exports: enExports,
-      channels: enChannels,
-      collections: enCollections,
-      settings: enSettings,
-      messages: enMessages,
-      alerts: enAlerts,
-    },
-  },
-  fr: {
-    translation: {
-      navigation: frNavigation,
-      common: frCommon,
-      theme: frTheme,
-      branding: frBranding,
-      header: frHeader,
-      sidebar: frSidebar,
-      auth: frAuth,
-      dashboard: frDashboard,
-      feed: frFeed,
-      filters: frFilters,
-      search: frSearch,
-      digests: frDigests,
-      digestViewer: frDigestViewer,
-      exports: frExports,
-      channels: frChannels,
-      collections: frCollections,
-      settings: frSettings,
-      messages: frMessages,
-      alerts: frAlerts,
-    },
-  },
-}
-
-const storedLanguage =
-  typeof window !== 'undefined' ? localStorage.getItem('osfeed_language') : null
+const storedLanguage = typeof window !== 'undefined' ? localStorage.getItem('osfeed_language') : null
 
 i18n.use(initReactI18next).init({
-  resources,
+  resources: {
+    en: {
+      translation: {
+        navigation: enNavigation,
+        common: enCommon,
+        theme: enTheme,
+        branding: enBranding,
+        header: enHeader,
+        sidebar: enSidebar,
+        auth: enAuth,
+        dashboard: enDashboard,
+        feed: enFeed,
+        filters: enFilters,
+        search: enSearch,
+        digests: enDigests,
+        digestViewer: enDigestViewer,
+        exports: enExports,
+        channels: enChannels,
+        collections: enCollections,
+        settings: enSettings,
+        messages: enMessages,
+        alerts: enAlerts,
+      },
+    },
+    fr: {
+      translation: {
+        navigation: frNavigation,
+        common: frCommon,
+        theme: frTheme,
+        branding: frBranding,
+        header: frHeader,
+        sidebar: frSidebar,
+        auth: frAuth,
+        dashboard: frDashboard,
+        feed: frFeed,
+        filters: frFilters,
+        search: frSearch,
+        digests: frDigests,
+        digestViewer: frDigestViewer,
+        exports: frExports,
+        channels: frChannels,
+        collections: frCollections,
+        settings: frSettings,
+        messages: frMessages,
+        alerts: frAlerts,
+      },
+    },
+  },
   lng: storedLanguage ?? 'fr',
   fallbackLng: 'en',
   interpolation: {
     escapeValue: false,
   },
 })
-
 export default i18n
