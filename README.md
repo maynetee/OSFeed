@@ -63,6 +63,7 @@ docker compose logs -f frontend
 ## Environment
 
 The first run copies `.env.example` to `.env` if missing. Update `.env` with:
+- **SECRET_KEY** (required) - Application secret key for JWT tokens and session signing
 - PostgreSQL credentials
 - OpenAI / Qdrant settings
 - Telegram API credentials
