@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react'
+import { lazy, memo, Suspense, useCallback, useMemo, useState } from 'react'
 import { ExternalLink, Image, MessageSquareText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -10,6 +10,8 @@ import { MediaPreview } from '@/components/messages/telegram-embed'
 import { Timestamp } from '@/components/common/timestamp'
 import type { Message } from '@/lib/api/client'
 
+const SimilarMessagesDialog = lazy(() => import('./similar-messages-dialog').then((m) => ({ default: m.SimilarMessagesDialog })))
+
 interface MessageCardProps {
   message: Message
   onCopy?: (message: Message) => void
@@ -19,6 +21,7 @@ interface MessageCardProps {
 export const MessageCard = memo(function MessageCard({ message, onCopy, onExport }: MessageCardProps) {
   const { t } = useTranslation()
   const [showMedia, setShowMedia] = useState(false)
+  const [showSimilar, setShowSimilar] = useState(false)
 
   const duplicateScore = useMemo(() => {
     if (typeof message.originality_score !== 'number') return null
@@ -117,6 +120,11 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2">
+          {message.duplicate_group_id ? (
+            <Button variant="ghost" size="sm" onClick={() => setShowSimilar(true)}>
+              {t('messages.similar')}
+            </Button>
+          ) : null}
           <Button variant="ghost" size="sm" onClick={handleCopy}>
             {t('messages.copy')}
           </Button>
@@ -124,6 +132,16 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
             {t('messages.export')}
           </Button>
         </div>
+
+        {showSimilar && (
+          <Suspense fallback={null}>
+            <SimilarMessagesDialog
+              open={showSimilar}
+              onOpenChange={setShowSimilar}
+              messageId={message.id}
+            />
+          </Suspense>
+        )}
       </CardContent>
     </Card>
   )
