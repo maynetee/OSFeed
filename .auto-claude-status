@@ -3,7 +3,7 @@
   "spec": "019-eliminate-n-1-query-pattern-in-collection-list-end",
   "state": "building",
   "subtasks": {
-    "completed": 1,
+    "completed": 2,
     "total": 3,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 4,
     "started_at": "2026-01-30T11:45:53.358893"
   },
-  "last_update": "2026-01-30T11:54:55.117650"
+  "last_update": "2026-01-30T11:58:54.843109"
 }
