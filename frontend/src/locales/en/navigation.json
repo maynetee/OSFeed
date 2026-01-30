@@ -1,0 +1,11 @@
+{
+  "dashboard": "Dashboard",
+  "intelligence": "Situation Room",
+  "feed": "Feed",
+  "search": "Search",
+  "digests": "Digests",
+  "channels": "Channels",
+  "collections": "Collections",
+  "exports": "Exports",
+  "settings": "Settings"
+}
