@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "027-extend-realtime-events-for-alert-triggers",
+  "spec": "021-tighten-cors-configuration-with-explicit-allowed-m",
   "state": "building",
   "subtasks": {
     "completed": 2,
-    "total": 3,
+    "total": 4,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "End-to-End Verification",
+    "current": "Testing and Verification",
     "id": null,
-    "total": 1
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 229,
-    "started_at": "2026-01-30T11:45:04.067020"
+    "number": 4,
+    "started_at": "2026-01-30T11:45:38.230528"
   },
-  "last_update": "2026-01-30T15:00:03.295801"
+  "last_update": "2026-01-30T11:56:43.029813"
 }
