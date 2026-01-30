@@ -59,6 +59,10 @@ class Message(Base):
         Index("ix_messages_stats_query", "published_at", "is_duplicate"),
         # Composite index for filtered timeline queries (channel + date + dedup)
         Index("ix_messages_channel_published_dedup", "channel_id", "published_at", "is_duplicate"),
+        # For language distribution analytics queries
+        Index("ix_messages_source_language", "source_language"),
+        # For collection stats analytics (channel + date + language)
+        Index("ix_messages_channel_published_lang", "channel_id", "published_at", "source_language"),
         # Fulltext GIN index on message text for search queries (PostgreSQL only)
         Index(
             "ix_messages_text_search",
