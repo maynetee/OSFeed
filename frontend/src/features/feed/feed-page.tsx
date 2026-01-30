@@ -20,6 +20,7 @@ export function FeedPage() {
   const channelIds = useFilterStore((state) => state.channelIds)
   const dateRange = useFilterStore((state) => state.dateRange)
   const collectionIds = useFilterStore((state) => state.collectionIds)
+  const mediaTypes = useFilterStore((state) => state.mediaTypes)
   const setChannelIds = useFilterStore((state) => state.setChannelIds)
   const setCollectionIds = useFilterStore((state) => state.setCollectionIds)
   const filtersTouched = useFilterStore((state) => state.filtersTouched)
@@ -75,7 +76,7 @@ export function FeedPage() {
   }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds, setCollectionIds])
 
   const messagesQuery = useInfiniteQuery({
-    queryKey: ['messages', activeChannelIds, dateRange],
+    queryKey: ['messages', activeChannelIds, dateRange, mediaTypes],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       return (
@@ -84,6 +85,7 @@ export function FeedPage() {
           offset: pageParam,
           channel_ids: activeChannelIds.length ? activeChannelIds : undefined,
           start_date: rangeDays ? subDays(new Date(), rangeDays).toISOString() : undefined,
+          media_types: mediaTypes.length ? mediaTypes : undefined,
         })
       ).data
     },
@@ -95,7 +97,7 @@ export function FeedPage() {
 
   const handleTranslation = useCallback((update: TranslationUpdate) => {
     // Update the message in the query cache
-    queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange], (oldData) => {
+    queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes], (oldData) => {
       if (!oldData?.pages) return oldData
 
       return {
@@ -116,14 +118,14 @@ export function FeedPage() {
         })),
       }
     })
-  }, [queryClient, activeChannelIds, dateRange])
+  }, [queryClient, activeChannelIds, dateRange, mediaTypes])
 
   const { isConnected } = useMessageStream({
     channelIds: activeChannelIds,
     onMessages: (newMessages, isRealtime) => {
       if (isRealtime && newMessages.length > 0) {
         setLastMessageTime(new Date())
-        queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange], (oldData) => {
+        queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes], (oldData) => {
           if (!oldData) return oldData
           const newPages = [...oldData.pages]
           if (newPages.length > 0) {
@@ -164,7 +166,7 @@ export function FeedPage() {
     () => messagesQuery.data?.pages.flatMap((page) => page.messages) ?? [],
     [messagesQuery.data],
   )
-  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0
+  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0
   const totalChannels = (channelsQuery.data ?? []).length
 
   return (
@@ -252,6 +254,7 @@ export function FeedPage() {
         filters={{
           channel_ids: activeChannelIds.length ? activeChannelIds : undefined,
           start_date: rangeDays ? subDays(new Date(), rangeDays).toISOString() : undefined,
+          media_types: mediaTypes.length ? mediaTypes : undefined,
         }}
       />
     </div>
