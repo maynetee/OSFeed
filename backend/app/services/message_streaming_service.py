@@ -19,7 +19,10 @@ from app.models.message import Message
 from app.models.channel import Channel, user_channels
 from app.schemas.message import MessageResponse
 from app.services.cache import get_redis_client
-from app.services.message_utils import message_to_response as _message_to_response, apply_message_filters as _apply_message_filters
+from app.services.message_utils import (
+    message_to_response as _message_to_response,
+    apply_message_filters as _apply_message_filters,
+)
 
 logger = logging.getLogger(__name__)
 
