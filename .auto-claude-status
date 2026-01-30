@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "008-supprime-les-palettes-de-commandes-et-fonctionnali",
+  "spec": "026-add-media-type-filter-to-message-feed",
   "state": "building",
   "subtasks": {
-    "completed": 1,
-    "total": 11,
+    "completed": 3,
+    "total": 6,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Delete Dedicated Files",
+    "current": "Frontend Filter UI and State",
     "id": null,
-    "total": 2
+    "total": 4
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 2,
-    "started_at": "2026-01-29T10:57:24.352863"
+    "number": 5,
+    "started_at": "2026-01-30T11:45:04.965411"
   },
-  "last_update": "2026-01-29T10:58:11.284819"
+  "last_update": "2026-01-30T11:59:57.037645"
 }

@@ -299,6 +299,7 @@ export const messagesApi = {
     offset?: number
     start_date?: string
     end_date?: string
+    media_types?: string[]
   }) =>
     api.get<MessageListResponse>('/api/messages', {
       params: params ? buildParams(params) : undefined,
@@ -311,6 +312,7 @@ export const messagesApi = {
     offset?: number
     start_date?: string
     end_date?: string
+    media_types?: string[]
   }) =>
     api.get<MessageListResponse>('/api/messages/search', {
       params: buildParams(params),
@@ -329,6 +331,7 @@ export const messagesApi = {
     start_date?: string
     end_date?: string
     limit?: number
+    media_types?: string[]
   }) =>
     api.get('/api/messages/export/html', {
       params: params ? buildParams(params) : undefined,
@@ -340,6 +343,7 @@ export const messagesApi = {
     start_date?: string
     end_date?: string
     limit?: number
+    media_types?: string[]
   }) =>
     api.get('/api/messages/export/pdf', {
       params: params ? buildParams(params) : undefined,
@@ -440,6 +444,7 @@ export const exportsApi = {
     channel_ids?: string[]
     start_date?: string
     end_date?: string
+    media_types?: string[]
   }) =>
     api.get('/api/messages/export/csv', {
       params: params ? buildParams(params) : undefined,
