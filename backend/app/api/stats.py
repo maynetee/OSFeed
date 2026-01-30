@@ -153,6 +153,21 @@ async def export_stats_csv(
     )
 
 
+@router.get("/export/json")
+async def export_stats_json(
+    days: int = Query(7, ge=1, le=90),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    overview = await get_overview_stats(user=user, db=db)
+    by_day = await get_messages_by_day(days=days, user=user, db=db)
+
+    return {
+        "overview": overview,
+        "messages_by_day": by_day,
+    }
+
+
 @router.get("/trust")
 @response_cache(expire=settings.response_cache_ttl, namespace="stats-trust")
 async def get_trust_stats(

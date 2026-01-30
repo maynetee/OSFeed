@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "026-add-media-type-filter-to-message-feed",
+  "spec": "021-tighten-cors-configuration-with-explicit-allowed-m",
   "state": "building",
   "subtasks": {
-    "completed": 3,
-    "total": 6,
+    "completed": 2,
+    "total": 4,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Frontend Filter UI and State",
+    "current": "Testing and Verification",
     "id": null,
-    "total": 4
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 5,
-    "started_at": "2026-01-30T11:45:04.965411"
+    "number": 4,
+    "started_at": "2026-01-30T11:45:38.230528"
   },
-  "last_update": "2026-01-30T11:59:57.037645"
+  "last_update": "2026-01-30T11:56:43.029813"
 }
