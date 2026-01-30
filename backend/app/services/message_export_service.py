@@ -3,11 +3,12 @@
 This module provides functions for exporting messages in various formats (CSV, HTML, PDF).
 """
 
+import asyncio
 import csv
 import html
 import logging
 from datetime import datetime
-from io import StringIO
+from io import StringIO, BytesIO
 from typing import Optional, AsyncGenerator
 from uuid import UUID
 
@@ -246,3 +247,98 @@ async def export_messages_html(
 </html>
 """
     yield html_footer
+
+
+def _generate_pdf_bytes(rows: list[dict]) -> bytes:
+    """Generate PDF bytes in a blocking thread safely.
+
+    Args:
+        rows: List of dictionaries containing message data with keys:
+              channel_title, channel_username, published_at,
+              translated_text, original_text
+
+    Returns:
+        PDF file content as bytes
+    """
+    from fpdf import FPDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=14)
+    pdf.cell(0, 10, "OSFeed - Messages", ln=True)
+    pdf.set_font("Helvetica", size=11)
+
+    for item in rows:
+        title = item["channel_title"]
+        username = item["channel_username"]
+        published_at = item["published_at"]
+        translated = item["translated_text"]
+        original = item["original_text"]
+
+        header = f"{title} (@{username}) - {published_at}"
+        text = translated or original or ""
+        text = text.encode('latin-1', 'replace').decode('latin-1')
+        header = header.encode('latin-1', 'replace').decode('latin-1')
+
+        pdf.multi_cell(0, 8, header)
+        pdf.set_font("Helvetica", size=10)
+        pdf.multi_cell(0, 6, text)
+
+        if translated and original:
+            pdf.set_font("Helvetica", size=9)
+            orig_text = original.encode('latin-1', 'replace').decode('latin-1')
+            pdf.multi_cell(0, 6, f"Original: {orig_text}")
+
+        pdf.ln(2)
+        pdf.set_font("Helvetica", size=11)
+
+    output = pdf.output(dest="S")
+    if isinstance(output, str):
+        return output.encode("latin-1", errors="ignore")
+    return output
+
+
+async def export_messages_pdf(
+    user_id: UUID,
+    channel_id: Optional[UUID] = None,
+    channel_ids: Optional[list[UUID]] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    limit: int = 1000,
+) -> bytes:
+    """Export messages to PDF format.
+
+    Args:
+        user_id: UUID of the user requesting the export
+        channel_id: Optional single channel ID to filter by
+        channel_ids: Optional list of channel IDs to filter by
+        start_date: Optional start date for filtering messages
+        end_date: Optional end date for filtering messages
+        limit: Maximum number of messages to export (default: 1000)
+
+    Returns:
+        PDF file content as bytes
+    """
+    async with AsyncSessionLocal() as db:
+        query = select(Message, Channel).join(Channel)
+        query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date)
+        query = query.order_by(desc(Message.published_at))
+        query = query.limit(limit)
+        result = await db.execute(query)
+        rows = result.all()
+
+    data = []
+    for message, channel in rows:
+        data.append({
+            "channel_title": channel.title,
+            "channel_username": channel.username,
+            "published_at": message.published_at,
+            "translated_text": message.translated_text,
+            "original_text": message.original_text,
+        })
+
+    if not data:
+        return b""
+
+    pdf_bytes = await asyncio.to_thread(_generate_pdf_bytes, data)
+    return pdf_bytes
