@@ -23,6 +23,7 @@ from app.services.auth_rate_limiter import (
     rate_limit_forgot_password,
     rate_limit_request_verify,
     rate_limit_register,
+    rate_limit_login,
 )
 from app.services.translation_service import invalidate_channel_translation_cache
 from app.models.channel import user_channels
@@ -94,7 +95,7 @@ class LanguageUpdateRequest(BaseModel):
     language: str
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit_login)])
 async def login(
     request: Request,
     credentials: OAuth2PasswordRequestForm = Depends(),
