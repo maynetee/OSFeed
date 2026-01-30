@@ -1,0 +1,27 @@
+{
+  "kpiMessages": "Messages today",
+  "kpiDuplicates": "Duplicates filtered",
+  "kpiChannels": "Active channels",
+  "digestTitle": "Daily Digest",
+  "digestSubtitle": "3 major events, briefed in 3 minutes.",
+  "digestAction": "View full digest",
+  "digestItems": [
+    "Black Sea tensions",
+    "New economic sanctions",
+    "Logistics mobilization"
+  ],
+  "digestItemMeta": "12 cross-checked sources, 2 hours",
+  "digestSignal": "Strong signal",
+  "trustTitle": "Trust",
+  "trustSubtitle": "Reliability indicators.",
+  "trustPrimary": "Primary sources",
+  "trustPropaganda": "Propaganda risk",
+  "trustVerified": "Verified channels",
+  "trustAction": "Open dashboard",
+  "activityTitle": "7-day activity",
+  "activitySubtitle": "Message volume collected.",
+  "topChannels": "Top channels",
+  "emptyTitle": "No sources configured",
+  "emptyDescription": "Add Telegram channels to start collecting and analyzing intelligence signals.",
+  "emptyAction": "Add a channel"
+}

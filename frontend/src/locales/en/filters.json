@@ -1,0 +1,10 @@
+{
+  "title": "Filters",
+  "subtitle": "Refine the stream in real time.",
+  "period": "Period",
+  "channels": "Channels",
+  "collections": "Collections",
+  "clear": "Show all",
+  "active": "Filters active: {{count}}/{{total}} channels",
+  "all": "All time"
+}
