@@ -5,12 +5,11 @@ from sqlalchemy import select, func, desc, update, tuple_, insert, and_
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 import asyncio
-import json
 
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
-from app.models.channel import Channel
+from app.models.channel import Channel, user_channels
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse
 from app.services.translation_pool import run_translation
@@ -18,7 +17,6 @@ from app.services.translator import translator
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
-from app.services.cache import get_redis_client
 from app.services.events import publish_message_translated
 from app.services.message_export_service import (
     export_messages_csv as export_csv_service,
@@ -27,6 +25,7 @@ from app.services.message_export_service import (
 )
 from app.services.message_streaming_service import create_message_stream
 from app.services.message_search_service import build_search_query
+from app.services.message_utils import message_to_response, apply_message_filters
 from datetime import datetime, timezone
 from typing import Optional
 import base64
@@ -37,14 +36,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
-
-
-def _message_to_response(message: Message) -> MessageResponse:
-    data = MessageResponse.model_validate(message).model_dump()
-    if message.channel:
-        data["channel_title"] = message.channel.title
-        data["channel_username"] = message.channel.username
-    return MessageResponse(**data)
 
 
 def _encode_cursor(published_at: datetime, message_id: UUID) -> str:
@@ -65,35 +56,6 @@ def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
         raise HTTPException(status_code=400, detail=f"Invalid cursor format: {str(exc)}") from exc
 
 
-from app.models.channel import user_channels
-
-def _apply_message_filters(
-    query,
-    user_id: UUID,
-    channel_id: Optional[UUID],
-    channel_ids: Optional[list[UUID]],
-    start_date: Optional[datetime],
-    end_date: Optional[datetime],
-):
-    query = query.join(Channel, Message.channel_id == Channel.id).join(
-        user_channels,
-        and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user_id)
-    )
-
-    if channel_ids:
-        query = query.where(Message.channel_id.in_(channel_ids))
-    elif channel_id:
-        query = query.where(Message.channel_id == channel_id)
-
-    if start_date:
-        query = query.where(Message.published_at >= start_date)
-
-    if end_date:
-        query = query.where(Message.published_at <= end_date)
-
-    return query
-
-
 @router.get("", response_model=MessageListResponse)
 @response_cache(expire=60, namespace="messages-list")
 async def list_messages(
@@ -109,7 +71,7 @@ async def list_messages(
 ):
     """Get paginated message feed with optional filters."""
     query = select(Message).options(selectinload(Message.channel))
-    query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
+    query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
@@ -131,7 +93,7 @@ async def list_messages(
         next_cursor = _encode_cursor(last_message.published_at, last_message.id)
 
     return MessageListResponse(
-        messages=[_message_to_response(message) for message in messages],
+        messages=[message_to_response(message) for message in messages],
         total=total,
         page=offset // limit + 1 if not cursor else 1,
         page_size=limit,
@@ -207,7 +169,7 @@ async def search_messages(
         next_cursor = _encode_cursor(last_message.published_at, last_message.id)
 
     return MessageListResponse(
-        messages=[_message_to_response(message) for message in messages],
+        messages=[message_to_response(message) for message in messages],
         total=total,
         page=offset // limit + 1 if not cursor else 1,
         page_size=limit,
@@ -223,7 +185,6 @@ async def fetch_historical_messages(
 ):
     """Fetch historical messages for a channel."""
     async with AsyncSessionLocal() as db:
-        from app.models.channel import user_channels
         result = await db.execute(
             select(Channel).join(
                 user_channels, 
@@ -248,8 +209,6 @@ async def translate_messages(
     user: User = Depends(current_active_user),
 ):
     """Re-translate messages to a new target language."""
-    from app.models.channel import user_channels
-
     async with AsyncSessionLocal() as db:
         query = select(Message.id, Message.original_text, Message.published_at).where(
             Message.needs_translation.is_(True)
@@ -437,8 +396,6 @@ async def get_message_media(
 
     Streams the media bytes directly from Telegram to the client.
     """
-    from app.models.channel import user_channels
-
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Message)
@@ -523,7 +480,7 @@ async def get_message(
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
 
-    return _message_to_response(message)
+    return message_to_response(message)
 
 
 @router.post("/{message_id}/translate", response_model=MessageResponse)
@@ -542,7 +499,7 @@ async def translate_message_on_demand(
         raise HTTPException(status_code=404, detail="Message not found")
 
     if not message.needs_translation:
-        return _message_to_response(message)
+        return message_to_response(message)
 
     original_text = message.original_text or ""
     if not original_text.strip():
@@ -554,7 +511,7 @@ async def translate_message_on_demand(
             )
             await db.commit()
         message.needs_translation = False
-        return _message_to_response(message)
+        return message_to_response(message)
 
     target_language = message.target_language or settings.preferred_language
     translated_text, source_lang, priority = await run_translation(
@@ -597,4 +554,4 @@ async def translate_message_on_demand(
         target_language=target_language
     )
 
-    return _message_to_response(message)
+    return message_to_response(message)

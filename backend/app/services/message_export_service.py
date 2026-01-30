@@ -18,36 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal
 from app.models.message import Message
 from app.models.channel import Channel, user_channels
+from app.services.message_utils import apply_message_filters as _apply_message_filters
 
 logger = logging.getLogger(__name__)
-
-
-def _apply_message_filters(
-    query,
-    user_id: UUID,
-    channel_id: Optional[UUID],
-    channel_ids: Optional[list[UUID]],
-    start_date: Optional[datetime],
-    end_date: Optional[datetime],
-):
-    """Apply filters to message query for user access control and date ranges."""
-    query = query.join(Channel, Message.channel_id == Channel.id).join(
-        user_channels,
-        and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user_id)
-    )
-
-    if channel_ids:
-        query = query.where(Message.channel_id.in_(channel_ids))
-    elif channel_id:
-        query = query.where(Message.channel_id == channel_id)
-
-    if start_date:
-        query = query.where(Message.published_at >= start_date)
-
-    if end_date:
-        query = query.where(Message.published_at <= end_date)
-
-    return query
 
 
 async def export_messages_csv(
