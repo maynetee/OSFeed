@@ -160,5 +160,5 @@ async def health():
         logger.warning(f"Health check failed: {e}")
         return JSONResponse(
             status_code=503,
-            content={"status": "unhealthy", "database": "disconnected", "error": str(e)}
+            content={"status": "unhealthy", "database": "disconnected"}
         )
