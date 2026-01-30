@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-only")
 os.environ.setdefault("TELEGRAM_API_ID", "123456")
 os.environ.setdefault("TELEGRAM_API_HASH", "test_hash")
 os.environ.setdefault("TELEGRAM_PHONE", "+10000000000")
