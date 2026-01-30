@@ -1,0 +1,12 @@
+{
+  "title": "Parametres",
+  "subtitle": "Preferences",
+  "notificationsTitle": "Notifications",
+  "notificationsDescription": "Activez les alertes sur signaux forts.",
+  "notificationEmail": "Email",
+  "notificationTelegram": "Telegram",
+  "languageTitle": "Langue interface",
+  "languageDescription": "Synchronise les traductions des messages.",
+  "languageLabel": "Langue",
+  "translating": "Traduction en cours..."
+}
