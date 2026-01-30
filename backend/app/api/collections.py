@@ -6,8 +6,7 @@ from sqlalchemy.orm import selectinload
 from uuid import UUID
 from typing import List, Optional
 from datetime import datetime, timedelta
-from io import BytesIO, StringIO
-import csv
+from io import BytesIO
 
 from app.database import get_db
 from app.models.collection import Collection, collection_channels
@@ -19,6 +18,11 @@ from app.schemas.collection import CollectionCreate, CollectionResponse, Collect
 from app.schemas.collection_share import CollectionShareCreate, CollectionShareResponse
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
+from app.services.message_export_service import (
+    export_messages_csv,
+    export_messages_html,
+    export_messages_pdf,
+)
 
 router = APIRouter()
 
@@ -574,114 +578,46 @@ async def export_collection_messages(
     if not channel_ids:
         raise HTTPException(status_code=400, detail="Collection has no channels")
 
-    query = select(Message, Channel).join(Channel)
-    query = query.where(Message.channel_id.in_(channel_ids))
-    if start_date:
-        query = query.where(Message.published_at >= start_date)
-    if end_date:
-        query = query.where(Message.published_at <= end_date)
-
     if format == "csv":
-        result = await db.execute(query.order_by(desc(Message.published_at)))
-        rows = result.all()
-        output = StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["collection", collection.name])
-        writer.writerow(["description", collection.description or ""])
-        writer.writerow(["channels", len(channel_ids)])
-        writer.writerow([])
-        writer.writerow([
-            "message_id",
-            "channel_title",
-            "channel_username",
-            "published_at",
-            "original_text",
-            "translated_text",
-            "source_language",
-            "target_language",
-            "is_duplicate",
-        ])
-        for message, channel in rows:
-            writer.writerow([
-                str(message.id),
-                channel.title,
-                channel.username,
-                message.published_at,
-                message.original_text or "",
-                message.translated_text or "",
-                message.source_language or "",
-                message.target_language or "",
-                message.is_duplicate,
-            ])
-        output.seek(0)
         filename = f"osfeed-collection-{collection_id}.csv"
         return StreamingResponse(
-            iter([output.getvalue()]),
+            export_messages_csv(
+                user_id=user.id,
+                channel_ids=channel_ids,
+                start_date=start_date,
+                end_date=end_date,
+            ),
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     if format == "html":
-        result = await db.execute(query.order_by(desc(Message.published_at)).limit(limit))
-        rows = result.all()
-        from html import escape
-
-        html_lines = [
-            "<!DOCTYPE html>",
-            "<html lang='fr'>",
-            "<head><meta charset='utf-8'><title>OSFeed - Collection Export</title>",
-            "<style>body{font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;padding:24px;}h1{font-size:20px;}article{margin:16px 0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;}small{color:#64748b;}</style>",
-            "</head><body>",
-            f"<h1>Collection: {escape(collection.name)}</h1>",
-        ]
-        if collection.description:
-            html_lines.append(f"<p>{escape(collection.description)}</p>")
-        for message, channel in rows:
-            html_lines.append("<article>")
-            html_lines.append(
-                f"<small>{escape(channel.title)} · {escape(channel.username)} · {message.published_at}</small>"
-            )
-            html_lines.append(f"<p>{escape(message.translated_text or message.original_text or '')}</p>")
-            if message.translated_text and message.original_text:
-                html_lines.append(f"<p><small>Original: {escape(message.original_text)}</small></p>")
-            html_lines.append("</article>")
-        html_lines.append("</body></html>")
-        html = "\n".join(html_lines)
+        filename = f"osfeed-collection-{collection_id}.html"
         return StreamingResponse(
-            iter([html]),
+            export_messages_html(
+                user_id=user.id,
+                channel_ids=channel_ids,
+                start_date=start_date,
+                end_date=end_date,
+            ),
             media_type="text/html",
-            headers={"Content-Disposition": f"attachment; filename=osfeed-collection-{collection_id}.html"},
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     if format == "pdf":
-        from fpdf import FPDF
-
-        result = await db.execute(query.order_by(desc(Message.published_at)).limit(limit))
-        rows = result.all()
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        pdf.set_font("Helvetica", size=14)
-        pdf.cell(0, 10, f"OSFeed - {collection.name}", ln=True)
-        pdf.set_font("Helvetica", size=11)
-        for message, channel in rows:
-            header = f"{channel.title} (@{channel.username}) - {message.published_at}"
-            pdf.multi_cell(0, 8, header)
-            pdf.set_font("Helvetica", size=10)
-            pdf.multi_cell(0, 6, message.translated_text or message.original_text or "")
-            if message.translated_text and message.original_text:
-                pdf.set_font("Helvetica", size=9)
-                pdf.multi_cell(0, 6, f"Original: {message.original_text}")
-            pdf.ln(2)
-            pdf.set_font("Helvetica", size=11)
-
-        output = pdf.output(dest="S")
-        pdf_bytes = output.encode("latin-1", errors="ignore") if isinstance(output, str) else output
+        filename = f"osfeed-collection-{collection_id}.pdf"
+        pdf_bytes = await export_messages_pdf(
+            user_id=user.id,
+            channel_ids=channel_ids,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+        )
         return StreamingResponse(
             BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=osfeed-collection-{collection_id}.pdf",
+                "Content-Disposition": f"attachment; filename={filename}",
             },
         )
 
