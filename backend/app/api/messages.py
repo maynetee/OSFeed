@@ -10,6 +10,7 @@ import json
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
+from app.utils.export import MESSAGE_CSV_COLUMNS, create_csv_writer, generate_csv_row
 from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse
@@ -23,9 +24,8 @@ from app.services.events import publish_message_translated
 from datetime import datetime, timezone
 from typing import Optional
 import base64
-import csv
 import logging
-from io import StringIO, BytesIO
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -491,57 +491,42 @@ async def export_messages_csv(
     user: User = Depends(current_active_user),
 ):
     async def csv_generator():
-        output = StringIO()
-        writer = csv.writer(output)
-        
-        writer.writerow([
-            "message_id", "channel_title", "channel_username", "published_at",
-            "original_text", "translated_text", "source_language", 
-            "target_language", "is_duplicate"
-        ])
+        writer, output = create_csv_writer()
+
+        writer.writerow(MESSAGE_CSV_COLUMNS)
         yield output.getvalue()
         output.seek(0)
         output.truncate(0)
 
         batch_size = 500
         offset = 0
-        
+
         while True:
             async with AsyncSessionLocal() as db:
                 query = select(Message, Channel).join(Channel)
                 query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(batch_size).offset(offset)
-                
+
                 result = await db.execute(query)
                 rows = result.all()
-                
+
                 if not rows:
                     break
-                    
+
                 for message, channel in rows:
-                    writer.writerow([
-                        str(message.id),
-                        channel.title,
-                        channel.username,
-                        message.published_at,
-                        message.original_text or "",
-                        message.translated_text or "",
-                        message.source_language or "",
-                        message.target_language or "",
-                        message.is_duplicate,
-                    ])
-                    
+                    writer.writerow(generate_csv_row(message, channel))
+
                 data = output.getvalue()
                 if data:
                     yield data
                     output.seek(0)
                     output.truncate(0)
-                    
+
                 offset += len(rows)
                 if len(rows) < batch_size:
                     break
-    
+
     filename = "osfeed-messages.csv"
     return StreamingResponse(
         csv_generator(),
