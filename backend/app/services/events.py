@@ -76,3 +76,33 @@ async def publish_message_translated(
     }
 
     return await publish_event("message:translated", data)
+
+
+async def publish_alert_triggered(
+    alert_id: UUID,
+    channel_id: UUID,
+    alert_name: str,
+    summary: str,
+    match_count: int
+) -> bool:
+    """Publish an alert triggered event to Redis.
+
+    Args:
+        alert_id: UUID of the triggered alert
+        channel_id: UUID of the channel where alert was triggered
+        alert_name: Name of the triggered alert
+        summary: Summary text of matched messages
+        match_count: Number of messages that matched the alert
+
+    Returns:
+        True if event was published successfully, False otherwise
+    """
+    data = {
+        "alert_id": str(alert_id),
+        "channel_id": str(channel_id),
+        "alert_name": alert_name,
+        "summary": summary,
+        "match_count": match_count
+    }
+
+    return await publish_event("alert:triggered", data)
