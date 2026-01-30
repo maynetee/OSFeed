@@ -259,6 +259,7 @@ class LLMTranslator:
         if cache_key in self.cache:
             cached, hits = self.cache[cache_key]
             self.cache[cache_key] = (cached, hits + 1)
+            self.cache.move_to_end(cache_key)
             return cached
         return None
 
