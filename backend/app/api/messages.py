@@ -10,6 +10,7 @@ import json
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
+from app.utils.export import MESSAGE_CSV_COLUMNS, create_csv_writer, generate_csv_row, generate_html_template, generate_html_article, generate_pdf_bytes
 from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
@@ -23,9 +24,8 @@ from app.services.events import publish_message_translated
 from datetime import datetime, timezone
 from typing import Optional
 import base64
-import csv
 import logging
-from io import StringIO, BytesIO
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 
@@ -503,14 +503,9 @@ async def export_messages_csv(
     user: User = Depends(current_active_user),
 ):
     async def csv_generator():
-        output = StringIO()
-        writer = csv.writer(output)
+        writer, output = create_csv_writer()
 
-        writer.writerow([
-            "message_id", "channel_title", "channel_username", "published_at",
-            "original_text", "translated_text", "source_language",
-            "target_language", "is_duplicate"
-        ])
+        writer.writerow(MESSAGE_CSV_COLUMNS)
         yield output.getvalue()
         output.seek(0)
         output.truncate(0)
@@ -524,36 +519,26 @@ async def export_messages_csv(
                 query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(batch_size).offset(offset)
-                
+
                 result = await db.execute(query)
                 rows = result.all()
-                
+
                 if not rows:
                     break
-                    
+
                 for message, channel in rows:
-                    writer.writerow([
-                        str(message.id),
-                        channel.title,
-                        channel.username,
-                        message.published_at,
-                        message.original_text or "",
-                        message.translated_text or "",
-                        message.source_language or "",
-                        message.target_language or "",
-                        message.is_duplicate,
-                    ])
-                    
+                    writer.writerow(generate_csv_row(message, channel))
+
                 data = output.getvalue()
                 if data:
                     yield data
                     output.seek(0)
                     output.truncate(0)
-                    
+
                 offset += len(rows)
                 if len(rows) < batch_size:
                     break
-    
+
     filename = "osfeed-messages.csv"
     return StreamingResponse(
         csv_generator(),
@@ -572,13 +557,8 @@ async def export_messages_html(
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
-    from html import escape
-
     async def html_generator():
-        yield "<!DOCTYPE html><html lang='fr'><head><meta charset='utf-8'><title>OSFeed - Messages</title>"
-        yield "<style>body{font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;padding:24px;}"
-        yield "h1{font-size:20px;}article{margin:16px 0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;}"
-        yield "small{color:#64748b;}</style></head><body>"
+        yield generate_html_template("OSFeed - Messages")
         yield "<h1>Export messages</h1>"
 
         batch_size = 100
@@ -595,27 +575,20 @@ async def export_messages_html(
                 query = query.limit(curr_limit).offset(offset)
                 result = await db.execute(query)
                 rows = result.all()
-            
+
             if not rows:
                 break
 
             chunk = []
             for message, channel in rows:
-                chunk.append("<article>")
-                chunk.append(
-                    f"<small>{escape(channel.title)} · {escape(channel.username)} · {message.published_at}</small>"
-                )
-                chunk.append(f"<p>{escape(message.translated_text or message.original_text or '')}</p>")
-                if message.translated_text and message.original_text:
-                    chunk.append(f"<p><small>Original: {escape(message.original_text)}</small></p>")
-                chunk.append("</article>")
-            
+                chunk.append(generate_html_article(message, channel))
+
             yield "".join(chunk)
-            
+
             count = len(rows)
             processed += count
             offset += count
-            
+
             if count < curr_limit:
                 break
 
@@ -628,44 +601,6 @@ async def export_messages_html(
     )
 
 
-def _generate_pdf_bytes(rows: list[dict]) -> bytes:
-    """Generate PDF bytes in a blocking thread safely."""
-    from fpdf import FPDF
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=14)
-    pdf.cell(0, 10, "OSFeed - Messages", ln=True)
-    pdf.set_font("Helvetica", size=11)
-
-    for item in rows:
-        title = item["channel_title"]
-        username = item["channel_username"]
-        published_at = item["published_at"]
-        translated = item["translated_text"]
-        original = item["original_text"]
-        
-        header = f"{title} (@{username}) - {published_at}"
-        text = translated or original or ""
-        text = text.encode('latin-1', 'replace').decode('latin-1')
-        header = header.encode('latin-1', 'replace').decode('latin-1')
-        
-        pdf.multi_cell(0, 8, header)
-        pdf.set_font("Helvetica", size=10)
-        pdf.multi_cell(0, 6, text)
-        
-        if translated and original:
-            pdf.set_font("Helvetica", size=9)
-            orig_text = original.encode('latin-1', 'replace').decode('latin-1')
-            pdf.multi_cell(0, 6, f"Original: {orig_text}")
-        
-        pdf.ln(2)
-        pdf.set_font("Helvetica", size=11)
-
-    output = pdf.output(dest="S")
-    if isinstance(output, str):
-        return output.encode("latin-1", errors="ignore")
-    return output
 
 
 @router.get("/export/pdf")
@@ -685,28 +620,29 @@ async def export_messages_pdf(
         query = query.limit(limit)
         result = await db.execute(query)
         rows = result.all()
-    
-    data = []
-    for message, channel in rows:
-        data.append({
-            "channel_title": channel.title,
-            "channel_username": channel.username,
-            "published_at": message.published_at,
-            "translated_text": message.translated_text,
-            "original_text": message.original_text,
-        })
-        
-    if not data:
+
+    if not rows:
         return StreamingResponse(
             BytesIO(b""),
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=osfeed-messages.pdf"},
         )
 
-    pdf_bytes = await asyncio.to_thread(_generate_pdf_bytes, data)
-    
+    # Build HTML using shared utilities
+    html_parts = [generate_html_template("OSFeed - Messages")]
+    html_parts.append("<h1>OSFeed - Messages</h1>")
+
+    for message, channel in rows:
+        html_parts.append(generate_html_article(message, channel))
+
+    html_parts.append("</body></html>")
+    html_content = "".join(html_parts)
+
+    # Convert HTML to PDF using shared utility
+    pdf_bytes = await asyncio.to_thread(generate_pdf_bytes, html_content)
+
     filename = "osfeed-messages.pdf"
-    
+
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",
