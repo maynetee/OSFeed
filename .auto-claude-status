@@ -1,15 +1,15 @@
 {
   "active": true,
-  "spec": "019-eliminate-n-1-query-pattern-in-collection-list-end",
+  "spec": "021-tighten-cors-configuration-with-explicit-allowed-m",
   "state": "building",
   "subtasks": {
     "completed": 2,
-    "total": 3,
+    "total": 4,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Verification and Testing",
+    "current": "Testing and Verification",
     "id": null,
     "total": 2
   },
@@ -19,7 +19,7 @@
   },
   "session": {
     "number": 4,
-    "started_at": "2026-01-30T11:45:53.358893"
+    "started_at": "2026-01-30T11:45:38.230528"
   },
-  "last_update": "2026-01-30T11:58:54.843109"
+  "last_update": "2026-01-30T11:56:43.029813"
 }

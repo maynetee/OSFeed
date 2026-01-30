@@ -53,3 +53,11 @@ class MessageListResponse(BaseModel):
     page: int
     page_size: int
     next_cursor: Optional[str] = None
+
+
+class SimilarMessagesResponse(BaseModel):
+    messages: List[MessageResponse]
+    total: int
+    page: int
+    page_size: int
+    duplicate_group_id: Optional[UUID] = None
