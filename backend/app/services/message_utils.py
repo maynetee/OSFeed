@@ -37,6 +37,7 @@ def apply_message_filters(
     channel_ids: Optional[list[UUID]],
     start_date: Optional[datetime],
     end_date: Optional[datetime],
+    media_types: Optional[list[str]] = None,
 ):
     """Apply filters to message query based on user permissions and optional filters.
 
@@ -47,6 +48,7 @@ def apply_message_filters(
         channel_ids: Optional multiple channel filter
         start_date: Optional start date filter
         end_date: Optional end date filter
+        media_types: Optional media types filter
 
     Returns:
         Filtered SQLAlchemy query
@@ -66,5 +68,8 @@ def apply_message_filters(
 
     if end_date:
         query = query.where(Message.published_at <= end_date)
+
+    if media_types:
+        query = query.where(Message.media_type.in_(media_types))
 
     return query

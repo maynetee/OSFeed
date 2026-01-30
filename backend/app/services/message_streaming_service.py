@@ -36,6 +36,7 @@ async def create_message_stream(
     batch_size: int = 20,
     limit: int = 200,
     realtime: bool = False,
+    media_types: Optional[list[str]] = None,
 ) -> AsyncGenerator[str, None]:
     """Create an SSE message stream with historical batching and optional real-time updates.
 
@@ -52,6 +53,7 @@ async def create_message_stream(
         batch_size: Number of messages per batch (1-100)
         limit: Maximum total messages to stream (1-1000)
         realtime: Whether to tail for real-time updates after historical messages
+        media_types: Optional media types filter
 
     Yields:
         SSE-formatted strings with message data, errors, or connection events
@@ -71,7 +73,7 @@ async def create_message_stream(
         while sent < limit:
             current_batch = min(batch_size, limit - sent)
             query = select(Message).options(selectinload(Message.channel))
-            query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date)
+            query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date, media_types)
             query = query.order_by(desc(Message.published_at), desc(Message.id))
             query = query.limit(current_batch).offset(offset)
             result = await db.execute(query)
@@ -136,7 +138,7 @@ async def create_message_stream(
                 if event_type == "message:new":
                     async with AsyncSessionLocal() as db:
                         query = select(Message).options(selectinload(Message.channel))
-                        query = _apply_message_filters(query, user_id, channel_id, channel_ids, None, None)
+                        query = _apply_message_filters(query, user_id, channel_id, channel_ids, None, None, media_types)
 
                         if last_message_id:
                             query = query.where(

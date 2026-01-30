@@ -9,9 +9,9 @@ import asyncio
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
-from app.models.channel import Channel, user_channels
+from app.models.channel import Channel
 from app.models.user import User
-from app.schemas.message import MessageResponse, MessageListResponse
+from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
 from app.config import get_settings
@@ -38,6 +38,14 @@ router = APIRouter()
 settings = get_settings()
 
 
+def message_to_response(message: Message) -> MessageResponse:
+    data = MessageResponse.model_validate(message).model_dump()
+    if message.channel:
+        data["channel_title"] = message.channel.title
+        data["channel_username"] = message.channel.username
+    return MessageResponse(**data)
+
+
 def _encode_cursor(published_at: datetime, message_id: UUID) -> str:
     cursor_value = f"{published_at.isoformat()}|{message_id}"
     return base64.urlsafe_b64encode(cursor_value.encode("utf-8")).decode("utf-8")
@@ -56,6 +64,52 @@ def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
         raise HTTPException(status_code=400, detail=f"Invalid cursor format: {str(exc)}") from exc
 
 
+from app.models.channel import user_channels
+
+def apply_message_filters(
+    query,
+    user_id: UUID,
+    channel_id: Optional[UUID],
+    channel_ids: Optional[list[UUID]],
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+    media_types: Optional[list[str]] = None,
+):
+    query = query.join(Channel, Message.channel_id == Channel.id).join(
+        user_channels,
+        and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user_id)
+    )
+
+    if channel_ids:
+        query = query.where(Message.channel_id.in_(channel_ids))
+    elif channel_id:
+        query = query.where(Message.channel_id == channel_id)
+
+    if start_date:
+        query = query.where(Message.published_at >= start_date)
+
+    if end_date:
+        query = query.where(Message.published_at <= end_date)
+
+    if media_types:
+        # Handle "text" filter specially - it means messages with no media
+        if "text" in media_types:
+            # If text is the only filter, show only text messages
+            if len(media_types) == 1:
+                query = query.where(Message.media_type.is_(None))
+            else:
+                # If text + other types, show text OR the other media types
+                other_types = [mt for mt in media_types if mt != "text"]
+                query = query.where(
+                    or_(Message.media_type.is_(None), Message.media_type.in_(other_types))
+                )
+        else:
+            # Only non-text media types selected
+            query = query.where(Message.media_type.in_(media_types))
+
+    return query
+
+
 @router.get("", response_model=MessageListResponse)
 @response_cache(expire=60, namespace="messages-list")
 async def list_messages(
@@ -66,12 +120,13 @@ async def list_messages(
     cursor: Optional[str] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get paginated message feed with optional filters."""
     query = select(Message).options(selectinload(Message.channel))
-    query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date)
+    query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
@@ -110,19 +165,14 @@ async def stream_messages(
     batch_size: int = Query(20, ge=1, le=100),
     limit: int = Query(200, ge=1, le=1000),
     realtime: bool = Query(False),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
     """Stream messages via SSE. Uses Redis Pub/Sub for realtime updates."""
     return StreamingResponse(
         create_message_stream(
-            user_id=user.id,
-            channel_id=channel_id,
-            channel_ids=channel_ids,
-            start_date=start_date,
-            end_date=end_date,
-            batch_size=batch_size,
-            limit=limit,
-            realtime=realtime,
+            user.id, channel_id, channel_ids, start_date, end_date,
+            batch_size, limit, realtime, media_types
         ),
         media_type="text/event-stream",
         headers={
@@ -141,13 +191,14 @@ async def search_messages(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
     cursor: Optional[str] = Query(None),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Search messages via full-text match on original/translated text."""
     search_filter = build_search_query(q)
     query = select(Message).options(selectinload(Message.channel)).where(search_filter)
-    query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date)
+    query = apply_message_filters(query, user.id, None, channel_ids, start_date, end_date, media_types)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
@@ -185,6 +236,7 @@ async def fetch_historical_messages(
 ):
     """Fetch historical messages for a channel."""
     async with AsyncSessionLocal() as db:
+        from app.models.channel import user_channels
         result = await db.execute(
             select(Channel).join(
                 user_channels, 
@@ -209,6 +261,8 @@ async def translate_messages(
     user: User = Depends(current_active_user),
 ):
     """Re-translate messages to a new target language."""
+    from app.models.channel import user_channels
+
     async with AsyncSessionLocal() as db:
         query = select(Message.id, Message.original_text, Message.published_at).where(
             Message.needs_translation.is_(True)
@@ -338,12 +392,12 @@ async def export_messages_csv(
     channel_ids: Optional[list[UUID]] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
-    """Export messages to CSV format."""
     filename = "osfeed-messages.csv"
     return StreamingResponse(
-        export_csv_service(user.id, channel_id, channel_ids, start_date, end_date),
+        export_csv_service(user.id, channel_id, channel_ids, start_date, end_date, media_types),
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
@@ -356,14 +410,16 @@ async def export_messages_html(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     limit: int = Query(200, ge=1, le=5000),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
-    """Export messages to HTML format."""
     return StreamingResponse(
-        export_html_service(user.id, channel_id, channel_ids, start_date, end_date, limit),
+        export_html_service(user.id, channel_id, channel_ids, start_date, end_date, limit, media_types),
         media_type="text/html",
         headers={"Content-Disposition": "attachment; filename=osfeed-messages.html"},
     )
+
+
 
 
 @router.get("/export/pdf")
@@ -373,13 +429,12 @@ async def export_messages_pdf(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     limit: int = Query(200, ge=1, le=1000),
+    media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
-    """Export messages to PDF format."""
-    pdf_bytes = await export_pdf_service(user.id, channel_id, channel_ids, start_date, end_date, limit)
+    pdf_bytes = await export_pdf_service(user.id, channel_id, channel_ids, start_date, end_date, limit, media_types)
 
     filename = "osfeed-messages.pdf"
-
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",
@@ -396,6 +451,8 @@ async def get_message_media(
 
     Streams the media bytes directly from Telegram to the client.
     """
+    from app.models.channel import user_channels
+
     async with AsyncSessionLocal() as db:
         result = await db.execute(
             select(Message)
@@ -481,6 +538,60 @@ async def get_message(
         raise HTTPException(status_code=404, detail="Message not found")
 
     return message_to_response(message)
+
+
+@router.get("/{message_id}/similar", response_model=SimilarMessagesResponse)
+@response_cache(expire=300, namespace="messages-similar")
+async def get_similar_messages(
+    message_id: UUID,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get similar messages based on duplicate_group_id."""
+    result = await db.execute(
+        select(Message).where(Message.id == message_id)
+    )
+    source_message = result.scalar_one_or_none()
+
+    if not source_message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if not source_message.duplicate_group_id:
+        return SimilarMessagesResponse(
+            messages=[],
+            total=0,
+            page=1,
+            page_size=0,
+            duplicate_group_id=None,
+        )
+
+    query = (
+        select(Message)
+        .options(selectinload(Message.channel))
+        .join(Channel, Message.channel_id == Channel.id)
+        .join(
+            user_channels,
+            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id)
+        )
+        .where(
+            and_(
+                Message.duplicate_group_id == source_message.duplicate_group_id,
+                Message.id != message_id
+            )
+        )
+        .order_by(desc(Message.published_at), desc(Message.id))
+    )
+
+    result = await db.execute(query)
+    messages = result.scalars().all()
+
+    return SimilarMessagesResponse(
+        messages=[message_to_response(message) for message in messages],
+        total=len(messages),
+        page=1,
+        page_size=len(messages),
+        duplicate_group_id=source_message.duplicate_group_id,
+    )
 
 
 @router.post("/{message_id}/translate", response_model=MessageResponse)
