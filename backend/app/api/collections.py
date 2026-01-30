@@ -19,7 +19,13 @@ from app.schemas.collection import CollectionCreate, CollectionResponse, Collect
 from app.schemas.collection_share import CollectionShareCreate, CollectionShareResponse
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
-from app.utils.export import create_csv_writer, generate_csv_row, MESSAGE_CSV_COLUMNS
+from app.utils.export import (
+    create_csv_writer,
+    generate_csv_row,
+    generate_html_article,
+    generate_html_template,
+    MESSAGE_CSV_COLUMNS,
+)
 
 router = APIRouter()
 
@@ -606,27 +612,14 @@ async def export_collection_messages(
         rows = result.all()
         from html import escape
 
-        html_lines = [
-            "<!DOCTYPE html>",
-            "<html lang='fr'>",
-            "<head><meta charset='utf-8'><title>OSFeed - Collection Export</title>",
-            "<style>body{font-family:Arial,sans-serif;background:#f8fafc;color:#0f172a;padding:24px;}h1{font-size:20px;}article{margin:16px 0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;}small{color:#64748b;}</style>",
-            "</head><body>",
-            f"<h1>Collection: {escape(collection.name)}</h1>",
-        ]
+        html_parts = [generate_html_template("OSFeed - Collection Export")]
+        html_parts.append(f"<h1>Collection: {escape(collection.name)}</h1>")
         if collection.description:
-            html_lines.append(f"<p>{escape(collection.description)}</p>")
+            html_parts.append(f"<p>{escape(collection.description)}</p>")
         for message, channel in rows:
-            html_lines.append("<article>")
-            html_lines.append(
-                f"<small>{escape(channel.title)} · {escape(channel.username)} · {message.published_at}</small>"
-            )
-            html_lines.append(f"<p>{escape(message.translated_text or message.original_text or '')}</p>")
-            if message.translated_text and message.original_text:
-                html_lines.append(f"<p><small>Original: {escape(message.original_text)}</small></p>")
-            html_lines.append("</article>")
-        html_lines.append("</body></html>")
-        html = "\n".join(html_lines)
+            html_parts.append(generate_html_article(message, channel))
+        html_parts.append("</body></html>")
+        html = "".join(html_parts)
         return StreamingResponse(
             iter([html]),
             media_type="text/html",
