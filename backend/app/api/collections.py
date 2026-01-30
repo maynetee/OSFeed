@@ -6,8 +6,7 @@ from sqlalchemy.orm import selectinload
 from uuid import UUID
 from typing import List, Optional
 from datetime import datetime, timedelta
-from io import BytesIO, StringIO
-import csv
+from io import BytesIO
 
 from app.database import get_db
 from app.models.collection import Collection, collection_channels
@@ -20,13 +19,10 @@ from app.schemas.collection_share import CollectionShareCreate, CollectionShareR
 from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
 from app.utils.response_cache import response_cache
-from app.utils.export import (
-    create_csv_writer,
-    generate_csv_row,
-    generate_html_article,
-    generate_html_template,
-    generate_pdf_bytes,
-    MESSAGE_CSV_COLUMNS,
+from app.services.message_export_service import (
+    export_messages_csv,
+    export_messages_html,
+    export_messages_pdf,
 )
 
 router = APIRouter()
@@ -609,71 +605,46 @@ async def export_collection_messages(
     if not channel_ids:
         raise HTTPException(status_code=400, detail="Collection has no channels")
 
-    query = select(Message, Channel).join(Channel)
-    query = query.where(Message.channel_id.in_(channel_ids))
-    if start_date:
-        query = query.where(Message.published_at >= start_date)
-    if end_date:
-        query = query.where(Message.published_at <= end_date)
-
     if format == "csv":
-        result = await db.execute(query.order_by(desc(Message.published_at)))
-        rows = result.all()
-        writer, output = create_csv_writer()
-        writer.writerow(["collection", collection.name])
-        writer.writerow(["description", collection.description or ""])
-        writer.writerow(["channels", len(channel_ids)])
-        writer.writerow([])
-        writer.writerow(MESSAGE_CSV_COLUMNS)
-        for message, channel in rows:
-            writer.writerow(generate_csv_row(message, channel))
-        output.seek(0)
         filename = f"osfeed-collection-{collection_id}.csv"
         return StreamingResponse(
-            iter([output.getvalue()]),
+            export_messages_csv(
+                user_id=user.id,
+                channel_ids=channel_ids,
+                start_date=start_date,
+                end_date=end_date,
+            ),
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     if format == "html":
-        result = await db.execute(query.order_by(desc(Message.published_at)).limit(limit))
-        rows = result.all()
-        from html import escape
-
-        html_parts = [generate_html_template("OSFeed - Collection Export")]
-        html_parts.append(f"<h1>Collection: {escape(collection.name)}</h1>")
-        if collection.description:
-            html_parts.append(f"<p>{escape(collection.description)}</p>")
-        for message, channel in rows:
-            html_parts.append(generate_html_article(message, channel))
-        html_parts.append("</body></html>")
-        html = "".join(html_parts)
+        filename = f"osfeed-collection-{collection_id}.html"
         return StreamingResponse(
-            iter([html]),
+            export_messages_html(
+                user_id=user.id,
+                channel_ids=channel_ids,
+                start_date=start_date,
+                end_date=end_date,
+            ),
             media_type="text/html",
-            headers={"Content-Disposition": f"attachment; filename=osfeed-collection-{collection_id}.html"},
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     if format == "pdf":
-        result = await db.execute(query.order_by(desc(Message.published_at)).limit(limit))
-        rows = result.all()
-        from html import escape
-
-        html_parts = [generate_html_template("OSFeed - Collection Export")]
-        html_parts.append(f"<h1>Collection: {escape(collection.name)}</h1>")
-        if collection.description:
-            html_parts.append(f"<p>{escape(collection.description)}</p>")
-        for message, channel in rows:
-            html_parts.append(generate_html_article(message, channel))
-        html_parts.append("</body></html>")
-        html = "".join(html_parts)
-
-        pdf_bytes = generate_pdf_bytes(html)
+        filename = f"osfeed-collection-{collection_id}.pdf"
+        pdf_bytes = await export_messages_pdf(
+            user_id=user.id,
+            channel_ids=channel_ids,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+        )
         return StreamingResponse(
             BytesIO(pdf_bytes),
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename=osfeed-collection-{collection_id}.pdf",
+                "Content-Disposition": f"attachment; filename={filename}",
             },
         )
 
