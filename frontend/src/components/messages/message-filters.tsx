@@ -15,20 +15,24 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
   const {
     channelIds,
     dateRange,
+    mediaType,
     collectionIds,
     setChannelIds,
     setCollectionIds,
     setDateRange,
+    setMediaType,
     setFiltersTouched,
     resetFilters,
   } = useFilterStore(
     useShallow((state) => ({
       channelIds: state.channelIds,
       dateRange: state.dateRange,
+      mediaType: state.mediaType,
       collectionIds: state.collectionIds,
       setChannelIds: state.setChannelIds,
       setCollectionIds: state.setCollectionIds,
       setDateRange: state.setDateRange,
+      setMediaType: state.setMediaType,
       setFiltersTouched: state.setFiltersTouched,
       resetFilters: state.resetFilters,
     }))
@@ -77,6 +81,29 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
               }}
             >
               {range.label}
+            </Button>
+          ))}
+        </div>
+
+        <p className="text-xs font-semibold uppercase text-foreground/40">{t('filters.mediaType')}</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: 'all', label: t('filters.all') },
+            { value: 'text', label: t('filters.text') },
+            { value: 'photo', label: t('filters.photo') },
+            { value: 'video', label: t('filters.video') },
+            { value: 'document', label: t('filters.document') },
+          ].map((type) => (
+            <Button
+              key={type.value}
+              variant={mediaType === type.value ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setFiltersTouched(true)
+                setMediaType(type.value as 'all' | 'text' | 'photo' | 'video' | 'document')
+              }}
+            >
+              {type.label}
             </Button>
           ))}
         </div>
