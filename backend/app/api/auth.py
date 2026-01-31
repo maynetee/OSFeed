@@ -25,6 +25,7 @@ from app.services.auth_rate_limiter import (
     rate_limit_register,
     rate_limit_login,
 )
+from app.services.email_service import _redact_email
 from app.services.translation_service import invalidate_channel_translation_cache
 from app.models.channel import user_channels
 
@@ -41,19 +42,19 @@ async def register(
     user_manager: BaseUserManager = Depends(get_user_manager),
 ):
     """Register a new user with detailed error logging."""
-    logger.info(f"Registration attempt for email: {user_create.email}")
+    logger.info(f"Registration attempt for email: {_redact_email(user_create.email)}")
     try:
         created_user = await user_manager.create(user_create, safe=True, request=request)
-        logger.info(f"Registration successful for email: {user_create.email}")
+        logger.info(f"Registration successful for email: {_redact_email(user_create.email)}")
         return created_user
     except UserAlreadyExists:
-        logger.warning(f"Registration failed: email already exists ({user_create.email})")
+        logger.warning(f"Registration failed: email already exists ({_redact_email(user_create.email)})")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=ErrorCode.REGISTER_USER_ALREADY_EXISTS,
         )
     except fapi_exceptions.InvalidPasswordException as e:
-        logger.warning(f"Registration failed: invalid password for {user_create.email} - {e.reason}")
+        logger.warning(f"Registration failed: invalid password for {_redact_email(user_create.email)} - {e.reason}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={
@@ -62,7 +63,7 @@ async def register(
             },
         )
     except Exception as e:
-        logger.error(f"Registration failed with unexpected error for {user_create.email}: {type(e).__name__}: {e}", exc_info=True)
+        logger.error(f"Registration failed with unexpected error for {_redact_email(user_create.email)}: {type(e).__name__}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="REGISTER_UNEXPECTED_ERROR",
