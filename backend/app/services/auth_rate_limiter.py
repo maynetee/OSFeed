@@ -89,13 +89,12 @@ async def rate_limit_forgot_password(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"forgot_password:{client_ip}",
-            max_requests=3,
-            window_seconds=900,  # 15 minutes
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"forgot_password:{client_ip}",
+        max_requests=3,
+        window_seconds=900,  # 15 minutes
+    )
 
 
 async def rate_limit_request_verify(request: Request):
@@ -104,13 +103,12 @@ async def rate_limit_request_verify(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"request_verify:{client_ip}",
-            max_requests=3,
-            window_seconds=900,  # 15 minutes
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"request_verify:{client_ip}",
+        max_requests=3,
+        window_seconds=900,  # 15 minutes
+    )
 
 
 async def rate_limit_register(request: Request):
@@ -119,13 +117,12 @@ async def rate_limit_register(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"register:{client_ip}",
-            max_requests=5,
-            window_seconds=3600,  # 1 hour
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"register:{client_ip}",
+        max_requests=5,
+        window_seconds=3600,  # 1 hour
+    )
 
 
 async def rate_limit_login(request: Request):
@@ -134,10 +131,9 @@ async def rate_limit_login(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"login:{client_ip}",
-            max_requests=5,
-            window_seconds=900,  # 15 minutes
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"login:{client_ip}",
+        max_requests=5,
+        window_seconds=900,  # 15 minutes
+    )
