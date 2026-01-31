@@ -159,10 +159,10 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </fieldset>
 
         {collectionOptions.length ? (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-foreground/40">
+          <fieldset>
+            <legend className="text-xs font-semibold uppercase text-foreground/40">
               {t('filters.collections')}
-            </p>
+            </legend>
             <div className="flex flex-wrap gap-2">
               {collectionOptions.map((collection) => {
                 const active = collectionIds.includes(collection.id)
@@ -179,13 +179,14 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
                           : [...collectionIds, collection.id],
                       )
                     }}
+                    aria-pressed={active}
                   >
                     {collection.name}
                   </Button>
                 )
               })}
             </div>
-          </div>
+          </fieldset>
         ) : null}
       </CardContent>
     </Card>
