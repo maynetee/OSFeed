@@ -68,14 +68,13 @@ class AuthRateLimiter:
 _auth_rate_limiter: Optional[AuthRateLimiter] = None
 
 
-def get_auth_rate_limiter() -> Optional[AuthRateLimiter]:
+def get_auth_rate_limiter() -> AuthRateLimiter:
     """Get the auth rate limiter singleton."""
     global _auth_rate_limiter
     settings = get_settings()
     if _auth_rate_limiter is None:
         if not settings.redis_url:
-            logger.warning("Redis not configured - rate limiting disabled")
-            return None
+            raise RuntimeError("REDIS_URL not configured - rate limiter requires Redis")
         _auth_rate_limiter = AuthRateLimiter(settings.redis_url)
     return _auth_rate_limiter
 
