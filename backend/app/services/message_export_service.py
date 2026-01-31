@@ -4,21 +4,26 @@ This module provides functions for exporting messages in various formats (CSV, H
 """
 
 import asyncio
-import csv
-import html
 import logging
 from datetime import datetime
-from io import StringIO, BytesIO
+from io import StringIO
 from typing import Optional, AsyncGenerator
 from uuid import UUID
 
-from sqlalchemy import select, desc, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
 
 from app.database import AsyncSessionLocal
 from app.models.message import Message
-from app.models.channel import Channel, user_channels
+from app.models.channel import Channel
 from app.services.message_utils import apply_message_filters as _apply_message_filters
+from app.utils.export import (
+    MESSAGE_CSV_COLUMNS,
+    create_csv_writer,
+    generate_csv_row,
+    generate_html_template,
+    generate_html_article,
+    generate_pdf_bytes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +34,7 @@ async def export_messages_csv(
     channel_ids: Optional[list[UUID]] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    media_types: Optional[list[str]] = None,
 ) -> AsyncGenerator[str, None]:
     """Export messages to CSV format.
 
@@ -38,19 +44,15 @@ async def export_messages_csv(
         channel_ids: Optional list of channel IDs to filter by
         start_date: Optional start date for filtering messages
         end_date: Optional end date for filtering messages
+        media_types: Optional list of media types to filter by
 
     Yields:
         CSV data chunks as strings
     """
-    output = StringIO()
-    writer = csv.writer(output)
+    writer, output = create_csv_writer()
 
     # Write CSV header
-    writer.writerow([
-        "message_id", "channel_title", "channel_username", "published_at",
-        "original_text", "translated_text", "source_language",
-        "target_language", "is_duplicate"
-    ])
+    writer.writerow(MESSAGE_CSV_COLUMNS)
     yield output.getvalue()
     output.seek(0)
     output.truncate(0)
@@ -61,7 +63,7 @@ async def export_messages_csv(
     while True:
         async with AsyncSessionLocal() as db:
             query = select(Message, Channel).join(Channel)
-            query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date)
+            query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date, media_types)
             query = query.order_by(desc(Message.published_at))
             query = query.limit(batch_size).offset(offset)
 
@@ -72,17 +74,7 @@ async def export_messages_csv(
                 break
 
             for message, channel in rows:
-                writer.writerow([
-                    str(message.id),
-                    channel.title,
-                    channel.username,
-                    message.published_at,
-                    message.original_text or "",
-                    message.translated_text or "",
-                    message.source_language or "",
-                    message.target_language or "",
-                    message.is_duplicate,
-                ])
+                writer.writerow(generate_csv_row(message, channel))
 
             data = output.getvalue()
             if data:
@@ -101,6 +93,8 @@ async def export_messages_html(
     channel_ids: Optional[list[UUID]] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    limit: int = 200,
+    media_types: Optional[list[str]] = None,
 ) -> AsyncGenerator[str, None]:
     """Export messages to HTML format.
 
@@ -110,165 +104,47 @@ async def export_messages_html(
         channel_ids: Optional list of channel IDs to filter by
         start_date: Optional start date for filtering messages
         end_date: Optional end date for filtering messages
+        limit: Maximum number of messages to export (default: 200)
+        media_types: Optional list of media types to filter by
 
     Yields:
         HTML data chunks as strings
     """
-    # Write HTML header and table start
-    html_header = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Message Export</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f5f5f5;
-        }
-        h1 {
-            color: #333;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
-        }
-        tr:hover {
-            background-color: #f5f5f5;
-        }
-        .duplicate {
-            color: #ff9800;
-        }
-    </style>
-</head>
-<body>
-    <h1>Message Export</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Message ID</th>
-                <th>Channel</th>
-                <th>Username</th>
-                <th>Published At</th>
-                <th>Original Text</th>
-                <th>Translated Text</th>
-                <th>Source Lang</th>
-                <th>Target Lang</th>
-                <th>Duplicate</th>
-            </tr>
-        </thead>
-        <tbody>
-"""
-    yield html_header
+    yield generate_html_template("OSFeed - Messages")
+    yield "<h1>Export messages</h1>"
 
-    batch_size = 500
+    batch_size = 100
     offset = 0
+    processed = 0
 
-    while True:
+    while processed < limit:
+        curr_limit = min(batch_size, limit - processed)
+
         async with AsyncSessionLocal() as db:
             query = select(Message, Channel).join(Channel)
-            query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date)
+            query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date, media_types)
             query = query.order_by(desc(Message.published_at))
-            query = query.limit(batch_size).offset(offset)
-
+            query = query.limit(curr_limit).offset(offset)
             result = await db.execute(query)
             rows = result.all()
 
-            if not rows:
-                break
+        if not rows:
+            break
 
-            output = StringIO()
-            for message, channel in rows:
-                duplicate_class = ' class="duplicate"' if message.is_duplicate else ''
-                output.write(f"            <tr{duplicate_class}>\n")
-                output.write(f"                <td>{html.escape(str(message.id))}</td>\n")
-                output.write(f"                <td>{html.escape(channel.title or '')}</td>\n")
-                output.write(f"                <td>{html.escape(channel.username or '')}</td>\n")
-                output.write(f"                <td>{html.escape(str(message.published_at))}</td>\n")
-                output.write(f"                <td>{html.escape(message.original_text or '')}</td>\n")
-                output.write(f"                <td>{html.escape(message.translated_text or '')}</td>\n")
-                output.write(f"                <td>{html.escape(message.source_language or '')}</td>\n")
-                output.write(f"                <td>{html.escape(message.target_language or '')}</td>\n")
-                output.write(f"                <td>{html.escape(str(message.is_duplicate))}</td>\n")
-                output.write("            </tr>\n")
+        chunk = []
+        for message, channel in rows:
+            chunk.append(generate_html_article(message, channel))
 
-            data = output.getvalue()
-            if data:
-                yield data
+        yield "".join(chunk)
 
-            offset += len(rows)
-            if len(rows) < batch_size:
-                break
+        count = len(rows)
+        processed += count
+        offset += count
 
-    # Write HTML footer
-    html_footer = """        </tbody>
-    </table>
-</body>
-</html>
-"""
-    yield html_footer
+        if count < curr_limit:
+            break
 
-
-def _generate_pdf_bytes(rows: list[dict]) -> bytes:
-    """Generate PDF bytes in a blocking thread safely.
-
-    Args:
-        rows: List of dictionaries containing message data with keys:
-              channel_title, channel_username, published_at,
-              translated_text, original_text
-
-    Returns:
-        PDF file content as bytes
-    """
-    from fpdf import FPDF
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=14)
-    pdf.cell(0, 10, "OSFeed - Messages", ln=True)
-    pdf.set_font("Helvetica", size=11)
-
-    for item in rows:
-        title = item["channel_title"]
-        username = item["channel_username"]
-        published_at = item["published_at"]
-        translated = item["translated_text"]
-        original = item["original_text"]
-
-        header = f"{title} (@{username}) - {published_at}"
-        text = translated or original or ""
-        text = text.encode('latin-1', 'replace').decode('latin-1')
-        header = header.encode('latin-1', 'replace').decode('latin-1')
-
-        pdf.multi_cell(0, 8, header)
-        pdf.set_font("Helvetica", size=10)
-        pdf.multi_cell(0, 6, text)
-
-        if translated and original:
-            pdf.set_font("Helvetica", size=9)
-            orig_text = original.encode('latin-1', 'replace').decode('latin-1')
-            pdf.multi_cell(0, 6, f"Original: {orig_text}")
-
-        pdf.ln(2)
-        pdf.set_font("Helvetica", size=11)
-
-    output = pdf.output(dest="S")
-    if isinstance(output, str):
-        return output.encode("latin-1", errors="ignore")
-    return output
+    yield "</body></html>"
 
 
 async def export_messages_pdf(
@@ -278,6 +154,7 @@ async def export_messages_pdf(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     limit: int = 1000,
+    media_types: Optional[list[str]] = None,
 ) -> bytes:
     """Export messages to PDF format.
 
@@ -288,13 +165,14 @@ async def export_messages_pdf(
         start_date: Optional start date for filtering messages
         end_date: Optional end date for filtering messages
         limit: Maximum number of messages to export (default: 1000)
+        media_types: Optional list of media types to filter by
 
     Returns:
         PDF file content as bytes
     """
     async with AsyncSessionLocal() as db:
         query = select(Message, Channel).join(Channel)
-        query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date)
+        query = _apply_message_filters(query, user_id, channel_id, channel_ids, start_date, end_date, media_types)
         query = query.order_by(desc(Message.published_at))
         query = query.limit(limit)
         result = await db.execute(query)
@@ -313,5 +191,5 @@ async def export_messages_pdf(
     if not data:
         return b""
 
-    pdf_bytes = await asyncio.to_thread(_generate_pdf_bytes, data)
+    pdf_bytes = await asyncio.to_thread(generate_pdf_bytes, data)
     return pdf_bytes
