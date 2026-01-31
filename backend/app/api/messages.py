@@ -56,7 +56,8 @@ def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
         message_id = UUID(message_id_raw)
         return published_at, message_id
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid cursor format: {str(exc)}") from exc
+        logger.warning(f"Failed to decode cursor: {type(exc).__name__}: {exc}")
+        raise HTTPException(status_code=400, detail="Invalid cursor format")
 
 
 from app.models.channel import user_channels
