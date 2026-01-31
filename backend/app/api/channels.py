@@ -664,8 +664,17 @@ async def delete_channel(
 
     Requires authentication.
     """
-    # Verify channel exists
-    result = await db.execute(select(Channel).where(Channel.id == channel_id))
+    # Verify channel exists and user has access (single query to prevent enumeration)
+    result = await db.execute(
+        select(Channel)
+        .join(user_channels, Channel.id == user_channels.c.channel_id)
+        .where(
+            and_(
+                user_channels.c.user_id == user.id,
+                Channel.id == channel_id
+            )
+        )
+    )
     channel = result.scalar_one_or_none()
 
     if not channel:
@@ -681,7 +690,7 @@ async def delete_channel(
             )
         )
     )
-    
+
     # Optional: If no users are left, we could potentially deactivate it,
     # but for now, we leave it active for simplicity or background cleanup.
 
