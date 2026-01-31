@@ -632,7 +632,15 @@ async def get_channel(
     Requires authentication.
     """
     result = await db.execute(
-        select(Channel).where(Channel.id == channel_id, Channel.is_active == True)
+        select(Channel)
+        .join(user_channels, Channel.id == user_channels.c.channel_id)
+        .where(
+            and_(
+                user_channels.c.user_id == user.id,
+                Channel.id == channel_id,
+                Channel.is_active == True
+            )
+        )
     )
     channel = result.scalar_one_or_none()
 
