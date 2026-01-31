@@ -51,9 +51,12 @@ class AuthRateLimiter:
                 )
         except HTTPException:
             raise
-        except Exception:
-            logger.warning("Redis unavailable - rate limiting disabled for this request")
-            return True
+        except Exception as e:
+            logger.error(f"Redis connection error - rate limiter unavailable: {type(e).__name__}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter unavailable",
+            )
 
         return True
 
