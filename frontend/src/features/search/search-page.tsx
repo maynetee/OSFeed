@@ -74,34 +74,41 @@ export function SearchPage() {
         />
         <Button variant="secondary">{t('search.launch')}</Button>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={!collectionIds.length ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setCollectionIds([])}
-        >
-          {t('collections.allCollections')}
-        </Button>
-        {(collectionsQuery.data ?? []).map((collection) => {
-          const active = collectionIds.includes(collection.id)
-          return (
-            <Button
-              key={collection.id}
-              variant={active ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() =>
-                setCollectionIds(
-                  active
-                    ? collectionIds.filter((id) => id !== collection.id)
-                    : [...collectionIds, collection.id],
-                )
-              }
-            >
-              {collection.name}
-            </Button>
-          )
-        })}
-      </div>
+      <fieldset>
+        <legend className="text-xs font-semibold uppercase text-foreground/40">
+          {t('filters.collections')}
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={!collectionIds.length ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setCollectionIds([])}
+            aria-pressed={!collectionIds.length}
+          >
+            {t('collections.allCollections')}
+          </Button>
+          {(collectionsQuery.data ?? []).map((collection) => {
+            const active = collectionIds.includes(collection.id)
+            return (
+              <Button
+                key={collection.id}
+                variant={active ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() =>
+                  setCollectionIds(
+                    active
+                      ? collectionIds.filter((id) => id !== collection.id)
+                      : [...collectionIds, collection.id],
+                  )
+                }
+                aria-pressed={active}
+              >
+                {collection.name}
+              </Button>
+            )
+          })}
+        </div>
+      </fieldset>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
