@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "032-prevent-auth-rate-limiter-from-silently-failing-op",
+  "spec": "052-prevent-internal-error-details-from-leaking-to-api",
   "state": "building",
   "subtasks": {
-    "completed": 3,
+    "completed": 0,
     "total": 5,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Testing and Verification",
+    "current": "Verification and Documentation",
     "id": null,
-    "total": 2
+    "total": 5
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 5,
-    "started_at": "2026-02-01T00:17:49.308597"
+    "number": 1,
+    "started_at": "2026-02-01T23:58:45.544549"
   },
-  "last_update": "2026-02-01T00:28:51.873294"
+  "last_update": "2026-02-01T23:58:45.599846"
 }
