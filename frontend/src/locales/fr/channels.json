@@ -31,6 +31,8 @@
   "fetchTotal": "{{count}} total",
   "fetchProgress": "{{done}} / {{total}} traduits",
   "delete": "Supprimer",
+  "deleteConfirmTitle": "Supprimer le canal",
+  "deleteConfirmDescription": "Êtes-vous sûr de vouloir supprimer @{{username}} ? Cela supprimera tous les messages de ce canal. Cette action est irréversible.",
   "assignCollections": "Collections",
   "assignCollectionsTitle": "Assigner aux collections",
   "addError": "Echec de l'ajout du canal",
@@ -44,6 +46,5 @@
   "bulkResults": "{{success}} ajoutés, {{failed}} échoués",
   "bulkSucceeded": "Ajouté avec succès",
   "bulkFailed": "Échec de l'ajout",
-  "deleteConfirmTitle": "Supprimer le canal ?",
   "deleteConfirmMessage": "Êtes-vous sûr de vouloir supprimer {{username}} ? Cette action est irréversible."
 }

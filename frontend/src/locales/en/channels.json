@@ -31,6 +31,8 @@
   "fetchTotal": "{{count}} total",
   "fetchProgress": "{{done}} / {{total}} translated",
   "delete": "Delete",
+  "deleteConfirmTitle": "Delete channel",
+  "deleteConfirmDescription": "Are you sure you want to delete @{{username}}? This will remove all messages from this channel. This action cannot be undone.",
   "assignCollections": "Collections",
   "assignCollectionsTitle": "Assign collections",
   "addError": "Failed to add channel",
@@ -44,6 +46,5 @@
   "bulkResults": "{{success}} added, {{failed}} failed",
   "bulkSucceeded": "Added successfully",
   "bulkFailed": "Failed to add",
-  "deleteConfirmTitle": "Delete channel?",
   "deleteConfirmMessage": "Are you sure you want to delete {{username}}? This action cannot be undone."
 }
