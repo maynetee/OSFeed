@@ -738,7 +738,14 @@ async def get_message(
 ):
     """Get a single message by ID."""
     result = await db.execute(
-        select(Message).options(selectinload(Message.channel)).where(Message.id == message_id)
+        select(Message)
+        .options(selectinload(Message.channel))
+        .join(Channel, Message.channel_id == Channel.id)
+        .join(
+            user_channels,
+            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id),
+        )
+        .where(Message.id == message_id)
     )
     message = result.scalar_one_or_none()
 
