@@ -7,6 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 interface CollectionSharesProps {
   collectionId: string
@@ -17,6 +25,7 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
   const queryClient = useQueryClient()
   const [userId, setUserId] = useState('')
   const [permission, setPermission] = useState('viewer')
+  const [shareToRemove, setShareToRemove] = useState<string | null>(null)
 
   const sharesQuery = useQuery({
     queryKey: ['collection-shares', collectionId],
@@ -33,7 +42,10 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
 
   const removeShare = useMutation({
     mutationFn: (id: string) => collectionsApi.removeShare(collectionId, id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['collection-shares', collectionId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['collection-shares', collectionId] })
+      setShareToRemove(null)
+    },
   })
 
   const shares = sharesQuery.data ?? []
@@ -86,7 +98,7 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => removeShare.mutate(share.user_id)}
+                    onClick={() => setShareToRemove(share.user_id)}
                   >
                     {t('collections.remove')}
                   </Button>
@@ -98,6 +110,28 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
           )}
         </div>
       </CardContent>
+      <Dialog open={Boolean(shareToRemove)} onOpenChange={(open) => !open && setShareToRemove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('collections.removeShareTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('collections.removeShareDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareToRemove(null)}>
+              {t('collections.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => shareToRemove && removeShare.mutate(shareToRemove)}
+              disabled={removeShare.isPending}
+            >
+              {t('collections.remove')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
