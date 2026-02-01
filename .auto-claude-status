@@ -3,7 +3,7 @@
   "spec": "052-prevent-internal-error-details-from-leaking-to-api",
   "state": "building",
   "subtasks": {
-    "completed": 0,
+    "completed": 2,
     "total": 5,
     "in_progress": 1,
     "failed": 0
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 1,
+    "number": 3,
     "started_at": "2026-02-01T23:58:45.544549"
   },
-  "last_update": "2026-02-01T23:58:45.599846"
+  "last_update": "2026-02-02T00:04:15.333872"
 }
