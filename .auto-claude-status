@@ -1,17 +1,17 @@
 {
   "active": true,
-  "spec": "032-prevent-auth-rate-limiter-from-silently-failing-op",
+  "spec": "050-fix-idor-vulnerabilities-in-get-channel-get-messag",
   "state": "building",
   "subtasks": {
     "completed": 3,
-    "total": 5,
+    "total": 4,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Testing and Verification",
+    "current": "Verify IDOR Fixes",
     "id": null,
-    "total": 2
+    "total": 4
   },
   "workers": {
     "active": 0,
@@ -19,7 +19,7 @@
   },
   "session": {
     "number": 5,
-    "started_at": "2026-02-01T00:17:49.308597"
+    "started_at": "2026-02-01T23:58:43.075486"
   },
-  "last_update": "2026-02-01T00:28:51.873294"
+  "last_update": "2026-02-02T00:04:52.587217"
 }
