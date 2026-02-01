@@ -624,6 +624,7 @@ async def fetch_jobs_status(
 
 
 @router.get("/{channel_id}", response_model=ChannelResponse)
+@response_cache(expire=60, namespace="channels-detail")
 async def get_channel(
     request: Request,
     channel_id: UUID,
