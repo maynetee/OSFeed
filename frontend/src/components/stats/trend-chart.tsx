@@ -51,9 +51,20 @@ export function TrendChart({ data }: TrendChartProps) {
     return () => observer.disconnect()
   }, [])
 
+  // Generate accessible description
+  const minCount = Math.min(...data.map((d) => d.count))
+  const maxCount = Math.max(...data.map((d) => d.count))
+  const totalPoints = data.length
+  const chartLabel = `Message trend chart showing ${totalPoints} data points from ${data[0]?.date || 'N/A'} to ${data[data.length - 1]?.date || 'N/A'}, ranging from ${minCount} to ${maxCount} messages`
+
   return (
     <>
-      <div className="h-64 w-full" role="img" aria-label={t('stats.trendChartLabel')}>
+      <div
+        className="h-64 w-full"
+        role="img"
+        aria-label={chartLabel}
+        aria-describedby="trend-chart-data"
+      >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <XAxis
@@ -85,7 +96,8 @@ export function TrendChart({ data }: TrendChartProps) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <table className="sr-only">
+      {/* Visually hidden data table for screen readers */}
+      <table id="trend-chart-data" className="sr-only">
         <caption>{t('stats.trendChartTableCaption')}</caption>
         <thead>
           <tr>
