@@ -63,96 +63,106 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
           ) : null}
         </div>
 
-        <p className="text-xs font-semibold uppercase text-foreground/40">{t('filters.period')}</p>
-        <div className="flex flex-wrap gap-2">
-          {[
-            { value: '24h', label: '24h' },
-            { value: '7d', label: '7d' },
-            { value: '30d', label: '30d' },
-            { value: 'all', label: t('filters.all') },
-          ].map((range) => (
+        <fieldset>
+          <legend className="text-xs font-semibold uppercase text-foreground/40">{t('filters.period')}</legend>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: '24h', label: '24h' },
+              { value: '7d', label: '7d' },
+              { value: '30d', label: '30d' },
+              { value: 'all', label: t('filters.all') },
+            ].map((range) => (
+              <Button
+                key={range.value}
+                variant={dateRange === range.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setFiltersTouched(true)
+                  setDateRange(range.value as '24h' | '7d' | '30d' | 'all')
+                }}
+                aria-pressed={dateRange === range.value}
+              >
+                {range.label}
+              </Button>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-xs font-semibold uppercase text-foreground/40">{t('filters.mediaTypes')}</legend>
+          <div className="flex flex-wrap gap-2">
             <Button
-              key={range.value}
-              variant={dateRange === range.value ? 'default' : 'outline'}
+              variant={mediaTypes.length === 0 ? 'default' : 'outline'}
               size="sm"
               onClick={() => {
                 setFiltersTouched(true)
-                setDateRange(range.value as '24h' | '7d' | '30d' | 'all')
+                setMediaTypes([])
               }}
+              aria-pressed={mediaTypes.length === 0}
             >
-              {range.label}
+              {t('filters.all')}
             </Button>
-          ))}
-        </div>
+            {[
+              { value: 'text', label: t('filters.text') },
+              { value: 'photo', label: t('filters.photo') },
+              { value: 'video', label: t('filters.video') },
+              { value: 'document', label: t('filters.document') },
+            ].map((type) => {
+              const active = mediaTypes.includes(type.value)
+              return (
+                <Button
+                  key={type.value}
+                  variant={active ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setFiltersTouched(true)
+                    setMediaTypes(
+                      active
+                        ? mediaTypes.filter((t) => t !== type.value)
+                        : [...mediaTypes, type.value]
+                    )
+                  }}
+                  aria-pressed={active}
+                >
+                  {type.label}
+                </Button>
+              )
+            })}
+          </div>
+        </fieldset>
 
-        <p className="text-xs font-semibold uppercase text-foreground/40">{t('filters.mediaTypes')}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={mediaTypes.length === 0 ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              setFiltersTouched(true)
-              setMediaTypes([])
-            }}
-          >
-            {t('filters.all')}
-          </Button>
-          {[
-            { value: 'text', label: t('filters.text') },
-            { value: 'photo', label: t('filters.photo') },
-            { value: 'video', label: t('filters.video') },
-            { value: 'document', label: t('filters.document') },
-          ].map((type) => {
-            const active = mediaTypes.includes(type.value)
-            return (
-              <Button
-                key={type.value}
-                variant={active ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setFiltersTouched(true)
-                  setMediaTypes(
-                    active
-                      ? mediaTypes.filter((t) => t !== type.value)
-                      : [...mediaTypes, type.value]
-                  )
-                }}
-              >
-                {type.label}
-              </Button>
-            )
-          })}
-        </div>
-
-        <p className="text-xs font-semibold uppercase text-foreground/40">{t('filters.channels')}</p>
-        <div className="flex flex-wrap gap-2">
-          {channelOptions.map((channel) => {
-            const active = channelIds.includes(channel.id)
-            return (
-              <Button
-                key={channel.id}
-                variant={active ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setFiltersTouched(true)
-                  setChannelIds(
-                    active
-                      ? channelIds.filter((id) => id !== channel.id)
-                      : [...channelIds, channel.id],
-                  )
-                }}
-              >
-                {channel.title}
-              </Button>
-            )
-          })}
-        </div>
+        <fieldset>
+          <legend className="text-xs font-semibold uppercase text-foreground/40">{t('filters.channels')}</legend>
+          <div className="flex flex-wrap gap-2">
+            {channelOptions.map((channel) => {
+              const active = channelIds.includes(channel.id)
+              return (
+                <Button
+                  key={channel.id}
+                  variant={active ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    setFiltersTouched(true)
+                    setChannelIds(
+                      active
+                        ? channelIds.filter((id) => id !== channel.id)
+                        : [...channelIds, channel.id],
+                    )
+                  }}
+                  aria-pressed={active}
+                >
+                  {channel.title}
+                </Button>
+              )
+            })}
+          </div>
+        </fieldset>
 
         {collectionOptions.length ? (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase text-foreground/40">
+          <fieldset>
+            <legend className="text-xs font-semibold uppercase text-foreground/40">
               {t('filters.collections')}
-            </p>
+            </legend>
             <div className="flex flex-wrap gap-2">
               {collectionOptions.map((collection) => {
                 const active = collectionIds.includes(collection.id)
@@ -169,13 +179,14 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
                           : [...collectionIds, collection.id],
                       )
                     }}
+                    aria-pressed={active}
                   >
                     {collection.name}
                   </Button>
                 )
               })}
             </div>
-          </div>
+          </fieldset>
         ) : null}
       </CardContent>
     </Card>

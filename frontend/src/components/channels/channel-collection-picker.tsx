@@ -94,27 +94,33 @@ export function ChannelCollectionPicker({ channelId, collections }: ChannelColle
               </Button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {collections.map((collection) => {
-              const active = selectedIds.includes(collection.id)
-              return (
-                <Button
-                  key={collection.id}
-                  variant={active ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() =>
-                    setSelectedIds(
-                      active
-                        ? selectedIds.filter((id) => id !== collection.id)
-                        : [...selectedIds, collection.id],
-                    )
-                  }
-                >
-                  {collection.name}
-                </Button>
-              )
-            })}
-          </div>
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-xs font-semibold uppercase text-foreground/40">
+              {t('collections.title')}
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {collections.map((collection) => {
+                const active = selectedIds.includes(collection.id)
+                return (
+                  <Button
+                    key={collection.id}
+                    variant={active ? 'secondary' : 'outline'}
+                    size="sm"
+                    aria-pressed={active}
+                    onClick={() =>
+                      setSelectedIds(
+                        active
+                          ? selectedIds.filter((id) => id !== collection.id)
+                          : [...selectedIds, collection.id],
+                      )
+                    }
+                  >
+                    {collection.name}
+                  </Button>
+                )
+              })}
+            </div>
+          </fieldset>
           <Button onClick={() => updateCollections.mutate()} disabled={updateCollections.isPending}>
             {updateCollections.isPending ? t('collections.saving') : t('collections.save')}
           </Button>
