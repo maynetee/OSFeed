@@ -101,8 +101,8 @@ export function TrendChart({ data }: TrendChartProps) {
         <caption>{t('stats.trendChartTableCaption')}</caption>
         <thead>
           <tr>
-            <th>{t('stats.trendChartDateHeader')}</th>
-            <th>{t('stats.trendChartCountHeader')}</th>
+            <th scope="col">{t('stats.trendChartDateHeader')}</th>
+            <th scope="col">{t('stats.trendChartCountHeader')}</th>
           </tr>
         </thead>
         <tbody>
