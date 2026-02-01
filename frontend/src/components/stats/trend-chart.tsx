@@ -1,12 +1,15 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from 'recharts'
+import { useTranslation } from 'react-i18next'
 
 interface TrendChartProps {
   data: { date: string; count: number }[]
 }
 
 export function TrendChart({ data }: TrendChartProps) {
+  const { t } = useTranslation()
+
   return (
-    <div className="h-64 w-full">
+    <div className="h-64 w-full" role="img" aria-label={t('stats.trendChartLabel')}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <XAxis
