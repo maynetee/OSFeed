@@ -1,5 +1,15 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import type { Collection } from '@/lib/api/client'
 import { useTranslation } from 'react-i18next'
 
@@ -12,6 +22,12 @@ interface CollectionCardProps {
 
 export function CollectionCard({ collection, onView, onEdit, onDelete }: CollectionCardProps) {
   const { t } = useTranslation()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
+  const handleDelete = () => {
+    onDelete?.(collection.id)
+    setDeleteDialogOpen(false)
+  }
 
   return (
     <Card className="animate-rise-in">
@@ -32,9 +48,27 @@ export function CollectionCard({ collection, onView, onEdit, onDelete }: Collect
           <Button variant="ghost" size="lg" onClick={() => onEdit?.(collection)}>
             {t('collections.edit')}
           </Button>
-          <Button variant="ghost" size="lg" onClick={() => onDelete?.(collection.id)}>
-            {t('collections.delete')}
-          </Button>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="lg">
+                {t('collections.delete')}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t('collections.deleteConfirmTitle')}</DialogTitle>
+                <DialogDescription>{t('collections.deleteConfirmMessage')}</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  {t('collections.delete')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardContent>
     </Card>

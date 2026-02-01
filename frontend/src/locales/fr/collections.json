@@ -17,6 +17,8 @@
   "viewFeed": "Voir feed",
   "edit": "Modifier",
   "delete": "Supprimer",
+  "deleteConfirmTitle": "Supprimer la collection ?",
+  "deleteConfirmMessage": "Cette action est irreversible. Toutes les donnees associees a cette collection seront definitivement supprimees.",
   "channelsCount": "{{count}} canaux",
   "emptyDescriptionLabel": "Aucune description",
   "allChannels": "Tous les canaux",

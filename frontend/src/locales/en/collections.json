@@ -17,6 +17,8 @@
   "viewFeed": "View feed",
   "edit": "Edit",
   "delete": "Delete",
+  "deleteConfirmTitle": "Delete collection?",
+  "deleteConfirmMessage": "This action cannot be undone. All data associated with this collection will be permanently removed.",
   "channelsCount": "{{count}} channels",
   "emptyDescriptionLabel": "No description",
   "allChannels": "All channels",
