@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/cn'
 import { useUiStore } from '@/stores/ui-store'
 import { statsApi } from '@/lib/api/client'
+import { useMobile } from '@/hooks/use-mobile'
 
 const navItems = [
   { key: 'feed', to: '/feed', icon: Radio },
@@ -25,6 +26,9 @@ const navItems = [
 
 export function Sidebar() {
   const collapsed = useUiStore((state) => state.sidebarCollapsed)
+  const mobileDrawerOpen = useUiStore((state) => state.mobileDrawerOpen)
+  const closeMobileDrawer = useUiStore((state) => state.closeMobileDrawer)
+  const isMobile = useMobile()
   const { t } = useTranslation()
 
   const { data: stats } = useQuery({
@@ -38,18 +42,18 @@ export function Sidebar() {
     ? Math.round((stats.duplicates_last_24h / stats.messages_last_24h) * 100)
     : 0
 
-  return (
+  const sidebarContent = (
     <aside
       className={cn(
         'flex h-full flex-col border-r border-sidebar-border bg-sidebar-bg px-4 py-6',
-        collapsed ? 'w-20' : 'w-64',
+        isMobile ? 'w-64' : collapsed ? 'w-20' : 'w-64',
       )}
     >
-      <div className={cn('flex items-center gap-3 px-2', collapsed && 'justify-center')}>
+      <div className={cn('flex items-center gap-3 px-2', !isMobile && collapsed && 'justify-center')}>
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
           <span className="text-lg font-semibold">O</span>
         </div>
-        {!collapsed && (
+        {(isMobile || !collapsed) && (
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground-muted">
               OSFeed
@@ -72,22 +76,22 @@ export function Sidebar() {
                   isActive
                     ? 'bg-primary/15 text-primary'
                     : 'text-foreground-muted hover:bg-muted hover:text-foreground',
-                  collapsed && 'justify-center px-2',
+                  !isMobile && collapsed && 'justify-center px-2',
                 )
               }
             >
               <Icon className="h-4 w-4" />
-              {!collapsed && <span>{t(`navigation.${item.key}`)}</span>}
+              {(isMobile || !collapsed) && <span>{t(`navigation.${item.key}`)}</span>}
             </NavLink>
           )
         })}
       </nav>
 
-      <div className={cn('mt-auto rounded-xl border border-border bg-card p-4', collapsed && 'p-3')}>
-        <p className={cn('text-xs font-semibold uppercase tracking-wide text-foreground-muted', collapsed && 'text-center')}>
+      <div className={cn('mt-auto rounded-xl border border-border bg-card p-4', !isMobile && collapsed && 'p-3')}>
+        <p className={cn('text-xs font-semibold uppercase tracking-wide text-foreground-muted', !isMobile && collapsed && 'text-center')}>
           {t('sidebar.status')}
         </p>
-        {!collapsed && (
+        {(isMobile || !collapsed) && (
           <p className="mt-2 text-xs text-foreground-muted">
             {t('sidebar.statusSummary', {
               duplicates: statusDuplicates,
@@ -98,4 +102,25 @@ export function Sidebar() {
       </div>
     </aside>
   )
+
+  if (isMobile) {
+    return (
+      <>
+        {mobileDrawerOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fade-in"
+              onClick={closeMobileDrawer}
+              aria-hidden="true"
+            />
+            <div className="fixed inset-y-0 left-0 z-50 data-[state=open]:animate-slide-in-from-left">
+              {sidebarContent}
+            </div>
+          </>
+        )}
+      </>
+    )
+  }
+
+  return sidebarContent
 }
