@@ -92,11 +92,11 @@ export function ChannelCard({
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onView?.(channel.id)}>
+          <Button variant="ghost" size="lg" onClick={() => onView?.(channel.id)}>
             {t('channels.viewMessages')}
           </Button>
           <ChannelCollectionPicker channelId={channel.id} collections={collections} />
-          <Button variant="ghost" size="sm" onClick={() => onDelete?.(channel.id)}>
+          <Button variant="ghost" size="lg" onClick={() => onDelete?.(channel.id)}>
             {t('channels.delete')}
           </Button>
         </div>

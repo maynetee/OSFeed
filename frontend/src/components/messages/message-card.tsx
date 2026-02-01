@@ -59,10 +59,10 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
                 asChild
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 text-foreground/60 hover:text-foreground"
+                className="text-foreground/60 hover:text-foreground"
               >
                 <a href={telegramLink} target="_blank" rel="noreferrer" aria-label={t('messages.openTelegram')}>
-                  <ExternalLink className="h-3.5 w-3.5" />
+                  <ExternalLink className="h-4 w-4" />
                 </a>
               </Button>
             ) : null}
@@ -101,7 +101,7 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
         {showTelegramEmbed && !showMedia ? (
           <Button
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={() => setShowMedia(true)}
             className="w-fit"
           >
@@ -121,14 +121,14 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
 
         <div className="flex flex-wrap items-center gap-2">
           {message.duplicate_group_id ? (
-            <Button variant="ghost" size="sm" onClick={() => setShowSimilar(true)}>
+            <Button variant="ghost" size="lg" onClick={() => setShowSimilar(true)}>
               {t('messages.similar')}
             </Button>
           ) : null}
-          <Button variant="ghost" size="sm" onClick={handleCopy}>
+          <Button variant="ghost" size="lg" onClick={handleCopy}>
             {t('messages.copy')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleExport}>
+          <Button variant="ghost" size="lg" onClick={handleExport}>
             {t('messages.export')}
           </Button>
         </div>

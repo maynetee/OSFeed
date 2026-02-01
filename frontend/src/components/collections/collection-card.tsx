@@ -26,13 +26,13 @@ export function CollectionCard({ collection, onView, onEdit, onDelete }: Collect
           <p className="text-xs text-foreground/60">{collection.description}</p>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onView?.(collection.id)}>
+          <Button variant="ghost" size="lg" onClick={() => onView?.(collection.id)}>
             {t('collections.viewFeed')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onEdit?.(collection)}>
+          <Button variant="ghost" size="lg" onClick={() => onEdit?.(collection)}>
             {t('collections.edit')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onDelete?.(collection.id)}>
+          <Button variant="ghost" size="lg" onClick={() => onDelete?.(collection.id)}>
             {t('collections.delete')}
           </Button>
         </div>
