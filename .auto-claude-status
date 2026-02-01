@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "032-prevent-auth-rate-limiter-from-silently-failing-op",
+  "spec": "051-stop-logging-plaintext-email-addresses-in-authenti",
   "state": "building",
   "subtasks": {
-    "completed": 3,
-    "total": 5,
+    "completed": 7,
+    "total": 9,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Testing and Verification",
+    "current": "Verification",
     "id": null,
-    "total": 2
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 5,
-    "started_at": "2026-02-01T00:17:49.308597"
+    "number": 6,
+    "started_at": "2026-02-01T23:58:44.610273"
   },
-  "last_update": "2026-02-01T00:28:51.873294"
+  "last_update": "2026-02-02T00:11:52.970058"
 }
