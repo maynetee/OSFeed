@@ -196,6 +196,22 @@ async def test_csp_prevents_unsafe_inline_by_default():
 
 
 @pytest.mark.asyncio
+async def test_csp_does_not_contain_unsafe_eval():
+    """Verify CSP policy does not contain 'unsafe-eval'."""
+    await init_db()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/health")
+        assert response.status_code == 200
+
+        csp = response.headers["Content-Security-Policy"]
+
+        # Verify 'unsafe-eval' is not present in the CSP header
+        assert "'unsafe-eval'" not in csp
+
+
+@pytest.mark.asyncio
 async def test_x_frame_options_prevents_clickjacking():
     """Verify X-Frame-Options header prevents clickjacking."""
     await init_db()
