@@ -43,5 +43,7 @@
   "bulkAddSubmitting": "Adding channels...",
   "bulkResults": "{{success}} added, {{failed}} failed",
   "bulkSucceeded": "Added successfully",
-  "bulkFailed": "Failed to add"
+  "bulkFailed": "Failed to add",
+  "deleteConfirmTitle": "Delete channel?",
+  "deleteConfirmMessage": "Are you sure you want to delete {{username}}? This action cannot be undone."
 }

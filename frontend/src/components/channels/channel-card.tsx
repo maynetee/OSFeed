@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { LanguageBadge } from '@/components/common/language-badge'
@@ -7,6 +8,15 @@ import type { Channel } from '@/lib/api/client'
 import { useTranslation } from 'react-i18next'
 import type { Collection } from '@/lib/api/client'
 import { ChannelCollectionPicker } from '@/components/channels/channel-collection-picker'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 
 interface ChannelCardProps {
   channel: Channel
@@ -22,6 +32,7 @@ export function ChannelCard({
   onDelete,
 }: ChannelCardProps) {
   const { t } = useTranslation()
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const channelCollections = collections.filter((collection) =>
     collection.channel_ids.includes(channel.id),
   )
@@ -96,9 +107,35 @@ export function ChannelCard({
             {t('channels.viewMessages')}
           </Button>
           <ChannelCollectionPicker channelId={channel.id} collections={collections} />
-          <Button variant="ghost" size="lg" onClick={() => onDelete?.(channel.id)}>
-            {t('channels.delete')}
-          </Button>
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="lg">
+                {t('channels.delete')}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t('channels.deleteConfirmTitle')}</DialogTitle>
+                <DialogDescription>
+                  {t('channels.deleteConfirmMessage', { username: channel.username })}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    onDelete?.(channel.id)
+                    setDeleteDialogOpen(false)
+                  }}
+                >
+                  {t('channels.delete')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </CardContent>
     </Card>
