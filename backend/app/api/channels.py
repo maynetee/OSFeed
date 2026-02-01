@@ -175,7 +175,8 @@ async def add_channel(
 
             except ValueError as e:
                 # Invalid username, private channel, etc.
-                raise HTTPException(status_code=400, detail=str(e))
+                logger.warning(f"Failed to resolve/join channel '{username}': {e}")
+                raise HTTPException(status_code=400, detail="Unable to add channel. It may be private or invalid.")
 
         # Assign to collections (for both new and existing linked channels)
         collections_result = await db.execute(
@@ -236,9 +237,9 @@ async def add_channel(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("Error adding channel")
+        logger.error(f"Unexpected error adding channel '{username}' for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        raise HTTPException(status_code=500, detail="CHANNEL_ADD_ERROR")
 
 
 @router.post("/bulk", response_model=BulkChannelResponse)
@@ -374,9 +375,10 @@ async def add_channels_bulk(
 
                 except ValueError as e:
                     # Invalid username, private channel, etc.
+                    logger.warning(f"Failed to resolve/join channel '{username}' in bulk operation: {e}")
                     failed.append(BulkChannelFailure(
                         username=username,
-                        error=str(e)
+                        error="Unable to add channel. It may be private or invalid."
                     ))
                     continue
 
@@ -439,10 +441,10 @@ async def add_channels_bulk(
             succeeded.append(ChannelResponse.model_validate(response))
 
         except Exception as e:
-            logger.exception(f"Error adding channel {username} in bulk operation")
+            logger.error(f"Unexpected error adding channel '{username}' in bulk operation for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
             failed.append(BulkChannelFailure(
                 username=username,
-                error=f"Error: {str(e)}"
+                error="Failed to add channel due to an internal error."
             ))
             continue
 
@@ -582,13 +584,13 @@ async def refresh_channel_info(
             ))
             logger.info(f"Updated info for {channel.username}: {channel.subscriber_count} subscribers")
         except Exception as e:
-            logger.error(f"Failed to refresh info for {channel.username}: {e}")
+            logger.error(f"Failed to refresh info for {channel.username} (user {user.id}): {type(e).__name__}: {e}", exc_info=True)
             results.append(ChannelInfoUpdate(
                 channel_id=channel.id,
                 subscriber_count=channel.subscriber_count,
                 title=channel.title,
                 success=False,
-                error=str(e)
+                error="Failed to refresh channel information."
             ))
 
     await db.commit()
