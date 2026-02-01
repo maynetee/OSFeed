@@ -51,9 +51,12 @@ class AuthRateLimiter:
                 )
         except HTTPException:
             raise
-        except Exception:
-            logger.warning("Redis unavailable - rate limiting disabled for this request")
-            return True
+        except Exception as e:
+            logger.error(f"Redis connection error - rate limiter unavailable: {type(e).__name__}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter unavailable",
+            )
 
         return True
 
@@ -68,14 +71,13 @@ class AuthRateLimiter:
 _auth_rate_limiter: Optional[AuthRateLimiter] = None
 
 
-def get_auth_rate_limiter() -> Optional[AuthRateLimiter]:
+def get_auth_rate_limiter() -> AuthRateLimiter:
     """Get the auth rate limiter singleton."""
     global _auth_rate_limiter
     settings = get_settings()
     if _auth_rate_limiter is None:
         if not settings.redis_url:
-            logger.warning("Redis not configured - rate limiting disabled")
-            return None
+            raise RuntimeError("REDIS_URL not configured - rate limiter requires Redis")
         _auth_rate_limiter = AuthRateLimiter(settings.redis_url)
     return _auth_rate_limiter
 
@@ -87,13 +89,12 @@ async def rate_limit_forgot_password(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"forgot_password:{client_ip}",
-            max_requests=3,
-            window_seconds=900,  # 15 minutes
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"forgot_password:{client_ip}",
+        max_requests=3,
+        window_seconds=900,  # 15 minutes
+    )
 
 
 async def rate_limit_request_verify(request: Request):
@@ -102,13 +103,12 @@ async def rate_limit_request_verify(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"request_verify:{client_ip}",
-            max_requests=3,
-            window_seconds=900,  # 15 minutes
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"request_verify:{client_ip}",
+        max_requests=3,
+        window_seconds=900,  # 15 minutes
+    )
 
 
 async def rate_limit_register(request: Request):
@@ -117,13 +117,12 @@ async def rate_limit_register(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"register:{client_ip}",
-            max_requests=5,
-            window_seconds=3600,  # 1 hour
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"register:{client_ip}",
+        max_requests=5,
+        window_seconds=3600,  # 1 hour
+    )
 
 
 async def rate_limit_login(request: Request):
@@ -132,10 +131,9 @@ async def rate_limit_login(request: Request):
     if request.method == "OPTIONS":
         return
     limiter = get_auth_rate_limiter()
-    if limiter:
-        client_ip = request.client.host if request.client else "unknown"
-        await limiter.check_rate_limit(
-            key=f"login:{client_ip}",
-            max_requests=5,
-            window_seconds=900,  # 15 minutes
-        )
+    client_ip = request.client.host if request.client else "unknown"
+    await limiter.check_rate_limit(
+        key=f"login:{client_ip}",
+        max_requests=5,
+        window_seconds=900,  # 15 minutes
+    )
