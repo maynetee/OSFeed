@@ -83,5 +83,11 @@
   "removeShareDescription": "This user will no longer be able to access this collection.",
   "confirmDelete": "Delete alert?",
   "confirmDeleteAlertMessage": "This alert will be permanently deleted and will no longer trigger notifications.",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "deleteConfirm": {
+    "title": "Delete collection?",
+    "description": "This action cannot be undone. The collection will be permanently deleted.",
+    "confirm": "Delete",
+    "cancel": "Cancel"
+  }
 }

@@ -1,15 +1,6 @@
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import type { Collection } from '@/lib/api/client'
 import { useTranslation } from 'react-i18next'
 
@@ -22,12 +13,6 @@ interface CollectionCardProps {
 
 export function CollectionCard({ collection, onView, onEdit, onDelete }: CollectionCardProps) {
   const { t } = useTranslation()
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-
-  const handleDelete = () => {
-    onDelete?.(collection.id)
-    setDeleteDialogOpen(false)
-  }
 
   return (
     <Card className="animate-rise-in">
@@ -48,27 +33,19 @@ export function CollectionCard({ collection, onView, onEdit, onDelete }: Collect
           <Button variant="ghost" size="lg" onClick={() => onEdit?.(collection)}>
             {t('collections.edit')}
           </Button>
-          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-            <DialogTrigger asChild>
+          <ConfirmDialog
+            title={t('collections.deleteConfirm.title')}
+            description={t('collections.deleteConfirm.description')}
+            confirmText={t('collections.deleteConfirm.confirm')}
+            cancelText={t('collections.deleteConfirm.cancel')}
+            variant="destructive"
+            onConfirm={() => onDelete?.(collection.id)}
+            triggerButton={
               <Button variant="ghost" size="lg">
                 {t('collections.delete')}
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{t('collections.deleteConfirmTitle')}</DialogTitle>
-                <DialogDescription>{t('collections.deleteConfirmMessage')}</DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                  {t('common.cancel')}
-                </Button>
-                <Button variant="destructive" onClick={handleDelete}>
-                  {t('collections.delete')}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            }
+          />
         </div>
       </CardContent>
     </Card>
