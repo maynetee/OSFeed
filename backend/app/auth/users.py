@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
-from app.services.email_service import email_service
+from app.services.email_service import email_service, _redact_email
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
