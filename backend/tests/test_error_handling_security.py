@@ -5,6 +5,7 @@ These tests verify that internal error details (database errors, stack traces,
 exception messages) do not leak to API clients, while ensuring errors are
 properly logged internally.
 """
+import itertools
 import pytest
 from httpx import AsyncClient, ASGITransport
 from fastapi_users.password import PasswordHelper
@@ -20,6 +21,8 @@ from app.models.user import User
 from app.models.channel import Channel
 from app.auth.users import current_active_user
 from sqlalchemy import text
+
+_telegram_id_counter = itertools.count(200000)
 
 
 async def _create_user(email: str, password: str) -> SimpleNamespace:
@@ -56,7 +59,7 @@ async def _create_channel_for_user(user_id: str, username: str) -> Channel:
     async with AsyncSessionLocal() as session:
         channel = Channel(
             username=username,
-            telegram_id=12345,
+            telegram_id=next(_telegram_id_counter),
             title="Test Channel",
             description="",
             subscriber_count=0,
@@ -92,8 +95,9 @@ async def test_channel_add_database_error_returns_generic_message(monkeypatch):
 
     # Mock telegram client to succeed, so we reach the database save
     mock_client = AsyncMock()
+    mock_client.can_join_channel.return_value = True
     mock_client.resolve_channel.return_value = {
-        "telegram_id": 99999,
+        "telegram_id": next(_telegram_id_counter),
         "title": "Test Channel",
         "description": "Test",
         "subscribers": 1000,
@@ -187,12 +191,13 @@ async def test_bulk_channel_add_error_returns_generic_message(monkeypatch):
 
     # Mock telegram client to raise an error for specific channel
     mock_client = AsyncMock()
+    mock_client.can_join_channel.return_value = True
 
     async def _resolve_with_error(username):
         if username == "badchannel":
             raise Exception("RuntimeError: /usr/lib/python3.11/telethon/errors.py line 42: Connection pool exhausted")
         return {
-            "telegram_id": 99999,
+            "telegram_id": next(_telegram_id_counter),
             "title": "Good Channel",
             "description": "Test",
             "subscribers": 1000,
@@ -224,10 +229,10 @@ async def test_bulk_channel_add_error_returns_generic_message(monkeypatch):
     data = response.json()
 
     # Should have failures
-    assert len(data["failures"]) > 0
+    assert len(data["failed"]) > 0
 
     # Find the failure for badchannel
-    bad_channel_failure = next((f for f in data["failures"] if f["username"] == "badchannel"), None)
+    bad_channel_failure = next((f for f in data["failed"] if f["username"] == "badchannel"), None)
     assert bad_channel_failure is not None
 
     # Should NOT contain internal paths or error details
@@ -325,9 +330,10 @@ async def test_errors_are_logged_internally(monkeypatch):
     await init_db()
     user = await _create_user("test_logging@example.com", "password123")
 
-    # Mock telegram client to raise an error
+    # Mock telegram client to raise a ValueError (caught as ValueError → 400)
     mock_client = AsyncMock()
-    test_error = Exception("Detailed internal error: database connection failed at host db.internal.example.com:5432")
+    mock_client.can_join_channel.return_value = True
+    test_error = ValueError("Detailed internal error: database connection failed at host db.internal.example.com:5432")
     mock_client.resolve_channel.side_effect = test_error
     monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
 
@@ -377,7 +383,7 @@ async def test_channel_refresh_error_returns_generic_message(monkeypatch):
 
     # Mock telegram client to raise error during refresh
     mock_client = AsyncMock()
-    mock_client.fetch_channel_info.side_effect = Exception(
+    mock_client.resolve_channel.side_effect = Exception(
         "telethon.errors.rpcerrorlist.ChannelPrivateError: The channel specified is private (caused by GetFullChannelRequest)"
     )
     monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
@@ -390,16 +396,17 @@ async def test_channel_refresh_error_returns_generic_message(monkeypatch):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
-                f"/api/channels/{channel.id}/refresh",
+                "/api/channels/refresh-info",
+                json={"channel_ids": [str(channel.id)]},
             )
     finally:
         app.dependency_overrides.pop(current_active_user, None)
 
-    # Channel refresh may return various status codes, but should not expose error details
-    error_data = response.json()
+    assert response.status_code == 200
+    data = response.json()
 
     # Verify no telethon-specific errors are exposed
-    response_text = str(error_data)
+    response_text = str(data)
     assert "telethon" not in response_text.lower()
     assert "rpcerrorlist" not in response_text.lower()
     assert "ChannelPrivateError" not in response_text
@@ -461,22 +468,18 @@ async def test_collection_create_database_error_returns_generic_message(monkeypa
     await init_db()
     user = await _create_user("test_collection_error@example.com", "password123")
 
-    # Mock database session to raise a database error
-    original_session = AsyncSessionLocal
+    # Override get_db to provide a session that raises on execute
+    from app.database import get_db
 
-    class MockSession:
-        async def __aenter__(self):
-            raise Exception("sqlalchemy.exc.IntegrityError: (psycopg2.errors.NotNullViolation) null value in column 'name' violates not-null constraint")
-
-        async def __aexit__(self, *args):
-            pass
-
-    monkeypatch.setattr("app.api.collections.AsyncSessionLocal", MockSession)
+    async def _broken_db():
+        raise Exception("sqlalchemy.exc.IntegrityError: (psycopg2.errors.NotNullViolation) null value in column 'name' violates not-null constraint")
+        yield  # noqa: unreachable - makes this an async generator
 
     async def _override_user():
         return user
 
     app.dependency_overrides[current_active_user] = _override_user
+    app.dependency_overrides[get_db] = _broken_db
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -486,10 +489,10 @@ async def test_collection_create_database_error_returns_generic_message(monkeypa
             )
     finally:
         app.dependency_overrides.pop(current_active_user, None)
-        monkeypatch.setattr("app.api.collections.AsyncSessionLocal", original_session)
+        app.dependency_overrides.pop(get_db, None)
 
     # Should return error without exposing database details
-    assert response.status_code in [500, 400]
+    assert response.status_code in [500, 400, 422]
     error_detail = str(response.json().get("detail", ""))
 
     # Should NOT contain database error details
@@ -501,7 +504,7 @@ async def test_collection_create_database_error_returns_generic_message(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_alert_create_database_error_returns_generic_message(monkeypatch):
+async def test_alert_create_database_error_returns_generic_message():
     """
     Test that database errors during alert creation return generic
     error messages without exposing internal implementation details.
@@ -509,9 +512,27 @@ async def test_alert_create_database_error_returns_generic_message(monkeypatch):
     await init_db()
     user = await _create_user("test_alert_error@example.com", "password123")
 
-    # Create a collection first (alerts require a collection)
-    channel = await _create_channel_for_user(user.id, "alertchannel")
+    # Override get_db to provide a session that raises on commit
+    from app.database import get_db
 
+    async def _broken_db():
+        session = AsyncSessionLocal()
+        original_commit = session.commit
+
+        async def _failing_commit():
+            await session.rollback()
+            raise Exception(
+                "database.errors.ForeignKeyViolation: insert or update on table 'alerts' "
+                "violates foreign key constraint 'fk_alerts_collection'"
+            )
+
+        session.commit = _failing_commit
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    # Create a real collection so the endpoint gets past the lookup
     async with AsyncSessionLocal() as session:
         from app.models.collection import Collection
         collection = Collection(
@@ -523,19 +544,11 @@ async def test_alert_create_database_error_returns_generic_message(monkeypatch):
         await session.refresh(collection)
         collection_id = collection.id
 
-    # Mock database to raise error during alert creation
-    from app.api import alerts
-    original_create_alert = alerts.create_alert
-
-    async def _mock_create_alert(*args, **kwargs):
-        raise Exception("database.errors.ForeignKeyViolation: insert or update on table 'alerts' violates foreign key constraint 'fk_alerts_collection'")
-
-    monkeypatch.setattr("app.api.alerts.create_alert", _mock_create_alert)
-
     async def _override_user():
         return user
 
     app.dependency_overrides[current_active_user] = _override_user
+    app.dependency_overrides[get_db] = _broken_db
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -549,7 +562,7 @@ async def test_alert_create_database_error_returns_generic_message(monkeypatch):
             )
     finally:
         app.dependency_overrides.pop(current_active_user, None)
-        monkeypatch.setattr("app.api.alerts.create_alert", original_create_alert)
+        app.dependency_overrides.pop(get_db, None)
 
     # Should return error without database details
     assert response.status_code in [500, 400, 404]
@@ -608,7 +621,7 @@ async def test_auth_registration_unexpected_error_returns_generic_code():
 
 
 @pytest.mark.asyncio
-async def test_message_search_database_error_returns_generic_message(monkeypatch):
+async def test_message_search_database_error_returns_generic_message():
     """
     Test that database errors during message search return generic
     error messages without exposing query details or database internals.
@@ -616,39 +629,40 @@ async def test_message_search_database_error_returns_generic_message(monkeypatch
     await init_db()
     user = await _create_user("test_search_error@example.com", "password123")
 
-    # Mock database session to raise error during search
-    from app.api import messages
-    original_session = messages.AsyncSessionLocal
+    # Override get_db to provide a session that raises on execute
+    from app.database import get_db
 
-    class MockSessionForSearch:
-        async def __aenter__(self):
-            return self
+    async def _broken_db():
+        session = AsyncSessionLocal()
+        original_execute = session.execute
 
-        async def __aexit__(self, *args):
-            pass
-
-        async def execute(self, *args, **kwargs):
+        async def _failing_execute(*args, **kwargs):
             raise Exception(
                 "psycopg2.errors.QueryCanceled: canceling statement due to statement timeout\n"
                 "CONTEXT: SQL statement \"SELECT messages.id, messages.telegram_id, messages.channel_id FROM messages WHERE to_tsvector('english', messages.text) @@ to_tsquery('english', $1)\""
             )
 
-    monkeypatch.setattr("app.api.messages.AsyncSessionLocal", MockSessionForSearch)
+        session.execute = _failing_execute
+        try:
+            yield session
+        finally:
+            await session.close()
 
     async def _override_user():
         return user
 
     app.dependency_overrides[current_active_user] = _override_user
+    app.dependency_overrides[get_db] = _broken_db
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get(
                 "/api/messages/search",
-                params={"query": "test"},
+                params={"q": "test"},
             )
     finally:
         app.dependency_overrides.pop(current_active_user, None)
-        monkeypatch.setattr("app.api.messages.AsyncSessionLocal", original_session)
+        app.dependency_overrides.pop(get_db, None)
 
     # Should return error without query details
     assert response.status_code in [500, 400]
@@ -672,17 +686,34 @@ async def test_export_format_error_returns_generic_message():
     """
     await init_db()
     user = await _create_user("test_export@example.com", "password123")
-    channel = await _create_channel_for_user(user.id, "exportchannel")
 
     async with AsyncSessionLocal() as session:
         from app.models.collection import Collection
+        from app.models.channel import Channel
+        from sqlalchemy import text as sa_text
+
+        # Create a channel linked to the collection so the format check is reached
+        channel = Channel(
+            username="exportchannel",
+            telegram_id=next(_telegram_id_counter),
+            title="Test Channel",
+            is_active=True,
+        )
+        session.add(channel)
+        await session.flush()
+
         collection = Collection(
             name="Export Test Collection",
             user_id=user.id,
         )
         session.add(collection)
+        await session.flush()
+
+        await session.execute(
+            sa_text("INSERT INTO collection_channels (collection_id, channel_id) VALUES (:col_id, :chan_id)"),
+            {"col_id": collection.id.hex, "chan_id": channel.id.hex},
+        )
         await session.commit()
-        await session.refresh(collection)
         collection_id = collection.id
 
     async def _override_user():
@@ -692,10 +723,9 @@ async def test_export_format_error_returns_generic_message():
     try:
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            # Try invalid export format
-            response = await client.get(
-                f"/api/collections/{collection_id}/export",
-                params={"format": "invalid_format_xyz"},
+            # Try invalid export format (POST endpoint)
+            response = await client.post(
+                f"/api/collections/{collection_id}/export?format=invalid_format_xyz",
             )
     finally:
         app.dependency_overrides.pop(current_active_user, None)

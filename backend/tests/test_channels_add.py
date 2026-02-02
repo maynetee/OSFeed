@@ -1,3 +1,4 @@
+import itertools
 from uuid import UUID, uuid4
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -13,6 +14,8 @@ from app.models.fetch_job import FetchJob
 from app.auth.users import current_active_user
 from sqlalchemy import text, select
 from datetime import datetime, timezone
+
+_telegram_id_counter = itertools.count(100000)
 
 
 async def _create_user(email: str, password: str) -> SimpleNamespace:
@@ -43,8 +46,10 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
         return SimpleNamespace(id=UUID(user_id), email=email)
 
 
-async def _create_channel(username: str, telegram_id: int = 12345) -> Channel:
+async def _create_channel(username: str, telegram_id: int | None = None) -> Channel:
     """Create a channel without linking to any user."""
+    if telegram_id is None:
+        telegram_id = next(_telegram_id_counter)
     async with AsyncSessionLocal() as session:
         channel = Channel(
             username=username,
@@ -65,7 +70,7 @@ async def _create_channel_for_user(user_id, username: str) -> Channel:
     async with AsyncSessionLocal() as session:
         channel = Channel(
             username=username,
-            telegram_id=12345,
+            telegram_id=next(_telegram_id_counter),
             title="Test Channel",
             description="",
             subscriber_count=0,
@@ -95,12 +100,16 @@ def _mock_telegram_client():
     """Create a mock telegram client for testing."""
     mock_client = AsyncMock()
     mock_client.can_join_channel.return_value = True
-    mock_client.resolve_channel.return_value = {
-        "telegram_id": 99999,
-        "title": "Mocked Channel Title",
-        "description": "Mocked description",
-        "subscribers": 5000,
-    }
+
+    async def _resolve_channel(username):
+        return {
+            "telegram_id": next(_telegram_id_counter),
+            "title": "Mocked Channel Title",
+            "description": "Mocked description",
+            "subscribers": 5000,
+        }
+
+    mock_client.resolve_channel = AsyncMock(side_effect=_resolve_channel)
     mock_client.join_public_channel.return_value = None
     mock_client.record_channel_join.return_value = None
     return mock_client
@@ -122,6 +131,7 @@ async def test_add_channel_success(monkeypatch):
         days=7,
         status="queued",
         stage="queued",
+        created_at=datetime.now(timezone.utc),
     )
     mock_enqueue = AsyncMock(return_value=mock_job)
     monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
@@ -273,6 +283,9 @@ async def test_add_channel_links_existing_channel(monkeypatch):
     # Create second user
     user2 = await _create_user("user2_link@example.com", "password123")
 
+    mock_client = _mock_telegram_client()
+    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+
     mock_enqueue = AsyncMock(return_value=None)
     monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
 
@@ -322,7 +335,7 @@ async def test_add_channel_telegram_error(monkeypatch):
         app.dependency_overrides.pop(current_active_user, None)
 
     assert response.status_code == 400
-    assert "Channel not found or is private" in response.json()["detail"]
+    assert response.json()["detail"] == "Unable to add channel. It may be private or invalid."
 
 
 # Bulk channel addition tests
@@ -525,13 +538,11 @@ async def test_bulk_add_channels_telegram_error(monkeypatch):
     mock_client = _mock_telegram_client()
 
     # Make resolve_channel fail for specific channels
-    call_count = [0]
     async def conditional_resolve(username):
-        call_count[0] += 1
         if username == "privatechan":
             raise ValueError("Channel is private")
         return {
-            "telegram_id": 99999 + call_count[0],
+            "telegram_id": next(_telegram_id_counter),
             "title": f"Channel {username}",
             "description": "Description",
             "subscribers": 1000,
