@@ -29,8 +29,8 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
     """Helper to create a test user."""
     password_helper = PasswordHelper()
     user_uuid = uuid4()
-    # Store user ID as 32-char hex (matching GUID type adapter format for SQLite)
-    user_id_hex = user_uuid.hex
+    # Store user ID as 36-char dashed string (matching GUID type adapter's CHAR(36) format for SQLite)
+    user_id_str = str(user_uuid)
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
@@ -40,7 +40,7 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
                 ":is_verified, :role, :data_retention_days, :preferred_language, :created_at)"
             ),
             {
-                "id": user_id_hex,
+                "id": user_id_str,
                 "email": email,
                 "hashed_password": password_helper.hash(password),
                 "is_active": True,
@@ -58,8 +58,6 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
 
 async def _create_channel_for_user(user_id, username: str) -> Channel:
     """Create a channel and link it to a user."""
-    # Convert UUID to hex string for raw SQL (matching GUID type adapter format)
-    uid_hex = user_id.hex if hasattr(user_id, 'hex') else str(user_id)
     async with AsyncSessionLocal() as session:
         channel = Channel(
             username=username,
@@ -77,8 +75,10 @@ async def _create_channel_for_user(user_id, username: str) -> Channel:
                 "VALUES (:id, :user_id, :channel_id, :added_at)"
             ),
             {
+                # id and channel_id use UUID(as_uuid=True) → CHAR(32) hex in SQLite
                 "id": uuid4().hex,
-                "user_id": uid_hex,
+                # user_id uses GUID → CHAR(36) dashed in SQLite
+                "user_id": str(user_id),
                 "channel_id": channel.id.hex,
                 "added_at": None,
             },
@@ -360,7 +360,7 @@ async def test_errors_are_logged_internally(monkeypatch):
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/channels",
-                json={"username": "testchannel"},
+                json={"username": "loggingtestchannel"},
             )
     finally:
         app.dependency_overrides.pop(current_active_user, None)
@@ -378,7 +378,7 @@ async def test_errors_are_logged_internally(monkeypatch):
     logged_text = " ".join(logged_messages)
 
     # The internal error details should be in the logs
-    assert "testchannel" in logged_text.lower() or any("testchannel" in str(call[0]) for call in log_calls)
+    assert "loggingtestchannel" in logged_text.lower() or any("loggingtestchannel" in str(call[0]) for call in log_calls)
 
 
 @pytest.mark.asyncio
@@ -708,6 +708,7 @@ async def test_export_format_error_returns_generic_message():
 
         await session.execute(
             sa_text("INSERT INTO collection_channels (collection_id, channel_id) VALUES (:col_id, :chan_id)"),
+            # Both columns use UUID(as_uuid=True) → CHAR(32) hex in SQLite
             {"col_id": collection.id.hex, "chan_id": channel.id.hex},
         )
         await session.commit()
