@@ -103,6 +103,12 @@ docker compose exec backend python scripts/migrate_sqlite_to_postgres.py
 - API usage stats:
   - `GET /api/stats/api-usage?days=7`
 
+## Documentation
+
+For detailed technical documentation:
+- [Architecture Overview](docs/ARCHITECTURE.md) - System components, deployment, and infrastructure
+- [Data Flow Guide](docs/DATA_FLOW.md) - Message processing pipeline and data flows
+
 ## Requirements
 
 - Docker + Docker Compose (PostgreSQL, Qdrant, Redis, Backend, Frontend)
