@@ -7,14 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 
 interface CollectionSharesProps {
   collectionId: string
@@ -25,7 +18,6 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
   const queryClient = useQueryClient()
   const [userId, setUserId] = useState('')
   const [permission, setPermission] = useState('viewer')
-  const [shareToRemove, setShareToRemove] = useState<string | null>(null)
 
   const sharesQuery = useQuery({
     queryKey: ['collection-shares', collectionId],
@@ -44,7 +36,6 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
     mutationFn: (id: string) => collectionsApi.removeShare(collectionId, id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collection-shares', collectionId] })
-      setShareToRemove(null)
     },
   })
 
@@ -95,13 +86,19 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
                 <span>{share.user_id}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-foreground/60">{share.permission}</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShareToRemove(share.user_id)}
-                  >
-                    {t('collections.remove')}
-                  </Button>
+                  <ConfirmDialog
+                    title={t('collections.removeShareTitle')}
+                    description={t('collections.removeShareDescription')}
+                    confirmText={t('collections.remove')}
+                    cancelText={t('collections.cancel')}
+                    variant="destructive"
+                    onConfirm={() => removeShare.mutate(share.user_id)}
+                    triggerButton={
+                      <Button variant="outline" size="sm">
+                        {t('collections.remove')}
+                      </Button>
+                    }
+                  />
                 </div>
               </div>
             ))
@@ -110,28 +107,6 @@ export function CollectionShares({ collectionId }: CollectionSharesProps) {
           )}
         </div>
       </CardContent>
-      <Dialog open={Boolean(shareToRemove)} onOpenChange={(open) => !open && setShareToRemove(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('collections.removeShareTitle')}</DialogTitle>
-            <DialogDescription>
-              {t('collections.removeShareDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShareToRemove(null)}>
-              {t('collections.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => shareToRemove && removeShare.mutate(shareToRemove)}
-              disabled={removeShare.isPending}
-            >
-              {t('collections.remove')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   )
 }
