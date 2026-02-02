@@ -103,6 +103,7 @@ async def login(
     user_manager: BaseUserManager = Depends(get_user_manager),
     strategy: Strategy = Depends(auth_backend.get_strategy),
 ):
+    """Authenticate a user and return access and refresh tokens."""
     user = await user_manager.authenticate(credentials)
     if user is None or not user.is_active:
         raise HTTPException(
@@ -138,6 +139,7 @@ async def refresh_access_token(
     user_manager: BaseUserManager = Depends(get_user_manager),
     strategy: Strategy = Depends(auth_backend.get_strategy),
 ):
+    """Refresh an expired access token using a valid refresh token."""
     token_hash = hash_refresh_token(payload.refresh_token)
     session = user_manager.user_db.session
     result = await session.execute(select(User).where(User.refresh_token_hash == token_hash))
