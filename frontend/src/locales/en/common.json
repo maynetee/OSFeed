@@ -3,5 +3,6 @@
   "open": "Open",
   "pdf": "PDF",
   "html": "HTML",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "confirm": "Confirm"
 }

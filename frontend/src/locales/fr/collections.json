@@ -86,6 +86,8 @@
   "confirmDelete": "Supprimer l'alerte ?",
   "confirmDeleteAlertMessage": "Cette alerte sera définitivement supprimée et ne déclenchera plus de notifications.",
   "cancel": "Annuler",
+  "confirmRemoveShareTitle": "Retirer le partage ?",
+  "confirmRemoveShareDescription": "Cette action est irréversible. L'utilisateur perdra l'accès à cette collection.",
   "deleteConfirm": {
     "title": "Supprimer la collection ?",
     "description": "Cette action est irréversible. La collection sera définitivement supprimée.",
