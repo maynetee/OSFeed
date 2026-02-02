@@ -1,0 +1,6 @@
+{
+  "trendChartLabel": "Graphique linéaire montrant la tendance du nombre de messages au fil du temps",
+  "trendChartTableCaption": "Tableau de données de tendance du nombre de messages",
+  "trendChartDateHeader": "Date",
+  "trendChartCountHeader": "Nombre de messages"
+}

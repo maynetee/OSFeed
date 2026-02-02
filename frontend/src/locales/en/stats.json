@@ -1,0 +1,6 @@
+{
+  "trendChartLabel": "Line chart showing message count trend over time",
+  "trendChartTableCaption": "Message count trend data table",
+  "trendChartDateHeader": "Date",
+  "trendChartCountHeader": "Message Count"
+}
