@@ -113,3 +113,7 @@ local.settings.json
 .worktrees/
 .security-key
 logs/security/
+
+# Auto Claude generated files
+.auto-claude-security.json
+.auto-claude-status
