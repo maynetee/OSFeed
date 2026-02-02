@@ -10,7 +10,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { cn } from '@/lib/cn'
 import { useUiStore } from '@/stores/ui-store'
@@ -33,6 +33,7 @@ export function Sidebar() {
   const isMobile = useMobile()
   const { t } = useTranslation()
   const location = useLocation()
+  const drawerRef = useRef<HTMLDivElement>(null)
 
   // Auto-close mobile drawer on navigation
   useEffect(() => {
@@ -40,6 +41,49 @@ export function Sidebar() {
       closeMobileDrawer()
     }
   }, [location.pathname, isMobile, mobileDrawerOpen, closeMobileDrawer])
+
+  // Focus trap and keyboard handling for mobile drawer
+  useEffect(() => {
+    if (!isMobile || !mobileDrawerOpen || !drawerRef.current) return
+
+    const drawer = drawerRef.current
+    const focusableElements = drawer.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+
+    // Focus first element when drawer opens
+    firstElement?.focus()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape key closes drawer
+      if (e.key === 'Escape') {
+        closeMobileDrawer()
+        return
+      }
+
+      // Tab key focus trap
+      if (e.key !== 'Tab') return
+
+      if (e.shiftKey) {
+        // Shift + Tab
+        if (document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement?.focus()
+        }
+      } else {
+        // Tab
+        if (document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement?.focus()
+        }
+      }
+    }
+
+    drawer.addEventListener('keydown', handleKeyDown)
+    return () => drawer.removeEventListener('keydown', handleKeyDown)
+  }, [isMobile, mobileDrawerOpen, closeMobileDrawer])
 
   const { data: stats } = useQuery({
     queryKey: ['stats', 'overview'],
@@ -124,6 +168,7 @@ export function Sidebar() {
               aria-hidden="true"
             />
             <motion.div
+              ref={drawerRef}
               className="fixed inset-y-0 left-0 z-50"
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
