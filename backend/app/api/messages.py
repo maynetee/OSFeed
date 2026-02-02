@@ -21,6 +21,7 @@ from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
 from app.services.cache import get_redis_client
 from app.services.events import publish_message_translated
+from app.services.audit import record_audit_event
 from datetime import datetime, timezone
 from typing import Optional
 import base64
@@ -509,8 +510,25 @@ async def export_messages_csv(
     end_date: Optional[datetime] = None,
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Export filtered messages to CSV format."""
+    record_audit_event(
+        db=db,
+        user_id=user.id,
+        action="export_messages_csv",
+        resource_type="message",
+        resource_id=str(channel_id) if channel_id else None,
+        metadata={
+            "format": "csv",
+            "channel_id": str(channel_id) if channel_id else None,
+            "channel_ids": [str(cid) for cid in channel_ids] if channel_ids else None,
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+            "media_types": media_types,
+        },
+    )
+
     async def csv_generator():
         writer, output = create_csv_writer()
 
@@ -565,8 +583,26 @@ async def export_messages_html(
     limit: int = Query(200, ge=1, le=5000),
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Export filtered messages to HTML format."""
+    record_audit_event(
+        db=db,
+        user_id=user.id,
+        action="export_messages_html",
+        resource_type="message",
+        resource_id=str(channel_id) if channel_id else None,
+        metadata={
+            "format": "html",
+            "channel_id": str(channel_id) if channel_id else None,
+            "channel_ids": [str(cid) for cid in channel_ids] if channel_ids else None,
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+            "limit": limit,
+            "media_types": media_types,
+        },
+    )
+
     async def html_generator():
         yield generate_html_template("OSFeed - Messages")
         yield "<h1>Export messages</h1>"
@@ -622,14 +658,32 @@ async def export_messages_pdf(
     limit: int = Query(200, ge=1, le=1000),
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Export filtered messages to PDF format."""
-    async with AsyncSessionLocal() as db:
+    record_audit_event(
+        db=db,
+        user_id=user.id,
+        action="export_messages_pdf",
+        resource_type="message",
+        resource_id=str(channel_id) if channel_id else None,
+        metadata={
+            "format": "pdf",
+            "channel_id": str(channel_id) if channel_id else None,
+            "channel_ids": [str(cid) for cid in channel_ids] if channel_ids else None,
+            "start_date": start_date.isoformat() if start_date else None,
+            "end_date": end_date.isoformat() if end_date else None,
+            "limit": limit,
+            "media_types": media_types,
+        },
+    )
+
+    async with AsyncSessionLocal() as db_local:
         query = select(Message, Channel)
         query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
         query = query.order_by(desc(Message.published_at))
         query = query.limit(limit)
-        result = await db.execute(query)
+        result = await db_local.execute(query)
         rows = result.all()
 
     if not rows:
