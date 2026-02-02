@@ -50,37 +50,33 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
   return (
     <Card className="animate-rise-in transition hover:border-primary/40">
       <CardContent className="flex flex-col gap-4 py-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-foreground/60">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-foreground">{channelLabel}</span>
-            {channelHandle ? <span className="text-foreground/50">{channelHandle}</span> : null}
-            {telegramLink ? (
-              <Button
-                asChild
-                variant="ghost"
-                size="icon"
-                className="text-foreground/60 hover:text-foreground"
-              >
-                <a href={telegramLink} target="_blank" rel="noreferrer" aria-label={t('messages.openTelegram')}>
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              </Button>
-            ) : null}
-            <Timestamp value={message.published_at} />
-            {message.source_language ? <Badge variant="muted">{message.source_language}</Badge> : null}
-            {message.needs_translation && !message.translated_text ? (
-              <Badge variant="outline" className="animate-pulse">
-                {t('messages.translating')}
-              </Badge>
-            ) : null}
-            {message.translated_text ? <Badge variant="success">{t('messages.translated')}</Badge> : null}
-          </div>
-          <div className="flex items-center gap-2">
-            <DuplicateBadge isDuplicate={message.is_duplicate} score={duplicateScore} />
-            {showPrimarySource ? <Badge variant="success">{t('messages.primarySource')}</Badge> : null}
-            {showPropaganda ? <Badge variant="danger">{t('messages.propaganda')}</Badge> : null}
-            {message.media_type ? <Badge variant="outline">{message.media_type}</Badge> : null}
-          </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-foreground/60">
+          <span className="font-semibold text-foreground">{channelLabel}</span>
+          {channelHandle ? <span className="text-foreground/50">{channelHandle}</span> : null}
+          {telegramLink ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="text-foreground/60 hover:text-foreground"
+            >
+              <a href={telegramLink} target="_blank" rel="noreferrer" aria-label={t('messages.openTelegram')}>
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
+          ) : null}
+          <Timestamp value={message.published_at} />
+          {message.source_language ? <Badge variant="muted">{message.source_language}</Badge> : null}
+          {message.needs_translation && !message.translated_text ? (
+            <Badge variant="outline" className="animate-pulse">
+              {t('messages.translating')}
+            </Badge>
+          ) : null}
+          {message.translated_text ? <Badge variant="success">{t('messages.translated')}</Badge> : null}
+          <DuplicateBadge isDuplicate={message.is_duplicate} score={duplicateScore} />
+          {showPrimarySource ? <Badge variant="success">{t('messages.primarySource')}</Badge> : null}
+          {showPropaganda ? <Badge variant="danger">{t('messages.propaganda')}</Badge> : null}
+          {message.media_type ? <Badge variant="outline">{message.media_type}</Badge> : null}
         </div>
 
         <div className="space-y-3">
