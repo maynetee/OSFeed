@@ -55,6 +55,7 @@ async def list_alerts(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """List all alerts for the current user, optionally filtered by collection."""
     query = select(Alert).where(Alert.user_id == user.id)
     if collection_id:
         query = query.where(Alert.collection_id == collection_id)
@@ -68,6 +69,7 @@ async def create_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Create a new alert for a collection with specified keywords and entities."""
     try:
         collection, permission = await _get_collection_for_user(db, payload.collection_id, user.id)
         _assert_permission(collection, user, permission, "edit")
@@ -100,6 +102,7 @@ async def list_recent_triggers(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """List recent alert triggers across all of the user's alerts."""
     result = await db.execute(
         select(AlertTrigger)
         .join(Alert, AlertTrigger.alert_id == Alert.id)
@@ -116,6 +119,7 @@ async def get_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get a specific alert by ID."""
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -132,6 +136,7 @@ async def update_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Update an existing alert's configuration."""
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -157,6 +162,7 @@ async def delete_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Delete an alert permanently."""
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -175,6 +181,7 @@ async def list_alert_triggers(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """List all triggers for a specific alert."""
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
