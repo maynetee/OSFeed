@@ -71,6 +71,8 @@
   "alertsEmpty": "No alerts configured.",
   "alertsHistory": "Alert history",
   "alertsHistoryEmpty": "No alert triggers yet.",
+  "alertsDeleteTitle": "Delete alert?",
+  "alertsDeleteDescription": "This action cannot be undone. The alert and its history will be permanently deleted.",
   "allCollections": "All collections",
   "createdAt": "Created",
   "sharesTitle": "Sharing",

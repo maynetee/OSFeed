@@ -71,6 +71,8 @@
   "alertsEmpty": "Aucune alerte configuree.",
   "alertsHistory": "Historique alertes",
   "alertsHistoryEmpty": "Aucun declenchement pour le moment.",
+  "alertsDeleteTitle": "Supprimer l'alerte ?",
+  "alertsDeleteDescription": "Cette action est irréversible. L'alerte et son historique seront définitivement supprimés.",
   "allCollections": "Toutes les collections",
   "createdAt": "Creee",
   "sharesTitle": "Partage",
