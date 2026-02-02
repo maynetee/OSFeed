@@ -8,7 +8,7 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 
 from app.config import get_settings
-from app.database import init_db
+from app.database import init_db, get_engine
 from app.api import channels, messages, auth, collections, audit_logs, stats, alerts
 from app.jobs.collect_messages import collect_messages_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
@@ -151,7 +151,6 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint that verifies database connectivity."""
-    from app.database import get_engine
     from sqlalchemy import text
     from fastapi.responses import JSONResponse
 

@@ -55,104 +55,139 @@ async def test_check_rate_limit_returns_503_on_redis_connection_error():
     assert "Rate limiter unavailable" in str(exc_info.value.detail)
 
 
+def _remove_rate_limiter_overrides():
+    """Temporarily remove conftest rate limiter overrides so real dependencies run."""
+    from app.services.auth_rate_limiter import (
+        rate_limit_forgot_password,
+        rate_limit_request_verify,
+        rate_limit_register,
+        rate_limit_login,
+    )
+    deps = [rate_limit_forgot_password, rate_limit_request_verify,
+            rate_limit_register, rate_limit_login]
+    saved = {d: app.dependency_overrides.pop(d) for d in deps if d in app.dependency_overrides}
+    return saved, deps
+
+
+def _restore_rate_limiter_overrides(saved):
+    """Restore conftest rate limiter overrides."""
+    app.dependency_overrides.update(saved)
+
+
 @pytest.mark.asyncio
 async def test_login_endpoint_returns_503_when_redis_unavailable():
     """Test that login endpoint returns 503 when Redis connection fails."""
     await init_db()
+    saved, _ = _remove_rate_limiter_overrides()
 
-    # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
-    with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
-        # Create a limiter with unreachable Redis
-        mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
-        mock_get_limiter.return_value = mock_limiter
+    try:
+        # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
+        with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
+            # Create a limiter with unreachable Redis
+            mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
+            mock_get_limiter.return_value = mock_limiter
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/auth/login",
-                data={"username": "test@example.com", "password": "testpassword"},
-            )
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.post(
+                    "/api/auth/login",
+                    data={"username": "test@example.com", "password": "testpassword"},
+                )
 
-            # Should return 503, not allow the request through
-            assert response.status_code == 503, \
-                f"Expected 503 (service unavailable), got {response.status_code}"
-            assert "Rate limiter unavailable" in response.json()["detail"]
+                # Should return 503, not allow the request through
+                assert response.status_code == 503, \
+                    f"Expected 503 (service unavailable), got {response.status_code}"
+                assert "Rate limiter unavailable" in response.json()["detail"]
+    finally:
+        _restore_rate_limiter_overrides(saved)
 
 
 @pytest.mark.asyncio
 async def test_register_endpoint_returns_503_when_redis_unavailable():
     """Test that register endpoint returns 503 when Redis connection fails."""
     await init_db()
+    saved, _ = _remove_rate_limiter_overrides()
 
-    # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
-    with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
-        # Create a limiter with unreachable Redis
-        mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
-        mock_get_limiter.return_value = mock_limiter
+    try:
+        # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
+        with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
+            # Create a limiter with unreachable Redis
+            mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
+            mock_get_limiter.return_value = mock_limiter
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/auth/register",
-                json={
-                    "email": "newuser@example.com",
-                    "password": "SecurePassword123!",
-                    "full_name": "Test User"
-                },
-            )
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.post(
+                    "/api/auth/register",
+                    json={
+                        "email": "newuser@example.com",
+                        "password": "SecurePassword123!",
+                        "full_name": "Test User"
+                    },
+                )
 
-            # Should return 503, not allow the request through
-            assert response.status_code == 503, \
-                f"Expected 503 (service unavailable), got {response.status_code}"
-            assert "Rate limiter unavailable" in response.json()["detail"]
+                # Should return 503, not allow the request through
+                assert response.status_code == 503, \
+                    f"Expected 503 (service unavailable), got {response.status_code}"
+                assert "Rate limiter unavailable" in response.json()["detail"]
+    finally:
+        _restore_rate_limiter_overrides(saved)
 
 
 @pytest.mark.asyncio
 async def test_forgot_password_endpoint_returns_503_when_redis_unavailable():
     """Test that forgot-password endpoint returns 503 when Redis connection fails."""
     await init_db()
+    saved, _ = _remove_rate_limiter_overrides()
 
-    # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
-    with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
-        # Create a limiter with unreachable Redis
-        mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
-        mock_get_limiter.return_value = mock_limiter
+    try:
+        # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
+        with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
+            # Create a limiter with unreachable Redis
+            mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
+            mock_get_limiter.return_value = mock_limiter
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/auth/forgot-password",
-                json={"email": "test@example.com"},
-            )
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.post(
+                    "/api/auth/forgot-password",
+                    json={"email": "test@example.com"},
+                )
 
-            # Should return 503, not allow the request through
-            assert response.status_code == 503, \
-                f"Expected 503 (service unavailable), got {response.status_code}"
-            assert "Rate limiter unavailable" in response.json()["detail"]
+                # Should return 503, not allow the request through
+                assert response.status_code == 503, \
+                    f"Expected 503 (service unavailable), got {response.status_code}"
+                assert "Rate limiter unavailable" in response.json()["detail"]
+    finally:
+        _restore_rate_limiter_overrides(saved)
 
 
 @pytest.mark.asyncio
 async def test_request_verify_endpoint_returns_503_when_redis_unavailable():
     """Test that request-verify-token endpoint returns 503 when Redis connection fails."""
     await init_db()
+    saved, _ = _remove_rate_limiter_overrides()
 
-    # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
-    with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
-        # Create a limiter with unreachable Redis
-        mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
-        mock_get_limiter.return_value = mock_limiter
+    try:
+        # Mock get_auth_rate_limiter to return a limiter with invalid Redis URL
+        with patch('app.services.auth_rate_limiter.get_auth_rate_limiter') as mock_get_limiter:
+            # Create a limiter with unreachable Redis
+            mock_limiter = AuthRateLimiter("redis://invalid-host:9999")
+            mock_get_limiter.return_value = mock_limiter
 
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.post(
-                "/api/auth/request-verify-token",
-                json={"email": "test@example.com"},
-            )
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                response = await client.post(
+                    "/api/auth/request-verify-token",
+                    json={"email": "test@example.com"},
+                )
 
-            # Should return 503, not allow the request through
-            assert response.status_code == 503, \
-                f"Expected 503 (service unavailable), got {response.status_code}"
-            assert "Rate limiter unavailable" in response.json()["detail"]
+                # Should return 503, not allow the request through
+                assert response.status_code == 503, \
+                    f"Expected 503 (service unavailable), got {response.status_code}"
+                assert "Rate limiter unavailable" in response.json()["detail"]
+    finally:
+        _restore_rate_limiter_overrides(saved)
 
 
 @pytest.mark.asyncio

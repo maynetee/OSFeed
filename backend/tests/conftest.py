@@ -35,6 +35,40 @@ def _ensure_test_db_dir(sqlite_db_path: Path) -> None:
 
 
 @pytest.fixture(autouse=True, scope="session")
+def _override_rate_limiters() -> None:
+    """Disable auth rate limiters in tests when Redis is not available."""
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.redis_url:
+        from app.main import app
+        from app.services.auth_rate_limiter import (
+            rate_limit_forgot_password,
+            rate_limit_request_verify,
+            rate_limit_register,
+            rate_limit_login,
+        )
+
+        async def _noop():
+            pass
+
+        app.dependency_overrides[rate_limit_forgot_password] = _noop
+        app.dependency_overrides[rate_limit_request_verify] = _noop
+        app.dependency_overrides[rate_limit_register] = _noop
+        app.dependency_overrides[rate_limit_login] = _noop
+
+    yield
+
+    if not settings.redis_url:
+        from app.main import app
+
+        app.dependency_overrides.pop(rate_limit_forgot_password, None)
+        app.dependency_overrides.pop(rate_limit_request_verify, None)
+        app.dependency_overrides.pop(rate_limit_register, None)
+        app.dependency_overrides.pop(rate_limit_login, None)
+
+
+@pytest.fixture(autouse=True, scope="session")
 def _dispose_engine() -> None:
     yield
     from app.database import get_engine

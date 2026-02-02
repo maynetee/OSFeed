@@ -188,6 +188,7 @@ async def test_rate_limiting_returns_429():
             detail="Too many requests. Try again in 900 seconds.",
         )
 
+    previous_override = app.dependency_overrides.get(rate_limit_forgot_password)
     app.dependency_overrides[rate_limit_forgot_password] = raise_429
 
     try:
@@ -200,7 +201,10 @@ async def test_rate_limiting_returns_429():
             assert response.status_code == 429
             assert "Too many requests" in response.json()["detail"]
     finally:
-        app.dependency_overrides.pop(rate_limit_forgot_password, None)
+        if previous_override is not None:
+            app.dependency_overrides[rate_limit_forgot_password] = previous_override
+        else:
+            app.dependency_overrides.pop(rate_limit_forgot_password, None)
 
 
 @pytest.mark.asyncio

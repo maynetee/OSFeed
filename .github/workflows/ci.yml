@@ -29,10 +29,14 @@ jobs:
         USE_SQLITE: "true"
         SQLITE_URL: "sqlite+aiosqlite:///:memory:"
         # Dummy keys
+        SECRET_KEY: "test-secret-key-for-ci-only"
         OPENAI_API_KEY: "test"
+        OPENROUTER_API_KEY: "test"
         TELEGRAM_API_ID: "123"
         TELEGRAM_API_HASH: "test"
         TELEGRAM_PHONE: "+1000"
+        SCHEDULER_ENABLED: "false"
+        API_USAGE_TRACKING_ENABLED: "false"
       run: |
         cd backend
         pytest
