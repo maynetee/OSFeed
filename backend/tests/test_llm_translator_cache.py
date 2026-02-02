@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from app.services.llm_translator import LLMTranslator
-from app.config import get_settings
+import app.services.llm_translator as translator_mod
 
 
 @pytest.fixture
@@ -18,8 +18,7 @@ def translator_no_redis(monkeypatch):
 async def test_cache_evicts_oldest_entry(translator_no_redis, monkeypatch):
     """Test that cache evicts the oldest entry when max size is reached."""
     # Set a small cache size for testing
-    settings = get_settings()
-    monkeypatch.setattr(settings, "translation_memory_cache_max_size", 3)
+    monkeypatch.setattr(translator_mod.settings, "translation_memory_cache_max_size", 3)
 
     translator = translator_no_redis
 
@@ -61,8 +60,7 @@ async def test_cache_evicts_oldest_entry(translator_no_redis, monkeypatch):
 async def test_cache_lru_order(translator_no_redis, monkeypatch):
     """Test that accessing a cached entry moves it to the end (most recently used)."""
     # Set a small cache size for testing
-    settings = get_settings()
-    monkeypatch.setattr(settings, "translation_memory_cache_max_size", 3)
+    monkeypatch.setattr(translator_mod.settings, "translation_memory_cache_max_size", 3)
 
     translator = translator_no_redis
 
@@ -101,9 +99,8 @@ async def test_cache_lru_order(translator_no_redis, monkeypatch):
 async def test_cache_respects_max_size(translator_no_redis, monkeypatch):
     """Test that cache size never exceeds the configured maximum."""
     # Set a small cache size for testing
-    settings = get_settings()
     max_size = 5
-    monkeypatch.setattr(settings, "translation_memory_cache_max_size", max_size)
+    monkeypatch.setattr(translator_mod.settings, "translation_memory_cache_max_size", max_size)
 
     translator = translator_no_redis
 
@@ -127,8 +124,7 @@ async def test_cache_respects_max_size(translator_no_redis, monkeypatch):
 @pytest.mark.asyncio
 async def test_cache_hit_count_increments(translator_no_redis, monkeypatch):
     """Test that cache hit count increments when entries are accessed."""
-    settings = get_settings()
-    monkeypatch.setattr(settings, "translation_memory_cache_max_size", 10)
+    monkeypatch.setattr(translator_mod.settings, "translation_memory_cache_max_size", 10)
 
     translator = translator_no_redis
 
@@ -161,8 +157,7 @@ async def test_cache_hit_count_increments(translator_no_redis, monkeypatch):
 @pytest.mark.asyncio
 async def test_cache_works_independently_per_language_pair(translator_no_redis, monkeypatch):
     """Test that same text with different language pairs creates separate cache entries."""
-    settings = get_settings()
-    monkeypatch.setattr(settings, "translation_memory_cache_max_size", 10)
+    monkeypatch.setattr(translator_mod.settings, "translation_memory_cache_max_size", 10)
 
     translator = translator_no_redis
 

@@ -22,9 +22,9 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
         await session.execute(
             text(
                 "INSERT INTO users (id, email, hashed_password, is_active, is_superuser, "
-                "is_verified, role, data_retention_days, created_at) "
+                "is_verified, role, data_retention_days, preferred_language, created_at) "
                 "VALUES (:id, :email, :hashed_password, :is_active, :is_superuser, "
-                ":is_verified, :role, :data_retention_days, :created_at)"
+                ":is_verified, :role, :data_retention_days, :preferred_language, :created_at)"
             ),
             {
                 "id": user_id,
@@ -35,6 +35,7 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
                 "is_verified": True,
                 "role": "viewer",
                 "data_retention_days": 365,
+                "preferred_language": "en",
                 "created_at": datetime.now(timezone.utc),
             },
         )

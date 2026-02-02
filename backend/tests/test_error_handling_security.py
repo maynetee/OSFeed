@@ -30,9 +30,9 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
         await session.execute(
             text(
                 "INSERT INTO users (id, email, hashed_password, is_active, is_superuser, "
-                "is_verified, role, data_retention_days, created_at) "
+                "is_verified, role, data_retention_days, preferred_language, created_at) "
                 "VALUES (:id, :email, :hashed_password, :is_active, :is_superuser, "
-                ":is_verified, :role, :data_retention_days, :created_at)"
+                ":is_verified, :role, :data_retention_days, :preferred_language, :created_at)"
             ),
             {
                 "id": user_id,
@@ -43,6 +43,7 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
                 "is_verified": True,
                 "role": "viewer",
                 "data_retention_days": 365,
+                "preferred_language": "en",
                 "created_at": datetime.now(timezone.utc),
             },
         )
@@ -562,16 +563,15 @@ async def test_alert_create_database_error_returns_generic_message(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_auth_registration_unexpected_error_returns_generic_code(monkeypatch):
+async def test_auth_registration_unexpected_error_returns_generic_code():
     """
     Test that unexpected errors during registration return a generic error
     code without exposing internal exception details.
     """
     await init_db()
 
-    # Mock user manager to raise unexpected error
-    from app.auth import users as auth_users
-    original_user_manager_dependency = auth_users.get_user_manager
+    # Use FastAPI dependency_overrides (monkeypatch doesn't affect Depends())
+    from app.auth.users import get_user_manager
 
     async def _mock_user_manager():
         mock_manager = AsyncMock()
@@ -580,30 +580,31 @@ async def test_auth_registration_unexpected_error_returns_generic_code(monkeypat
         )
         return mock_manager
 
-    monkeypatch.setattr("app.api.auth.get_user_manager", _mock_user_manager)
+    app.dependency_overrides[get_user_manager] = _mock_user_manager
 
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            "/api/auth/register",
-            json={"email": "test_unexpected@example.com", "password": "Str0ngP@ssword!"},
-        )
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/auth/register",
+                json={"email": "test_unexpected@example.com", "password": "Str0ngP@ssword!"},
+            )
 
-    monkeypatch.setattr("app.api.auth.get_user_manager", original_user_manager_dependency)
+        # Should return generic error code
+        assert response.status_code == 500
+        error_detail = response.json()["detail"]
 
-    # Should return generic error code
-    assert response.status_code == 500
-    error_detail = response.json()["detail"]
+        # Should be generic error code
+        assert error_detail == "REGISTER_UNEXPECTED_ERROR"
 
-    # Should be generic error code
-    assert error_detail == "REGISTER_UNEXPECTED_ERROR"
-
-    # Should NOT contain internal service details
-    assert "redis" not in error_detail.lower()
-    assert "cache.internal" not in error_detail.lower()
-    assert "6379" not in error_detail
-    assert "timeout" not in error_detail.lower()
-    assert "5000ms" not in error_detail
+        # Should NOT contain internal service details
+        assert "redis" not in error_detail.lower()
+        assert "cache.internal" not in error_detail.lower()
+        assert "6379" not in error_detail
+        assert "timeout" not in error_detail.lower()
+        assert "5000ms" not in error_detail
+    finally:
+        app.dependency_overrides.pop(get_user_manager, None)
 
 
 @pytest.mark.asyncio

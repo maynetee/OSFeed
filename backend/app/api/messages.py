@@ -516,7 +516,7 @@ async def export_messages_csv(
 
         while True:
             async with AsyncSessionLocal() as db:
-                query = select(Message, Channel).join(Channel)
+                query = select(Message, Channel)
                 query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(batch_size).offset(offset)
@@ -570,7 +570,7 @@ async def export_messages_html(
             curr_limit = min(batch_size, limit - processed)
 
             async with AsyncSessionLocal() as db:
-                query = select(Message, Channel).join(Channel)
+                query = select(Message, Channel)
                 query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(curr_limit).offset(offset)
@@ -615,7 +615,7 @@ async def export_messages_pdf(
     user: User = Depends(current_active_user),
 ):
     async with AsyncSessionLocal() as db:
-        query = select(Message, Channel).join(Channel)
+        query = select(Message, Channel)
         query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
         query = query.order_by(desc(Message.published_at))
         query = query.limit(limit)
