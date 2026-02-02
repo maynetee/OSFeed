@@ -406,7 +406,7 @@ async def translate_messages(
     record_audit_event(
         db=db,
         user_id=user.id,
-        action="translate_messages_batch",
+        action="message.translate.batch",
         resource_type="message",
         resource_id=str(channel_id) if channel_id else None,
         metadata={
@@ -531,7 +531,7 @@ async def export_messages_csv(
     record_audit_event(
         db=db,
         user_id=user.id,
-        action="export_messages_csv",
+        action="message.export.csv",
         resource_type="message",
         resource_id=str(channel_id) if channel_id else None,
         metadata={
@@ -604,7 +604,7 @@ async def export_messages_html(
     record_audit_event(
         db=db,
         user_id=user.id,
-        action="export_messages_html",
+        action="message.export.html",
         resource_type="message",
         resource_id=str(channel_id) if channel_id else None,
         metadata={
@@ -679,7 +679,7 @@ async def export_messages_pdf(
     record_audit_event(
         db=db,
         user_id=user.id,
-        action="export_messages_pdf",
+        action="message.export.pdf",
         resource_type="message",
         resource_id=str(channel_id) if channel_id else None,
         metadata={
@@ -910,7 +910,7 @@ async def translate_message_on_demand(
     record_audit_event(
         db=db,
         user_id=user.id,
-        action="translate_message_on_demand",
+        action="message.translate.single",
         resource_type="message",
         resource_id=str(message_id),
         metadata={

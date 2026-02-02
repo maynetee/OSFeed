@@ -95,6 +95,12 @@ async def create_alert(
             action="alert.create",
             resource_type="alert",
             resource_id=str(alert.id),
+            metadata={
+                "name": payload.name,
+                "collection_id": str(payload.collection_id),
+                "keywords": payload.keywords or [],
+                "entities": payload.entities or [],
+            },
         )
         await db.commit()
         await db.refresh(alert)
@@ -168,6 +174,10 @@ async def update_alert(
         action="alert.update",
         resource_type="alert",
         resource_id=str(alert.id),
+        metadata={
+            "name": alert.name,
+            "collection_id": str(alert.collection_id),
+        },
     )
     await db.commit()
     await db.refresh(alert)
@@ -194,6 +204,9 @@ async def delete_alert(
         action="alert.delete",
         resource_type="alert",
         resource_id=str(alert_id),
+        metadata={
+            "name": alert.name,
+        },
     )
     await db.commit()
     return {"message": "Alert deleted"}
