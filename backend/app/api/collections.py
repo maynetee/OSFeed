@@ -526,45 +526,54 @@ async def get_collection_stats(
     day_ago = now - timedelta(days=1)
     week_ago = now - timedelta(days=7)
 
-    # Query 1: Combined grouped query for counts, activity trend, and languages
-    # Group by (day, source_language) to derive all stats in a single pass
+    # Query 1: All-time aggregation for total count and duplicate count
+    all_time_result = await db.execute(
+        select(
+            func.count().label("total"),
+            func.sum(case((Message.is_duplicate == True, 1), else_=0)).label("duplicates"),
+        )
+        .where(Message.channel_id.in_(channel_ids))
+    )
+    all_time_row = all_time_result.first()
+    total = all_time_row.total if all_time_row else 0
+    duplicates = all_time_row.duplicates if all_time_row else 0
+
+    # Query 2: Time-bounded grouped query for recent metrics (last 7 days)
+    # This WHERE clause enables efficient use of ix_messages_channel_published_lang index
     date_bucket = func.date(Message.published_at)
-    stats_result = await db.execute(
+    recent_stats_result = await db.execute(
         select(
             date_bucket.label("day"),
             Message.source_language,
             func.count().label("count"),
-            func.sum(case((Message.is_duplicate == True, 1), else_=0)).label("dup_count"),
         )
         .where(Message.channel_id.in_(channel_ids))
+        .where(Message.published_at >= week_ago)
         .group_by(date_bucket, Message.source_language)
     )
-    stats_rows = stats_result.all()
+    recent_stats_rows = recent_stats_result.all()
 
-    # Derive all metrics from the grouped result in Python
-    total = 0
-    duplicates = 0
+    # Derive recent metrics from the grouped result in Python
     count_24h = 0
     count_7d = 0
     activity_by_day: dict = {}
     languages: dict = {}
 
-    for row in stats_rows:
-        total += row.count
-        duplicates += row.dup_count
+    for row in recent_stats_rows:
+        count_7d += row.count
 
         if row.day is not None:
             row_date = row.day if isinstance(row.day, datetime) else datetime.combine(row.day, datetime.min.time())
             if row_date >= day_ago:
                 count_24h += row.count
-            if row_date >= week_ago:
-                count_7d += row.count
-                # Activity trend: aggregate by day for last 7 days
-                day_str = str(row.day)
-                activity_by_day[day_str] = activity_by_day.get(day_str, 0) + row.count
-                # Languages: aggregate by language for last 7 days
-                if row.source_language:
-                    languages[row.source_language] = languages.get(row.source_language, 0) + row.count
+
+            # Activity trend: aggregate by day for last 7 days
+            day_str = str(row.day)
+            activity_by_day[day_str] = activity_by_day.get(day_str, 0) + row.count
+
+            # Languages: aggregate by language for last 7 days
+            if row.source_language:
+                languages[row.source_language] = languages.get(row.source_language, 0) + row.count
 
     activity_trend = [
         {"date": day, "count": count}
