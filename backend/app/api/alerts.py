@@ -14,6 +14,7 @@ from app.schemas.alert import AlertCreate, AlertResponse, AlertUpdate, AlertTrig
 from app.auth.users import current_active_user
 from app.utils.response_cache import response_cache
 from app.config import settings
+from app.services.audit import record_audit_event
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,13 @@ async def create_alert(
             is_active=payload.is_active,
         )
         db.add(alert)
+        record_audit_event(
+            db,
+            user_id=user.id,
+            action="alert.create",
+            resource_type="alert",
+            resource_id=str(alert.id),
+        )
         await db.commit()
         await db.refresh(alert)
         return alert
@@ -154,6 +162,13 @@ async def update_alert(
     for key, value in data.items():
         setattr(alert, key, value)
 
+    record_audit_event(
+        db,
+        user_id=user.id,
+        action="alert.update",
+        resource_type="alert",
+        resource_id=str(alert.id),
+    )
     await db.commit()
     await db.refresh(alert)
     return alert
@@ -173,6 +188,13 @@ async def delete_alert(
     if alert.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     await db.delete(alert)
+    record_audit_event(
+        db,
+        user_id=user.id,
+        action="alert.delete",
+        resource_type="alert",
+        resource_id=str(alert_id),
+    )
     await db.commit()
     return {"message": "Alert deleted"}
 
