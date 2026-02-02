@@ -42,7 +42,7 @@ class TestCreateCSVWriter:
         """Create CSV writer with auto-generated buffer."""
         writer, output = create_csv_writer()
 
-        assert isinstance(writer, csv.writer.__class__)
+        assert hasattr(writer, "writerow")
         assert isinstance(output, StringIO)
         assert output.getvalue() == ""
 
@@ -51,7 +51,7 @@ class TestCreateCSVWriter:
         existing_buffer = StringIO()
         writer, output = create_csv_writer(existing_buffer)
 
-        assert isinstance(writer, csv.writer.__class__)
+        assert hasattr(writer, "writerow")
         assert output is existing_buffer
 
     def test_writer_functionality(self) -> None:

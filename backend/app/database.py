@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import StaticPool
 from sqlalchemy import event
 from app.config import get_settings
 import os
@@ -13,18 +14,25 @@ settings = get_settings()
 def create_engine_for_database():
     """Create the appropriate async engine based on database configuration."""
     if settings.use_sqlite:
-        # SQLite configuration (for local development)
-        os.makedirs("data", exist_ok=True)
+        # SQLite configuration (for local development and testing)
+        is_memory = ":memory:" in settings.database_url
+        if not is_memory:
+            os.makedirs("data", exist_ok=True)
         logger.info("Using SQLite database for local development")
-        return create_async_engine(
-            settings.database_url,
+        engine_kwargs = dict(
             echo=settings.app_debug,
             future=True,
             connect_args={
-                "timeout": 30,
                 "check_same_thread": False,
             },
         )
+        if is_memory:
+            # In-memory SQLite needs StaticPool so all connections share
+            # the same database (otherwise each connection gets its own).
+            engine_kwargs["poolclass"] = StaticPool
+        else:
+            engine_kwargs["connect_args"]["timeout"] = 30
+        return create_async_engine(settings.database_url, **engine_kwargs)
     else:
         # PostgreSQL configuration (production)
         logger.info(f"Connecting to PostgreSQL at {settings.postgres_host}:{settings.postgres_port}")
@@ -50,13 +58,16 @@ def get_engine():
 
         # SQLite-specific pragmas (only applied when using SQLite)
         if settings.use_sqlite:
+            is_memory = ":memory:" in settings.database_url
+
             @event.listens_for(_engine.sync_engine, "connect")
             def set_sqlite_pragma(dbapi_connection, connection_record):
                 cursor = dbapi_connection.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON")
-                cursor.execute("PRAGMA journal_mode=WAL")
-                cursor.execute("PRAGMA busy_timeout=30000")
-                cursor.execute("PRAGMA synchronous=NORMAL")
+                if not is_memory:
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                    cursor.execute("PRAGMA busy_timeout=30000")
+                    cursor.execute("PRAGMA synchronous=NORMAL")
                 cursor.close()
 
     return _engine
