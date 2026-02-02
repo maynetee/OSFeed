@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
 
 import { cn } from '@/lib/cn'
 import { useUiStore } from '@/stores/ui-store'
@@ -113,9 +114,23 @@ export function Sidebar() {
               onClick={closeMobileDrawer}
               aria-hidden="true"
             />
-            <div className="fixed inset-y-0 left-0 z-50 data-[state=open]:animate-slide-in-from-left">
+            <motion.div
+              className="fixed inset-y-0 left-0 z-50"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              drag="x"
+              dragConstraints={{ left: -256, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -100) {
+                  closeMobileDrawer()
+                }
+              }}
+            >
               {sidebarContent}
-            </div>
+            </motion.div>
           </>
         )}
       </>
