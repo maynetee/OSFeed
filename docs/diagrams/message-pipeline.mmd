@@ -1,0 +1,88 @@
+graph TB
+    subgraph "Message Sources"
+        TG_CHANNELS[Telegram Channels<br/>Public Channels<br/>Subscribed Sources]
+    end
+
+    subgraph "Collection Layer"
+        COLLECT_JOB[Collection Job<br/>APScheduler<br/>Every 5 minutes]
+        FETCH_QUEUE[(Fetch Queue<br/>Redis List<br/>osfeed:fetch_queue)]
+        ACTIVE_JOBS[(Active Jobs<br/>Redis Set<br/>Job Tracking)]
+    end
+
+    subgraph "Fetch Layer"
+        FETCH_WORKERS[Fetch Queue Workers<br/>Async Processing<br/>Rate Limited]
+        TG_CLIENT[Telegram Client<br/>Telethon<br/>Token Bucket<br/>FloodWait Handler]
+        RATE_LIMITER[(Rate Limiter<br/>Redis<br/>Token Bucket<br/>Join Quotas)]
+    end
+
+    subgraph "Storage Layer"
+        BULK_INSERT[Bulk Insert<br/>PostgreSQL<br/>Messages Table<br/>Dedup by telegram_message_id]
+        POSTGRES[(PostgreSQL<br/>Messages<br/>Channels<br/>needs_translation=true)]
+    end
+
+    subgraph "Translation Layer"
+        TRANSLATE_JOB[Translation Job<br/>APScheduler<br/>Batch Processing]
+        TRANSLATE_POOL[Translation Pool<br/>Async Workers<br/>Language Grouping]
+        LLM_TRANSLATOR[LLM Translator<br/>Gemini Flash / GPT-4o-mini<br/>Priority Routing<br/>Chunk Handling]
+        TRANS_CACHE[(Translation Cache<br/>Redis<br/>SHA256 Keys<br/>Adaptive TTL)]
+    end
+
+    subgraph "Deduplication Layer"
+        QDRANT[(Qdrant<br/>Vector Embeddings<br/>Semantic Dedup<br/>is_duplicate Flag)]
+    end
+
+    subgraph "Streaming Layer"
+        SSE_STREAM[SSE Stream<br/>Real-time Events<br/>message_translated<br/>new_message]
+        FRONTEND[Frontend<br/>Live Feed<br/>Auto-refresh]
+    end
+
+    %% Collection flow
+    TG_CHANNELS -->|Active Channels| COLLECT_JOB
+    COLLECT_JOB -->|Check last_fetched_at<br/>Sync Interval| FETCH_QUEUE
+    FETCH_QUEUE -->|RPUSH job_data| ACTIVE_JOBS
+
+    %% Fetch flow
+    ACTIVE_JOBS -->|LPOP job| FETCH_WORKERS
+    FETCH_WORKERS -->|Acquire tokens| RATE_LIMITER
+    FETCH_WORKERS -->|get_messages()| TG_CLIENT
+    TG_CLIENT -->|API calls<br/>FloodWait retry| TG_CHANNELS
+    TG_CLIENT -->|Batches of 100| FETCH_WORKERS
+
+    %% Storage flow
+    FETCH_WORKERS -->|Filter duplicates<br/>Batch insert| BULK_INSERT
+    BULK_INSERT -->|Insert messages<br/>needs_translation=true| POSTGRES
+
+    %% Translation flow
+    POSTGRES -->|Select pending| TRANSLATE_JOB
+    TRANSLATE_JOB -->|Group by lang pair<br/>Batch 200| TRANSLATE_POOL
+    TRANSLATE_POOL -->|Check cache| TRANS_CACHE
+    TRANS_CACHE -.->|Cache hit| TRANSLATE_POOL
+    TRANS_CACHE -.->|Cache miss| LLM_TRANSLATOR
+    LLM_TRANSLATOR -->|Translate batch<br/>Update cache| TRANS_CACHE
+    TRANSLATE_POOL -->|Update translations<br/>needs_translation=false| POSTGRES
+
+    %% Deduplication flow
+    POSTGRES -->|New messages| QDRANT
+    QDRANT -->|Cosine similarity<br/>Set is_duplicate| POSTGRES
+
+    %% Streaming flow
+    POSTGRES -->|publish_message_translated| SSE_STREAM
+    SSE_STREAM -->|Server-Sent Events| FRONTEND
+    FRONTEND -->|Display updates| FRONTEND
+
+    %% Styling
+    classDef collection fill:#ff9800,stroke:#333,stroke-width:2px,color:#000
+    classDef fetch fill:#2196f3,stroke:#333,stroke-width:2px,color:#fff
+    classDef storage fill:#336791,stroke:#333,stroke-width:2px,color:#fff
+    classDef translation fill:#4caf50,stroke:#333,stroke-width:2px,color:#fff
+    classDef dedup fill:#9c27b0,stroke:#333,stroke-width:2px,color:#fff
+    classDef streaming fill:#61dafb,stroke:#333,stroke-width:2px,color:#000
+    classDef external fill:#607d8b,stroke:#333,stroke-width:2px,color:#fff
+
+    class COLLECT_JOB,FETCH_QUEUE,ACTIVE_JOBS collection
+    class FETCH_WORKERS,TG_CLIENT,RATE_LIMITER fetch
+    class BULK_INSERT,POSTGRES storage
+    class TRANSLATE_JOB,TRANSLATE_POOL,LLM_TRANSLATOR,TRANS_CACHE translation
+    class QDRANT dedup
+    class SSE_STREAM,FRONTEND streaming
+    class TG_CHANNELS external
