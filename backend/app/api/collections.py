@@ -110,6 +110,7 @@ async def list_collections(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get all collections owned by or shared with the current user."""
     # Step 1: Fetch user's collections with channels loaded for non-global collections
     result = await db.execute(
         select(Collection)
@@ -157,6 +158,7 @@ async def get_collections_overview(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get a summary overview of all collections with message counts and channel counts."""
     # Step 1: Fetch user's collections (without loading full channel objects)
     result = await db.execute(
         select(Collection)
@@ -267,6 +269,7 @@ async def create_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Create a new collection with specified channels and settings."""
     try:
         channels = await _load_channels(db, payload.channel_ids or [])
         if payload.is_global:
@@ -316,6 +319,7 @@ async def compare_collections(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Compare message counts and duplicate rates across multiple collections."""
     # Batch-load all requested collections with channels in a single query
     result = await db.execute(
         select(Collection, CollectionShare.permission)
@@ -407,6 +411,7 @@ async def get_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get a specific collection by ID."""
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     await db.refresh(collection, attribute_names=["channels"])
     channel_ids = await _collection_channel_ids(db, collection)
@@ -420,6 +425,7 @@ async def update_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Update a collection's name, channels, settings, or other properties."""
     collection, permission = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id and permission not in {"editor", "admin"}:
         raise HTTPException(status_code=403, detail="Not authorized to update this collection")
@@ -484,6 +490,7 @@ async def delete_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Delete a collection permanently."""
     collection, permission = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id and permission != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to delete this collection")
@@ -508,6 +515,7 @@ async def get_collection_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get detailed statistics for a collection including message counts, activity trends, and top channels."""
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     await db.refresh(collection, attribute_names=["channels"])
     channel_ids = await _collection_channel_ids(db, collection)
@@ -619,6 +627,7 @@ async def export_collection_messages(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Export collection messages in CSV, HTML, or PDF format."""
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     await db.refresh(collection, attribute_names=["channels"])
     channel_ids = await _collection_channel_ids(db, collection)
@@ -677,6 +686,7 @@ async def list_collection_shares(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get all sharing permissions for a collection."""
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view shares")
@@ -691,6 +701,7 @@ async def add_collection_share(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Share a collection with another user or update their permission level."""
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to share this collection")
@@ -721,6 +732,7 @@ async def delete_collection_share(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Remove a user's access to a shared collection."""
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to remove shares")
