@@ -71,6 +71,8 @@
   "alertsEmpty": "No alerts configured.",
   "alertsHistory": "Alert history",
   "alertsHistoryEmpty": "No alert triggers yet.",
+  "alertsDeleteTitle": "Delete alert?",
+  "alertsDeleteDescription": "This action cannot be undone. The alert and its history will be permanently deleted.",
   "allCollections": "All collections",
   "createdAt": "Created",
   "sharesTitle": "Sharing",
@@ -83,5 +85,13 @@
   "removeShareDescription": "This user will no longer be able to access this collection.",
   "confirmDelete": "Delete alert?",
   "confirmDeleteAlertMessage": "This alert will be permanently deleted and will no longer trigger notifications.",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "confirmRemoveShareTitle": "Remove share?",
+  "confirmRemoveShareDescription": "This action cannot be undone. The user will lose access to this collection.",
+  "deleteConfirm": {
+    "title": "Delete collection?",
+    "description": "This action cannot be undone. The collection will be permanently deleted.",
+    "confirm": "Delete",
+    "cancel": "Cancel"
+  }
 }

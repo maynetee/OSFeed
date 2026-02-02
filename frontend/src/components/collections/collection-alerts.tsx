@@ -5,11 +5,12 @@ import { useTranslation } from 'react-i18next'
 import { alertsApi, type Alert } from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Timestamp } from '@/components/common/timestamp'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 
 interface CollectionAlertsProps {
   collectionId: string
@@ -27,7 +28,6 @@ export function CollectionAlerts({ collectionId }: CollectionAlertsProps) {
   const [frequency, setFrequency] = useState('daily')
   const [isActive, setIsActive] = useState(true)
   const [historyAlertId, setHistoryAlertId] = useState<string | null>(null)
-  const [deleteAlertId, setDeleteAlertId] = useState<string | null>(null)
 
   const alertsQuery = useQuery({
     queryKey: ['alerts', collectionId],
@@ -232,44 +232,19 @@ export function CollectionAlerts({ collectionId }: CollectionAlertsProps) {
                   <Button variant="outline" size="sm" onClick={() => setHistoryAlertId(alert.id)}>
                     {t('collections.alertsHistory')}
                   </Button>
-                  <Dialog
-                    open={deleteAlertId === alert.id}
-                    onOpenChange={(nextOpen) => {
-                      if (!nextOpen) setDeleteAlertId(null)
-                    }}
-                  >
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setDeleteAlertId(alert.id)}>
+                  <ConfirmDialog
+                    title={t('collections.alertsDeleteTitle')}
+                    description={t('collections.alertsDeleteDescription')}
+                    confirmText={t('collections.delete')}
+                    cancelText={t('collections.cancel')}
+                    variant="destructive"
+                    onConfirm={() => deleteAlert.mutate(alert.id)}
+                    triggerButton={
+                      <Button variant="outline" size="sm">
                         {t('collections.delete')}
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>{t('collections.confirmDelete')}</DialogTitle>
-                        <DialogDescription>
-                          {t('collections.confirmDeleteAlertMessage')}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => setDeleteAlertId(null)}
-                        >
-                          {t('collections.cancel')}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => {
-                            deleteAlert.mutate(alert.id)
-                            setDeleteAlertId(null)
-                          }}
-                          disabled={deleteAlert.isPending}
-                        >
-                          {t('collections.delete')}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                    }
+                  />
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">

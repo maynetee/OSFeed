@@ -71,6 +71,8 @@
   "alertsEmpty": "Aucune alerte configuree.",
   "alertsHistory": "Historique alertes",
   "alertsHistoryEmpty": "Aucun declenchement pour le moment.",
+  "alertsDeleteTitle": "Supprimer l'alerte ?",
+  "alertsDeleteDescription": "Cette action est irréversible. L'alerte et son historique seront définitivement supprimés.",
   "allCollections": "Toutes les collections",
   "createdAt": "Creee",
   "sharesTitle": "Partage",
@@ -83,5 +85,13 @@
   "removeShareDescription": "Cet utilisateur ne pourra plus accéder à cette collection.",
   "confirmDelete": "Supprimer l'alerte ?",
   "confirmDeleteAlertMessage": "Cette alerte sera définitivement supprimée et ne déclenchera plus de notifications.",
-  "cancel": "Annuler"
+  "cancel": "Annuler",
+  "confirmRemoveShareTitle": "Retirer le partage ?",
+  "confirmRemoveShareDescription": "Cette action est irréversible. L'utilisateur perdra l'accès à cette collection.",
+  "deleteConfirm": {
+    "title": "Supprimer la collection ?",
+    "description": "Cette action est irréversible. La collection sera définitivement supprimée.",
+    "confirm": "Supprimer",
+    "cancel": "Annuler"
+  }
 }
