@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
-from app.services.email_service import email_service
+from app.services.email_service import email_service, _redact_email
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """Called after a user successfully registers. Sends verification email."""
-        logger.info(f"User {user.email} has registered.")
+        logger.info(f"User {_redact_email(user.email)} has registered.")
         if settings.email_enabled:
             # Generate verification token manually (FastAPI-Users doesn't pass it here)
             token_data = {
@@ -57,11 +57,11 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             # Send email in background (non-blocking)
             try:
                 asyncio.create_task(email_service.send_verification(user.email, token))
-                logger.info(f"Verification email task created for {user.email}")
+                logger.info(f"Verification email task created for {_redact_email(user.email)}")
             except Exception as e:
-                logger.error(f"Failed to create verification email task for {user.email}: {e}")
+                logger.error(f"Failed to create verification email task for {_redact_email(user.email)}: {e}")
         else:
-            logger.warning(f"Email disabled - skipping verification email for {user.email}")
+            logger.warning(f"Email disabled - skipping verification email for {_redact_email(user.email)}")
 
     async def on_after_login(
         self,
@@ -72,43 +72,43 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         """Called after a user successfully logs in."""
         # Update last login timestamp
         user.last_login_at = datetime.now(timezone.utc)
-        logger.info(f"User {user.email} logged in.")
+        logger.info(f"User {_redact_email(user.email)} logged in.")
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Optional[Request] = None
     ):
         """Called after a password reset token is generated. Sends reset email."""
-        logger.info(f"User {user.email} has requested a password reset.")
+        logger.info(f"User {_redact_email(user.email)} has requested a password reset.")
         if settings.email_enabled:
             # Token is passed by FastAPI-Users for this hook
             try:
                 asyncio.create_task(email_service.send_password_reset(user.email, token))
-                logger.info(f"Password reset email task created for {user.email}")
+                logger.info(f"Password reset email task created for {_redact_email(user.email)}")
             except Exception as e:
-                logger.error(f"Failed to create password reset email task for {user.email}: {e}")
+                logger.error(f"Failed to create password reset email task for {_redact_email(user.email)}: {e}")
         else:
-            logger.warning(f"Email disabled - skipping password reset email for {user.email}")
+            logger.warning(f"Email disabled - skipping password reset email for {_redact_email(user.email)}")
 
     async def on_after_reset_password(
         self, user: User, request: Optional[Request] = None
     ):
         """Called after a password is successfully reset."""
-        logger.info(f"User {user.email} has reset their password.")
+        logger.info(f"User {_redact_email(user.email)} has reset their password.")
 
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ):
         """Called when user explicitly requests verification email."""
-        logger.info(f"Verification requested for {user.email}.")
+        logger.info(f"Verification requested for {_redact_email(user.email)}.")
         if settings.email_enabled:
             # Token is passed by FastAPI-Users for this hook
             try:
                 asyncio.create_task(email_service.send_verification(user.email, token))
-                logger.info(f"Verification email task created for {user.email}")
+                logger.info(f"Verification email task created for {_redact_email(user.email)}")
             except Exception as e:
-                logger.error(f"Failed to create verification email task for {user.email}: {e}")
+                logger.error(f"Failed to create verification email task for {_redact_email(user.email)}: {e}")
         else:
-            logger.warning(f"Email disabled - skipping verification email for {user.email}")
+            logger.warning(f"Email disabled - skipping verification email for {_redact_email(user.email)}")
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
