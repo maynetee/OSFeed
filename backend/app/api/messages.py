@@ -287,6 +287,7 @@ async def stream_messages(
 
 
 @router.get("/search", response_model=MessageListResponse)
+@response_cache(expire=60, namespace="messages-search")
 async def search_messages(
     q: str = Query(..., min_length=3),
     channel_ids: Optional[list[UUID]] = Query(None),

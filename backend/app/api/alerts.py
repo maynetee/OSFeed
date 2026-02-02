@@ -12,6 +12,8 @@ from app.models.collection_share import CollectionShare
 from app.models.user import User
 from app.schemas.alert import AlertCreate, AlertResponse, AlertUpdate, AlertTriggerResponse
 from app.auth.users import current_active_user
+from app.utils.response_cache import response_cache
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +97,7 @@ async def create_alert(
 
 
 @router.get("/triggers/recent", response_model=List[AlertTriggerResponse])
+@response_cache(expire=60, namespace="alerts-triggers-recent")
 async def list_recent_triggers(
     limit: int = Query(10, ge=1, le=50),
     user: User = Depends(current_active_user),

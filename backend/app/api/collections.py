@@ -310,6 +310,7 @@ async def create_collection(
 
 
 @router.get("/compare")
+@response_cache(expire=60, namespace="collections-compare")
 async def compare_collections(
     collection_ids: List[UUID] = Query(...),
     user: User = Depends(current_active_user),
