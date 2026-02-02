@@ -509,6 +509,7 @@ async def export_messages_csv(
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
+    """Export filtered messages to CSV format."""
     async def csv_generator():
         writer, output = create_csv_writer()
 
@@ -564,6 +565,7 @@ async def export_messages_html(
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
+    """Export filtered messages to HTML format."""
     async def html_generator():
         yield generate_html_template("OSFeed - Messages")
         yield "<h1>Export messages</h1>"
@@ -620,6 +622,7 @@ async def export_messages_pdf(
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
+    """Export filtered messages to PDF format."""
     async with AsyncSessionLocal() as db:
         query = select(Message, Channel)
         query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
