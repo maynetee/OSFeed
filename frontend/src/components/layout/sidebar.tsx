@@ -30,17 +30,27 @@ export function Sidebar() {
   const collapsed = useUiStore((state) => state.sidebarCollapsed)
   const mobileDrawerOpen = useUiStore((state) => state.mobileDrawerOpen)
   const closeMobileDrawer = useUiStore((state) => state.closeMobileDrawer)
+  const menuButtonElement = useUiStore((state) => state.menuButtonElement)
   const isMobile = useMobile()
   const { t } = useTranslation()
   const location = useLocation()
   const drawerRef = useRef<HTMLDivElement>(null)
 
+  // Helper function to close drawer and restore focus
+  const closeDrawerWithFocusRestoration = () => {
+    closeMobileDrawer()
+    // Restore focus to menu button after drawer animation completes
+    setTimeout(() => {
+      menuButtonElement?.focus()
+    }, 100)
+  }
+
   // Auto-close mobile drawer on navigation
   useEffect(() => {
     if (isMobile && mobileDrawerOpen) {
-      closeMobileDrawer()
+      closeDrawerWithFocusRestoration()
     }
-  }, [location.pathname, isMobile, mobileDrawerOpen, closeMobileDrawer])
+  }, [location.pathname, isMobile, mobileDrawerOpen])
 
   // Focus trap and keyboard handling for mobile drawer
   useEffect(() => {
@@ -59,7 +69,7 @@ export function Sidebar() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Escape key closes drawer
       if (e.key === 'Escape') {
-        closeMobileDrawer()
+        closeDrawerWithFocusRestoration()
         return
       }
 
@@ -83,7 +93,7 @@ export function Sidebar() {
 
     drawer.addEventListener('keydown', handleKeyDown)
     return () => drawer.removeEventListener('keydown', handleKeyDown)
-  }, [isMobile, mobileDrawerOpen, closeMobileDrawer])
+  }, [isMobile, mobileDrawerOpen])
 
   const { data: stats } = useQuery({
     queryKey: ['stats', 'overview'],
@@ -120,19 +130,21 @@ export function Sidebar() {
       <nav className="mt-10 flex flex-1 flex-col gap-1">
         {navItems.map((item) => {
           const Icon = item.icon
+          const isCurrentPage = location.pathname === item.to
           return (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                   isActive
                     ? 'bg-primary/15 text-primary'
                     : 'text-foreground-muted hover:bg-muted hover:text-foreground',
                   !isMobile && collapsed && 'justify-center px-2',
                 )
               }
+              aria-current={isCurrentPage ? 'page' : undefined}
             >
               <Icon className="h-4 w-4" />
               {(isMobile || !collapsed) && <span>{t(`navigation.${item.key}`)}</span>}
@@ -164,7 +176,7 @@ export function Sidebar() {
           <>
             <div
               className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fade-in"
-              onClick={closeMobileDrawer}
+              onClick={closeDrawerWithFocusRestoration}
               aria-hidden="true"
             />
             <motion.div
@@ -179,7 +191,7 @@ export function Sidebar() {
               dragElastic={0.2}
               onDragEnd={(_, info) => {
                 if (info.offset.x < -100) {
-                  closeMobileDrawer()
+                  closeDrawerWithFocusRestoration()
                 }
               }}
             >
