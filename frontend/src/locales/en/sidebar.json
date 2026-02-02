@@ -1,4 +1,6 @@
 {
   "status": "Status",
-  "statusSummary": "{{duplicates}}% duplicates filtered, {{messages}} messages today."
+  "statusSummary": "{{duplicates}}% duplicates filtered, {{messages}} messages today.",
+  "loading": "Loading...",
+  "error": "Failed to load stats"
 }

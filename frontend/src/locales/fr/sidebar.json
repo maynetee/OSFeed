@@ -1,4 +1,6 @@
 {
   "status": "Statut",
-  "statusSummary": "{{duplicates}}% duplicatas filtres, {{messages}} messages aujourd'hui."
+  "statusSummary": "{{duplicates}}% duplicatas filtres, {{messages}} messages aujourd'hui.",
+  "loading": "Chargement...",
+  "error": "Échec du chargement des statistiques"
 }
