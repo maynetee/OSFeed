@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   Layers,
   Newspaper,
@@ -9,10 +9,13 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { motion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
 
 import { cn } from '@/lib/cn'
 import { useUiStore } from '@/stores/ui-store'
 import { statsApi } from '@/lib/api/client'
+import { useMobile } from '@/hooks/use-mobile'
 
 const navItems = [
   { key: 'feed', to: '/feed', icon: Radio },
@@ -25,7 +28,62 @@ const navItems = [
 
 export function Sidebar() {
   const collapsed = useUiStore((state) => state.sidebarCollapsed)
+  const mobileDrawerOpen = useUiStore((state) => state.mobileDrawerOpen)
+  const closeMobileDrawer = useUiStore((state) => state.closeMobileDrawer)
+  const isMobile = useMobile()
   const { t } = useTranslation()
+  const location = useLocation()
+  const drawerRef = useRef<HTMLDivElement>(null)
+
+  // Auto-close mobile drawer on navigation
+  useEffect(() => {
+    if (isMobile && mobileDrawerOpen) {
+      closeMobileDrawer()
+    }
+  }, [location.pathname, isMobile, mobileDrawerOpen, closeMobileDrawer])
+
+  // Focus trap and keyboard handling for mobile drawer
+  useEffect(() => {
+    if (!isMobile || !mobileDrawerOpen || !drawerRef.current) return
+
+    const drawer = drawerRef.current
+    const focusableElements = drawer.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+
+    // Focus first element when drawer opens
+    firstElement?.focus()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape key closes drawer
+      if (e.key === 'Escape') {
+        closeMobileDrawer()
+        return
+      }
+
+      // Tab key focus trap
+      if (e.key !== 'Tab') return
+
+      if (e.shiftKey) {
+        // Shift + Tab
+        if (document.activeElement === firstElement) {
+          e.preventDefault()
+          lastElement?.focus()
+        }
+      } else {
+        // Tab
+        if (document.activeElement === lastElement) {
+          e.preventDefault()
+          firstElement?.focus()
+        }
+      }
+    }
+
+    drawer.addEventListener('keydown', handleKeyDown)
+    return () => drawer.removeEventListener('keydown', handleKeyDown)
+  }, [isMobile, mobileDrawerOpen, closeMobileDrawer])
 
   const { data: stats } = useQuery({
     queryKey: ['stats', 'overview'],
@@ -38,18 +96,18 @@ export function Sidebar() {
     ? Math.round((stats.duplicates_last_24h / stats.messages_last_24h) * 100)
     : 0
 
-  return (
+  const sidebarContent = (
     <aside
       className={cn(
         'flex h-full flex-col border-r border-sidebar-border bg-sidebar-bg px-4 py-6',
-        collapsed ? 'w-20' : 'w-64',
+        isMobile ? 'w-64' : collapsed ? 'w-20' : 'w-64',
       )}
     >
-      <div className={cn('flex items-center gap-3 px-2', collapsed && 'justify-center')}>
+      <div className={cn('flex items-center gap-3 px-2', !isMobile && collapsed && 'justify-center')}>
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
           <span className="text-lg font-semibold">O</span>
         </div>
-        {!collapsed && (
+        {(isMobile || !collapsed) && (
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-foreground-muted">
               OSFeed
@@ -72,22 +130,22 @@ export function Sidebar() {
                   isActive
                     ? 'bg-primary/15 text-primary'
                     : 'text-foreground-muted hover:bg-muted hover:text-foreground',
-                  collapsed && 'justify-center px-2',
+                  !isMobile && collapsed && 'justify-center px-2',
                 )
               }
             >
               <Icon className="h-4 w-4" />
-              {!collapsed && <span>{t(`navigation.${item.key}`)}</span>}
+              {(isMobile || !collapsed) && <span>{t(`navigation.${item.key}`)}</span>}
             </NavLink>
           )
         })}
       </nav>
 
-      <div className={cn('mt-auto rounded-xl border border-border bg-card p-4', collapsed && 'p-3')}>
-        <p className={cn('text-xs font-semibold uppercase tracking-wide text-foreground-muted', collapsed && 'text-center')}>
+      <div className={cn('mt-auto rounded-xl border border-border bg-card p-4', !isMobile && collapsed && 'p-3')}>
+        <p className={cn('text-xs font-semibold uppercase tracking-wide text-foreground-muted', !isMobile && collapsed && 'text-center')}>
           {t('sidebar.status')}
         </p>
-        {!collapsed && (
+        {(isMobile || !collapsed) && (
           <p className="mt-2 text-xs text-foreground-muted">
             {t('sidebar.statusSummary', {
               duplicates: statusDuplicates,
@@ -98,4 +156,40 @@ export function Sidebar() {
       </div>
     </aside>
   )
+
+  if (isMobile) {
+    return (
+      <>
+        {mobileDrawerOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-fade-in"
+              onClick={closeMobileDrawer}
+              aria-hidden="true"
+            />
+            <motion.div
+              ref={drawerRef}
+              className="fixed inset-y-0 left-0 z-50"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              drag="x"
+              dragConstraints={{ left: -256, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -100) {
+                  closeMobileDrawer()
+                }
+              }}
+            >
+              {sidebarContent}
+            </motion.div>
+          </>
+        )}
+      </>
+    )
+  }
+
+  return sidebarContent
 }

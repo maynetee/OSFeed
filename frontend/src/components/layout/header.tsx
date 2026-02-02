@@ -9,12 +9,15 @@ import { useUiStore } from '@/stores/ui-store'
 import { useUserStore } from '@/stores/user-store'
 import { NotificationCenter } from '@/components/layout/notification-center'
 import { authApi } from '@/lib/api/client'
+import { useMobile } from '@/hooks/use-mobile'
 
 export function Header() {
   const location = useLocation()
   const toggleSidebar = useUiStore((state) => state.toggleSidebar)
+  const toggleMobileDrawer = useUiStore((state) => state.toggleMobileDrawer)
   const logout = useUserStore((state) => state.logout)
   const { t } = useTranslation()
+  const isMobile = useMobile()
 
   const handleLogout = async () => {
     try {
@@ -47,7 +50,7 @@ export function Header() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={toggleSidebar}
+          onClick={isMobile ? toggleMobileDrawer : toggleSidebar}
           aria-label={t('header.toggleSidebar')}
         >
           <Menu className="h-4 w-4" />
