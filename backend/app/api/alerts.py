@@ -97,7 +97,7 @@ async def create_alert(
 
 
 @router.get("/triggers/recent", response_model=List[AlertTriggerResponse])
-@response_cache(expire=settings.response_cache_ttl, namespace="alerts-triggers-recent")
+@response_cache(expire=60, namespace="alerts-triggers-recent")
 async def list_recent_triggers(
     limit: int = Query(10, ge=1, le=50),
     user: User = Depends(current_active_user),
