@@ -43,5 +43,7 @@
   "bulkAddSubmitting": "Ajout des canaux...",
   "bulkResults": "{{success}} ajoutés, {{failed}} échoués",
   "bulkSucceeded": "Ajouté avec succès",
-  "bulkFailed": "Échec de l'ajout"
+  "bulkFailed": "Échec de l'ajout",
+  "deleteConfirmTitle": "Supprimer le canal ?",
+  "deleteConfirmMessage": "Êtes-vous sûr de vouloir supprimer {{username}} ? Cette action est irréversible."
 }
