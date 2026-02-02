@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   Layers,
   Newspaper,
@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
+import { useEffect } from 'react'
 
 import { cn } from '@/lib/cn'
 import { useUiStore } from '@/stores/ui-store'
@@ -31,6 +32,14 @@ export function Sidebar() {
   const closeMobileDrawer = useUiStore((state) => state.closeMobileDrawer)
   const isMobile = useMobile()
   const { t } = useTranslation()
+  const location = useLocation()
+
+  // Auto-close mobile drawer on navigation
+  useEffect(() => {
+    if (isMobile && mobileDrawerOpen) {
+      closeMobileDrawer()
+    }
+  }, [location.pathname, isMobile, mobileDrawerOpen, closeMobileDrawer])
 
   const { data: stats } = useQuery({
     queryKey: ['stats', 'overview'],
