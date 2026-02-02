@@ -449,3 +449,264 @@ async def test_no_stack_traces_in_error_responses(monkeypatch):
     assert "line 123" not in error_detail
     assert "ConnectionError" not in error_detail
     assert "[Errno" not in error_detail
+
+
+@pytest.mark.asyncio
+async def test_collection_create_database_error_returns_generic_message(monkeypatch):
+    """
+    Test that database errors during collection creation return generic
+    error messages without exposing database schema or SQL details.
+    """
+    await init_db()
+    user = await _create_user("test_collection_error@example.com", "password123")
+
+    # Mock database session to raise a database error
+    original_session = AsyncSessionLocal
+
+    class MockSession:
+        async def __aenter__(self):
+            raise Exception("sqlalchemy.exc.IntegrityError: (psycopg2.errors.NotNullViolation) null value in column 'name' violates not-null constraint")
+
+        async def __aexit__(self, *args):
+            pass
+
+    monkeypatch.setattr("app.api.collections.AsyncSessionLocal", MockSession)
+
+    async def _override_user():
+        return user
+
+    app.dependency_overrides[current_active_user] = _override_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/collections",
+                json={"name": "Test Collection", "channel_ids": []},
+            )
+    finally:
+        app.dependency_overrides.pop(current_active_user, None)
+        monkeypatch.setattr("app.api.collections.AsyncSessionLocal", original_session)
+
+    # Should return error without exposing database details
+    assert response.status_code in [500, 400]
+    error_detail = str(response.json().get("detail", ""))
+
+    # Should NOT contain database error details
+    assert "sqlalchemy" not in error_detail.lower()
+    assert "psycopg2" not in error_detail.lower()
+    assert "IntegrityError" not in error_detail
+    assert "NotNullViolation" not in error_detail
+    assert "not-null constraint" not in error_detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_alert_create_database_error_returns_generic_message(monkeypatch):
+    """
+    Test that database errors during alert creation return generic
+    error messages without exposing internal implementation details.
+    """
+    await init_db()
+    user = await _create_user("test_alert_error@example.com", "password123")
+
+    # Create a collection first (alerts require a collection)
+    channel = await _create_channel_for_user(user.id, "alertchannel")
+
+    async with AsyncSessionLocal() as session:
+        from app.models.collection import Collection
+        collection = Collection(
+            name="Alert Test Collection",
+            user_id=user.id,
+        )
+        session.add(collection)
+        await session.commit()
+        await session.refresh(collection)
+        collection_id = collection.id
+
+    # Mock database to raise error during alert creation
+    from app.api import alerts
+    original_create_alert = alerts.create_alert
+
+    async def _mock_create_alert(*args, **kwargs):
+        raise Exception("database.errors.ForeignKeyViolation: insert or update on table 'alerts' violates foreign key constraint 'fk_alerts_collection'")
+
+    monkeypatch.setattr("app.api.alerts.create_alert", _mock_create_alert)
+
+    async def _override_user():
+        return user
+
+    app.dependency_overrides[current_active_user] = _override_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/alerts",
+                json={
+                    "collection_id": str(collection_id),
+                    "trigger_type": "keyword",
+                    "trigger_value": "test",
+                },
+            )
+    finally:
+        app.dependency_overrides.pop(current_active_user, None)
+        monkeypatch.setattr("app.api.alerts.create_alert", original_create_alert)
+
+    # Should return error without database details
+    assert response.status_code in [500, 400, 404]
+    error_detail = str(response.json().get("detail", ""))
+
+    # Should NOT contain database constraint details
+    assert "ForeignKeyViolation" not in error_detail
+    assert "foreign key constraint" not in error_detail.lower()
+    assert "fk_alerts_collection" not in error_detail
+    assert "database.errors" not in error_detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_auth_registration_unexpected_error_returns_generic_code(monkeypatch):
+    """
+    Test that unexpected errors during registration return a generic error
+    code without exposing internal exception details.
+    """
+    await init_db()
+
+    # Mock user manager to raise unexpected error
+    from app.auth import users as auth_users
+    original_user_manager_dependency = auth_users.get_user_manager
+
+    async def _mock_user_manager():
+        mock_manager = AsyncMock()
+        mock_manager.create.side_effect = Exception(
+            "Internal service error: redis connection to cache.internal.example.com:6379 failed with timeout after 5000ms"
+        )
+        return mock_manager
+
+    monkeypatch.setattr("app.api.auth.get_user_manager", _mock_user_manager)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/api/auth/register",
+            json={"email": "test_unexpected@example.com", "password": "Str0ngP@ssword!"},
+        )
+
+    monkeypatch.setattr("app.api.auth.get_user_manager", original_user_manager_dependency)
+
+    # Should return generic error code
+    assert response.status_code == 500
+    error_detail = response.json()["detail"]
+
+    # Should be generic error code
+    assert error_detail == "REGISTER_UNEXPECTED_ERROR"
+
+    # Should NOT contain internal service details
+    assert "redis" not in error_detail.lower()
+    assert "cache.internal" not in error_detail.lower()
+    assert "6379" not in error_detail
+    assert "timeout" not in error_detail.lower()
+    assert "5000ms" not in error_detail
+
+
+@pytest.mark.asyncio
+async def test_message_search_database_error_returns_generic_message(monkeypatch):
+    """
+    Test that database errors during message search return generic
+    error messages without exposing query details or database internals.
+    """
+    await init_db()
+    user = await _create_user("test_search_error@example.com", "password123")
+
+    # Mock database session to raise error during search
+    from app.api import messages
+    original_session = messages.AsyncSessionLocal
+
+    class MockSessionForSearch:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def execute(self, *args, **kwargs):
+            raise Exception(
+                "psycopg2.errors.QueryCanceled: canceling statement due to statement timeout\n"
+                "CONTEXT: SQL statement \"SELECT messages.id, messages.telegram_id, messages.channel_id FROM messages WHERE to_tsvector('english', messages.text) @@ to_tsquery('english', $1)\""
+            )
+
+    monkeypatch.setattr("app.api.messages.AsyncSessionLocal", MockSessionForSearch)
+
+    async def _override_user():
+        return user
+
+    app.dependency_overrides[current_active_user] = _override_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/messages/search",
+                params={"query": "test"},
+            )
+    finally:
+        app.dependency_overrides.pop(current_active_user, None)
+        monkeypatch.setattr("app.api.messages.AsyncSessionLocal", original_session)
+
+    # Should return error without query details
+    assert response.status_code in [500, 400]
+    error_detail = str(response.json().get("detail", ""))
+
+    # Should NOT contain SQL query or database internals
+    assert "SELECT messages" not in error_detail
+    assert "to_tsvector" not in error_detail
+    assert "to_tsquery" not in error_detail
+    assert "QueryCanceled" not in error_detail
+    assert "statement timeout" not in error_detail.lower()
+    assert "CONTEXT:" not in error_detail
+    assert "psycopg2" not in error_detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_export_format_error_returns_generic_message():
+    """
+    Test that export format validation returns user-friendly error
+    messages without exposing internal format handling logic.
+    """
+    await init_db()
+    user = await _create_user("test_export@example.com", "password123")
+    channel = await _create_channel_for_user(user.id, "exportchannel")
+
+    async with AsyncSessionLocal() as session:
+        from app.models.collection import Collection
+        collection = Collection(
+            name="Export Test Collection",
+            user_id=user.id,
+        )
+        session.add(collection)
+        await session.commit()
+        await session.refresh(collection)
+        collection_id = collection.id
+
+    async def _override_user():
+        return user
+
+    app.dependency_overrides[current_active_user] = _override_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Try invalid export format
+            response = await client.get(
+                f"/api/collections/{collection_id}/export",
+                params={"format": "invalid_format_xyz"},
+            )
+    finally:
+        app.dependency_overrides.pop(current_active_user, None)
+
+    # Should return clear error about format
+    assert response.status_code == 400
+    error_detail = response.json()["detail"]
+
+    # Should be user-friendly generic message
+    assert "Unsupported export format" in error_detail or "Invalid" in error_detail
+
+    # Should NOT expose internal implementation
+    assert "KeyError" not in error_detail
+    assert "dict" not in error_detail.lower()
+    assert "format_xyz" not in error_detail or "invalid" in error_detail.lower()
