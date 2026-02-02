@@ -78,5 +78,10 @@
   "sharesPermission": "Permission",
   "sharesAdd": "Inviter",
   "sharesEmpty": "Aucun partage pour le moment.",
-  "remove": "Retirer"
+  "remove": "Retirer",
+  "removeShareTitle": "Retirer l'accès collaborateur ?",
+  "removeShareDescription": "Cet utilisateur ne pourra plus accéder à cette collection.",
+  "confirmDelete": "Supprimer l'alerte ?",
+  "confirmDeleteAlertMessage": "Cette alerte sera définitivement supprimée et ne déclenchera plus de notifications.",
+  "cancel": "Annuler"
 }

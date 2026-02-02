@@ -78,5 +78,10 @@
   "sharesPermission": "Permission",
   "sharesAdd": "Invite",
   "sharesEmpty": "No shares yet.",
-  "remove": "Remove"
+  "remove": "Remove",
+  "removeShareTitle": "Remove collaborator access?",
+  "removeShareDescription": "This user will no longer be able to access this collection.",
+  "confirmDelete": "Delete alert?",
+  "confirmDeleteAlertMessage": "This alert will be permanently deleted and will no longer trigger notifications.",
+  "cancel": "Cancel"
 }
