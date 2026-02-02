@@ -31,7 +31,9 @@ export function NotificationCenter() {
           <DialogTitle>{t('alerts.notifications')}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 space-y-3">
-          {triggers.length ? (
+          {triggersQuery.isLoading && !triggers.length ? (
+            <p className="text-sm text-foreground/60">{t('common.loading')}</p>
+          ) : triggers.length ? (
             triggers.map((trigger) => (
               <div key={trigger.id} className="rounded-xl border border-border/60 p-3">
                 <p className="text-sm font-semibold">{t('alerts.triggered')}</p>
