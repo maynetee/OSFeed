@@ -121,8 +121,8 @@ async def test_register_weak_password_too_short():
         )
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"] == "REGISTER_INVALID_PASSWORD"
-        assert "at least 8 characters" in data.get("reason", "").lower()
+        assert data["detail"]["code"] == "REGISTER_INVALID_PASSWORD"
+        assert "at least 8 characters" in data["detail"]["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -138,8 +138,8 @@ async def test_register_weak_password_no_uppercase():
         )
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"] == "REGISTER_INVALID_PASSWORD"
-        assert "uppercase" in data.get("reason", "").lower()
+        assert data["detail"]["code"] == "REGISTER_INVALID_PASSWORD"
+        assert "uppercase" in data["detail"]["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -155,8 +155,8 @@ async def test_register_weak_password_no_lowercase():
         )
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"] == "REGISTER_INVALID_PASSWORD"
-        assert "lowercase" in data.get("reason", "").lower()
+        assert data["detail"]["code"] == "REGISTER_INVALID_PASSWORD"
+        assert "lowercase" in data["detail"]["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -172,8 +172,8 @@ async def test_register_weak_password_no_digit():
         )
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"] == "REGISTER_INVALID_PASSWORD"
-        assert "digit" in data.get("reason", "").lower()
+        assert data["detail"]["code"] == "REGISTER_INVALID_PASSWORD"
+        assert "digit" in data["detail"]["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -189,8 +189,8 @@ async def test_register_weak_password_no_special_char():
         )
         assert response.status_code == 400
         data = response.json()
-        assert data["detail"] == "REGISTER_INVALID_PASSWORD"
-        assert "special character" in data.get("reason", "").lower()
+        assert data["detail"]["code"] == "REGISTER_INVALID_PASSWORD"
+        assert "special character" in data["detail"]["reason"].lower()
 
 
 @pytest.mark.asyncio
