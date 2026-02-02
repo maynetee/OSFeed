@@ -32,6 +32,7 @@ async def get_overview_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get overview statistics including total messages, active channels, and recent activity."""
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(days=1)
 
@@ -87,6 +88,7 @@ async def get_messages_by_day(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get message counts grouped by day for a specified time period."""
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     date_bucket = func.date(Message.published_at)
 
@@ -111,6 +113,7 @@ async def get_messages_by_channel(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get message counts grouped by channel, sorted by most active."""
     from app.models.channel import user_channels
 
     result = await db.execute(
@@ -131,6 +134,7 @@ async def export_stats_csv(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Export statistics to CSV format including overview and daily message counts."""
     overview = await get_overview_stats(user=user, db=db)
     by_day = await get_messages_by_day(days=days, user=user, db=db)
 
@@ -159,6 +163,7 @@ async def export_stats_json(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Export statistics to JSON format including overview and daily message counts."""
     overview = await get_overview_stats(user=user, db=db)
     by_day = await get_messages_by_day(days=days, user=user, db=db)
 
@@ -175,6 +180,7 @@ async def get_trust_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get trust metrics including primary sources rate, propaganda rate, and verified channels."""
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(days=1)
 
@@ -229,6 +235,7 @@ async def get_api_usage_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get API usage statistics including token consumption and estimated costs by provider and model."""
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     totals_result = await db.execute(
@@ -277,6 +284,7 @@ async def get_translation_metrics(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Get translation cache metrics including hit rate and tokens saved."""
     # Total translations in cache
     total_result = await db.execute(select(func.count()).select_from(MessageTranslation))
     total_cached = total_result.scalar() or 0
