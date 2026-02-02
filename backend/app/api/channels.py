@@ -461,6 +461,7 @@ async def add_channels_bulk(
 
 
 @router.get("", response_model=List[ChannelResponse])
+@response_cache(expire=60, namespace="channels-list")
 async def list_channels(
     request: Request,
     user: User = Depends(current_active_user),
@@ -623,6 +624,7 @@ async def fetch_jobs_status(
 
 
 @router.get("/{channel_id}", response_model=ChannelResponse)
+@response_cache(expire=60, namespace="channels-detail")
 async def get_channel(
     request: Request,
     channel_id: UUID,
