@@ -120,19 +120,21 @@ export function Sidebar() {
       <nav className="mt-10 flex flex-1 flex-col gap-1">
         {navItems.map((item) => {
           const Icon = item.icon
+          const isCurrentPage = location.pathname === item.to
           return (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                   isActive
                     ? 'bg-primary/15 text-primary'
                     : 'text-foreground-muted hover:bg-muted hover:text-foreground',
                   !isMobile && collapsed && 'justify-center px-2',
                 )
               }
+              aria-current={isCurrentPage ? 'page' : undefined}
             >
               <Icon className="h-4 w-4" />
               {(isMobile || !collapsed) && <span>{t(`navigation.${item.key}`)}</span>}
