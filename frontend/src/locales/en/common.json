@@ -4,5 +4,8 @@
   "pdf": "PDF",
   "html": "HTML",
   "cancel": "Cancel",
-  "confirm": "Confirm"
+  "confirm": "Confirm",
+  "errorTitle": "Something went wrong",
+  "errorRetry": "Try again",
+  "errorReconnect": "Reconnect"
 }
