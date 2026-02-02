@@ -3,8 +3,16 @@
   "subtitle": "Affinez le flux en temps reel.",
   "period": "Periode",
   "channels": "Canaux",
+  "channel": "canal",
   "collections": "Collections",
+  "collection": "collection",
+  "mediaTypes": "Types de medias",
+  "text": "Texte",
+  "photo": "Photo",
+  "video": "Video",
+  "document": "Document",
   "clear": "Tout afficher",
-  "active": "Filtres actifs : {{count}}/{{total}} canaux",
+  "active": "Actifs",
+  "last": "Derniers",
   "all": "Tout"
 }

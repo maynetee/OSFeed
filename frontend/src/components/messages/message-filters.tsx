@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useShallow } from 'zustand/react/shallow'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useFilterStore } from '@/stores/filter-store'
@@ -48,6 +49,43 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
     [collections],
   )
 
+  const hasActiveFilters = useMemo(
+    () => channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0 || dateRange !== 'all',
+    [channelIds.length, collectionIds.length, mediaTypes.length, dateRange]
+  )
+
+  const activeFilterSummary = useMemo(() => {
+    const summary: string[] = []
+
+    if (channelIds.length > 0) {
+      summary.push(`${channelIds.length} ${channelIds.length === 1 ? t('filters.channel') : t('filters.channels')}`)
+    }
+
+    if (collectionIds.length > 0) {
+      summary.push(`${collectionIds.length} ${collectionIds.length === 1 ? t('filters.collection') : t('filters.collections')}`)
+    }
+
+    if (mediaTypes.length > 0) {
+      const typeLabels = mediaTypes.map(type => {
+        switch(type) {
+          case 'text': return t('filters.text')
+          case 'photo': return t('filters.photo')
+          case 'video': return t('filters.video')
+          case 'document': return t('filters.document')
+          default: return type
+        }
+      })
+      summary.push(typeLabels.join(' + '))
+    }
+
+    if (dateRange !== 'all') {
+      const rangeLabel = dateRange === '24h' ? '24h' : dateRange === '7d' ? '7d' : '30d'
+      summary.push(t('filters.last') + ' ' + rangeLabel)
+    }
+
+    return summary
+  }, [channelIds.length, collectionIds.length, mediaTypes, dateRange, t])
+
   return (
     <Card>
       <CardContent className="flex flex-col gap-4 py-6">
@@ -55,6 +93,18 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
           <p className="text-sm font-semibold">{t('filters.title')}</p>
           <p className="text-xs text-foreground/60">{t('filters.subtitle')}</p>
         </div>
+
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 p-3">
+            <span className="text-xs font-medium text-foreground/70">{t('filters.active')}:</span>
+            {activeFilterSummary.map((item, index) => (
+              <Badge key={index} variant="muted">
+                {item}
+              </Badge>
+            ))}
+          </div>
+        )}
+
         <div className="flex justify-end">
           {(channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0) ? (
             <Button variant="ghost" size="sm" onClick={() => resetFilters()}>

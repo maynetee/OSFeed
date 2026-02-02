@@ -3,8 +3,16 @@
   "subtitle": "Refine the stream in real time.",
   "period": "Period",
   "channels": "Channels",
+  "channel": "channel",
   "collections": "Collections",
+  "collection": "collection",
+  "mediaTypes": "Media types",
+  "text": "Text",
+  "photo": "Photo",
+  "video": "Video",
+  "document": "Document",
   "clear": "Show all",
-  "active": "Filters active: {{count}}/{{total}} channels",
+  "active": "Active",
+  "last": "Last",
   "all": "All time"
 }
