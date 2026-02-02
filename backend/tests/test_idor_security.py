@@ -5,49 +5,47 @@ from datetime import datetime, timezone
 import pytest
 from httpx import AsyncClient, ASGITransport
 from fastapi_users.password import PasswordHelper
-from sqlalchemy import text
+from sqlalchemy import text, select
 
 from app.main import app
 from app.database import AsyncSessionLocal, init_db
 from app.models.channel import Channel
 from app.models.message import Message
+from app.models.user import User
 from app.auth.users import current_active_user
 
 
-async def _create_user(email: str, password: str) -> SimpleNamespace:
-    """Create a test user."""
+async def _create_user(email: str, password: str) -> User:
+    """Create a test user and return the User object."""
     password_helper = PasswordHelper()
-    user_id = str(uuid4())
+    user_id = uuid4()
     async with AsyncSessionLocal() as session:
-        await session.execute(
-            text(
-                "INSERT INTO users (id, email, hashed_password, is_active, is_superuser, "
-                "is_verified, role, data_retention_days, created_at) "
-                "VALUES (:id, :email, :hashed_password, :is_active, :is_superuser, "
-                ":is_verified, :role, :data_retention_days, :created_at)"
-            ),
-            {
-                "id": user_id,
-                "email": email,
-                "hashed_password": password_helper.hash(password),
-                "is_active": True,
-                "is_superuser": False,
-                "is_verified": True,
-                "role": "viewer",
-                "data_retention_days": 365,
-                "created_at": datetime.now(timezone.utc),
-            },
+        # Create user directly with ORM to ensure proper UUID handling
+        user = User(
+            id=user_id,
+            email=email,
+            hashed_password=password_helper.hash(password),
+            is_active=True,
+            is_superuser=False,
+            is_verified=True,
+            role="viewer",
+            data_retention_days=365,
+            preferred_language="en",
         )
+        session.add(user)
         await session.commit()
-        return SimpleNamespace(id=UUID(user_id), email=email)
+        await session.refresh(user)
+        return user
 
 
 async def _create_channel_for_user(user_id, username: str) -> Channel:
     """Create a channel and link it to a user."""
     async with AsyncSessionLocal() as session:
+        # Use hash of username to generate unique telegram_id
+        telegram_id = hash(username) % 1000000000
         channel = Channel(
             username=username,
-            telegram_id=12345,
+            telegram_id=telegram_id,
             title=f"Test Channel {username}",
             description="Test description",
             subscriber_count=1000,
