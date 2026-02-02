@@ -9,17 +9,13 @@ function SingleSkeleton() {
     <Card className="animate-pulse">
       <CardContent className="flex flex-col gap-4 py-6">
         {/* Header row */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-24 rounded bg-muted" />
-            <div className="h-4 w-16 rounded bg-muted" />
-            <div className="h-4 w-20 rounded bg-muted" />
-            <div className="h-5 w-8 rounded-full bg-muted" />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-5 w-16 rounded-full bg-muted" />
-            <div className="h-5 w-20 rounded-full bg-muted" />
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="h-4 w-24 rounded bg-muted" />
+          <div className="h-4 w-16 rounded bg-muted" />
+          <div className="h-4 w-20 rounded bg-muted" />
+          <div className="h-5 w-8 rounded-full bg-muted" />
+          <div className="h-5 w-16 rounded-full bg-muted" />
+          <div className="h-5 w-20 rounded-full bg-muted" />
         </div>
 
         {/* Content */}
