@@ -1,5 +1,6 @@
 {
   "notifications": "Alertes",
   "triggered": "Alerte declenchee",
-  "empty": "Aucune alerte pour le moment."
+  "empty": "Aucune alerte pour le moment.",
+  "error": "Échec du chargement des alertes. Veuillez réessayer."
 }

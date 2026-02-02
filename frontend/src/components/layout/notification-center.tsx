@@ -37,7 +37,9 @@ export function NotificationCenter() {
           <DialogTitle>{t('alerts.notifications')}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 space-y-3">
-          {triggersQuery.isLoading && !triggers.length ? (
+          {triggersQuery.isError ? (
+            <p className="text-sm text-destructive">{t('alerts.error')}</p>
+          ) : triggersQuery.isLoading && !triggers.length ? (
             <p className="text-sm text-foreground/60">{t('common.loading')}</p>
           ) : triggers.length ? (
             triggers.map((trigger) => (
