@@ -118,25 +118,32 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant={selectedCollection === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setSelectedCollection('all')}
-        >
-          {t('collections.allCollections')}
-        </Button>
-        {collectionOptions.map((collection) => (
+      <fieldset>
+        <legend className="text-xs font-semibold uppercase text-foreground/40">
+          {t('collections.title')}
+        </legend>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
-            key={collection.id}
-            variant={selectedCollection === collection.id ? 'secondary' : 'outline'}
+            variant={selectedCollection === 'all' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedCollection(collection.id)}
+            onClick={() => setSelectedCollection('all')}
+            aria-pressed={selectedCollection === 'all'}
           >
-            {collection.name}
+            {t('collections.allCollections')}
           </Button>
-        ))}
-      </div>
+          {collectionOptions.map((collection) => (
+            <Button
+              key={collection.id}
+              variant={selectedCollection === collection.id ? 'secondary' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedCollection(collection.id)}
+              aria-pressed={selectedCollection === collection.id}
+            >
+              {collection.name}
+            </Button>
+          ))}
+        </div>
+      </fieldset>
       <section className="grid gap-4 md:grid-cols-3">
         <KpiCard
           label={t('dashboard.kpiMessages')}
