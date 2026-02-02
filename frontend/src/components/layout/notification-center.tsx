@@ -18,12 +18,18 @@ export function NotificationCenter() {
   })
 
   const triggers = triggersQuery.data ?? []
+  const unreadCount = triggers.length
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" aria-label={t('alerts.notifications')}>
+        <Button variant="outline" size="icon" aria-label={t('alerts.notifications')} className="relative">
           <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent>
