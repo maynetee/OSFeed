@@ -39,17 +39,17 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <React.StrictMode>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <I18nextProvider i18n={i18n}>
+      <QueryClientProvider client={queryClient}>
+        <I18nextProvider i18n={i18n}>
+          <ErrorBoundary>
             <BrowserRouter>
               <ThemeBridge />
               <LanguageBridge />
               {children}
             </BrowserRouter>
-          </I18nextProvider>
-        </QueryClientProvider>
-      </ErrorBoundary>
+          </ErrorBoundary>
+        </I18nextProvider>
+      </QueryClientProvider>
     </React.StrictMode>
   )
 }
