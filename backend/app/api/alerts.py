@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import Optional, List
 from uuid import UUID
+import logging
 
 from app.database import get_db
 from app.models.alert import Alert, AlertTrigger
@@ -11,6 +12,8 @@ from app.models.collection_share import CollectionShare
 from app.models.user import User
 from app.schemas.alert import AlertCreate, AlertResponse, AlertUpdate, AlertTriggerResponse
 from app.auth.users import current_active_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -65,24 +68,30 @@ async def create_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    collection, permission = await _get_collection_for_user(db, payload.collection_id, user.id)
-    _assert_permission(collection, user, permission, "edit")
+    try:
+        collection, permission = await _get_collection_for_user(db, payload.collection_id, user.id)
+        _assert_permission(collection, user, permission, "edit")
 
-    alert = Alert(
-        collection_id=payload.collection_id,
-        user_id=user.id,
-        name=payload.name,
-        keywords=payload.keywords or [],
-        entities=payload.entities or [],
-        min_threshold=payload.min_threshold,
-        frequency=payload.frequency,
-        notification_channels=payload.notification_channels or ["in_app"],
-        is_active=payload.is_active,
-    )
-    db.add(alert)
-    await db.commit()
-    await db.refresh(alert)
-    return alert
+        alert = Alert(
+            collection_id=payload.collection_id,
+            user_id=user.id,
+            name=payload.name,
+            keywords=payload.keywords or [],
+            entities=payload.entities or [],
+            min_threshold=payload.min_threshold,
+            frequency=payload.frequency,
+            notification_channels=payload.notification_channels or ["in_app"],
+            is_active=payload.is_active,
+        )
+        db.add(alert)
+        await db.commit()
+        await db.refresh(alert)
+        return alert
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating alert for user {user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create alert")
 
 
 @router.get("/triggers/recent", response_model=List[AlertTriggerResponse])

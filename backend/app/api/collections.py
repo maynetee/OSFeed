@@ -8,6 +8,8 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 from io import BytesIO
 
+import logging
+
 from app.database import get_db
 from app.models.collection import Collection, collection_channels
 from app.models.collection_share import CollectionShare
@@ -24,6 +26,8 @@ from app.services.message_export_service import (
     export_messages_html,
     export_messages_pdf,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -263,40 +267,46 @@ async def create_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    channels = await _load_channels(db, payload.channel_ids or [])
-    if payload.is_global:
-        channels = []
-    if payload.parent_id:
-        await _get_collection_for_user(db, payload.parent_id, user.id)
+    try:
+        channels = await _load_channels(db, payload.channel_ids or [])
+        if payload.is_global:
+            channels = []
+        if payload.parent_id:
+            await _get_collection_for_user(db, payload.parent_id, user.id)
 
-    collection = Collection(
-        user_id=user.id,
-        name=payload.name,
-        description=payload.description,
-        color=payload.color,
-        icon=payload.icon,
-        is_default=payload.is_default,
-        is_global=payload.is_global,
-        parent_id=payload.parent_id,
-        auto_assign_languages=payload.auto_assign_languages or [],
-        auto_assign_keywords=payload.auto_assign_keywords or [],
-        auto_assign_tags=payload.auto_assign_tags or [],
-        channels=channels,
-    )
-    db.add(collection)
-    await _apply_default_collection(db, user.id, collection)
-    record_audit_event(
-        db,
-        user_id=user.id,
-        action="collection.create",
-        resource_type="collection",
-        resource_id=str(collection.id),
-        metadata={"channel_ids": [str(channel.id) for channel in channels]},
-    )
-    await db.commit()
-    await db.refresh(collection)
-    channel_ids = await _collection_channel_ids(db, collection)
-    return _collection_response(collection, channel_ids)
+        collection = Collection(
+            user_id=user.id,
+            name=payload.name,
+            description=payload.description,
+            color=payload.color,
+            icon=payload.icon,
+            is_default=payload.is_default,
+            is_global=payload.is_global,
+            parent_id=payload.parent_id,
+            auto_assign_languages=payload.auto_assign_languages or [],
+            auto_assign_keywords=payload.auto_assign_keywords or [],
+            auto_assign_tags=payload.auto_assign_tags or [],
+            channels=channels,
+        )
+        db.add(collection)
+        await _apply_default_collection(db, user.id, collection)
+        record_audit_event(
+            db,
+            user_id=user.id,
+            action="collection.create",
+            resource_type="collection",
+            resource_id=str(collection.id),
+            metadata={"channel_ids": [str(channel.id) for channel in channels]},
+        )
+        await db.commit()
+        await db.refresh(collection)
+        channel_ids = await _collection_channel_ids(db, collection)
+        return _collection_response(collection, channel_ids)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating collection for user {user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create collection")
 
 
 @router.get("/compare")

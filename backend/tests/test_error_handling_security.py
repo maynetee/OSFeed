@@ -28,7 +28,9 @@ _telegram_id_counter = itertools.count(200000)
 async def _create_user(email: str, password: str) -> SimpleNamespace:
     """Helper to create a test user."""
     password_helper = PasswordHelper()
-    user_id = str(uuid4())
+    user_uuid = uuid4()
+    # Store user ID as 32-char hex (matching GUID type adapter format for SQLite)
+    user_id_hex = user_uuid.hex
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
@@ -38,7 +40,7 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
                 ":is_verified, :role, :data_retention_days, :preferred_language, :created_at)"
             ),
             {
-                "id": user_id,
+                "id": user_id_hex,
                 "email": email,
                 "hashed_password": password_helper.hash(password),
                 "is_active": True,
@@ -51,11 +53,13 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
             },
         )
         await session.commit()
-        return SimpleNamespace(id=user_id, email=email)
+        return SimpleNamespace(id=user_uuid, email=email)
 
 
-async def _create_channel_for_user(user_id: str, username: str) -> Channel:
+async def _create_channel_for_user(user_id, username: str) -> Channel:
     """Create a channel and link it to a user."""
+    # Convert UUID to hex string for raw SQL (matching GUID type adapter format)
+    uid_hex = user_id.hex if hasattr(user_id, 'hex') else str(user_id)
     async with AsyncSessionLocal() as session:
         channel = Channel(
             username=username,
@@ -73,8 +77,8 @@ async def _create_channel_for_user(user_id: str, username: str) -> Channel:
                 "VALUES (:id, :user_id, :channel_id, :added_at)"
             ),
             {
-                "id": str(uuid4()),
-                "user_id": user_id,
+                "id": uuid4().hex,
+                "user_id": uid_hex,
                 "channel_id": channel.id.hex,
                 "added_at": None,
             },
@@ -209,6 +213,12 @@ async def test_bulk_channel_add_error_returns_generic_message(monkeypatch):
 
     # Mock enqueue to prevent actual job creation
     monkeypatch.setattr("app.api.channels.enqueue_fetch_job", AsyncMock(return_value=None))
+
+    # Mock record_audit_event to avoid SQLite UUID serialization issues
+    monkeypatch.setattr("app.api.channels.record_audit_event", MagicMock())
+
+    # Mock invalidate_channel_translation_cache to avoid side effects
+    monkeypatch.setattr("app.api.channels.invalidate_channel_translation_cache", AsyncMock())
 
     async def _override_user():
         return user
@@ -468,12 +478,21 @@ async def test_collection_create_database_error_returns_generic_message(monkeypa
     await init_db()
     user = await _create_user("test_collection_error@example.com", "password123")
 
-    # Override get_db to provide a session that raises on execute
+    # Override get_db to provide a mock session that fails on execute
     from app.database import get_db
 
     async def _broken_db():
-        raise Exception("sqlalchemy.exc.IntegrityError: (psycopg2.errors.NotNullViolation) null value in column 'name' violates not-null constraint")
-        yield  # noqa: unreachable - makes this an async generator
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(side_effect=Exception(
+            "sqlalchemy.exc.IntegrityError: (psycopg2.errors.NotNullViolation) "
+            "null value in column 'name' violates not-null constraint"
+        ))
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
+        mock_session.close = AsyncMock()
+        mock_session.refresh = AsyncMock()
+        yield mock_session
 
     async def _override_user():
         return user
@@ -512,37 +531,20 @@ async def test_alert_create_database_error_returns_generic_message():
     await init_db()
     user = await _create_user("test_alert_error@example.com", "password123")
 
-    # Override get_db to provide a session that raises on commit
+    # Override get_db to provide a mock session that raises on execute
     from app.database import get_db
 
     async def _broken_db():
-        session = AsyncSessionLocal()
-        original_commit = session.commit
-
-        async def _failing_commit():
-            await session.rollback()
-            raise Exception(
-                "database.errors.ForeignKeyViolation: insert or update on table 'alerts' "
-                "violates foreign key constraint 'fk_alerts_collection'"
-            )
-
-        session.commit = _failing_commit
-        try:
-            yield session
-        finally:
-            await session.close()
-
-    # Create a real collection so the endpoint gets past the lookup
-    async with AsyncSessionLocal() as session:
-        from app.models.collection import Collection
-        collection = Collection(
-            name="Alert Test Collection",
-            user_id=user.id,
-        )
-        session.add(collection)
-        await session.commit()
-        await session.refresh(collection)
-        collection_id = collection.id
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(side_effect=Exception(
+            "database.errors.ForeignKeyViolation: insert or update on table 'alerts' "
+            "violates foreign key constraint 'fk_alerts_collection'"
+        ))
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.rollback = AsyncMock()
+        mock_session.close = AsyncMock()
+        yield mock_session
 
     async def _override_user():
         return user
@@ -555,9 +557,9 @@ async def test_alert_create_database_error_returns_generic_message():
             response = await client.post(
                 "/api/alerts",
                 json={
-                    "collection_id": str(collection_id),
-                    "trigger_type": "keyword",
-                    "trigger_value": "test",
+                    "name": "Test Alert",
+                    "collection_id": str(uuid4()),
+                    "keywords": ["test"],
                 },
             )
     finally:
@@ -629,24 +631,19 @@ async def test_message_search_database_error_returns_generic_message():
     await init_db()
     user = await _create_user("test_search_error@example.com", "password123")
 
-    # Override get_db to provide a session that raises on execute
+    # Override get_db to provide a mock session that raises on execute
     from app.database import get_db
 
     async def _broken_db():
-        session = AsyncSessionLocal()
-        original_execute = session.execute
-
-        async def _failing_execute(*args, **kwargs):
-            raise Exception(
-                "psycopg2.errors.QueryCanceled: canceling statement due to statement timeout\n"
-                "CONTEXT: SQL statement \"SELECT messages.id, messages.telegram_id, messages.channel_id FROM messages WHERE to_tsvector('english', messages.text) @@ to_tsquery('english', $1)\""
-            )
-
-        session.execute = _failing_execute
-        try:
-            yield session
-        finally:
-            await session.close()
+        mock_session = AsyncMock()
+        mock_session.execute = AsyncMock(side_effect=Exception(
+            "psycopg2.errors.QueryCanceled: canceling statement due to statement timeout\n"
+            "CONTEXT: SQL statement \"SELECT messages.id, messages.telegram_id, messages.channel_id "
+            "FROM messages WHERE to_tsvector('english', messages.text) @@ to_tsquery('english', $1)\""
+        ))
+        mock_session.rollback = AsyncMock()
+        mock_session.close = AsyncMock()
+        yield mock_session
 
     async def _override_user():
         return user

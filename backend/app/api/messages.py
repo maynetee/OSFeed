@@ -300,40 +300,46 @@ async def search_messages(
     db: AsyncSession = Depends(get_db),
 ):
     """Search messages via full-text match on original/translated text."""
-    search_term = f"%{q}%"
-    search_filter = or_(
-        Message.original_text.ilike(search_term),
-        func.coalesce(Message.translated_text, literal("")).ilike(search_term),
-    )
-    query = select(Message).options(selectinload(Message.channel)).where(search_filter)
-    query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date, media_types)
+    try:
+        search_term = f"%{q}%"
+        search_filter = or_(
+            Message.original_text.ilike(search_term),
+            func.coalesce(Message.translated_text, literal("")).ilike(search_term),
+        )
+        query = select(Message).options(selectinload(Message.channel)).where(search_filter)
+        query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date, media_types)
 
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
 
-    query = query.order_by(desc(Message.published_at), desc(Message.id))
-    if cursor:
-        cursor_published_at, cursor_id = _decode_cursor(cursor)
-        query = query.where(tuple_(Message.published_at, Message.id) < (cursor_published_at, cursor_id))
-    else:
-        query = query.offset(offset)
-    query = query.limit(limit)
-    result = await db.execute(query)
-    messages = result.scalars().all()
+        query = query.order_by(desc(Message.published_at), desc(Message.id))
+        if cursor:
+            cursor_published_at, cursor_id = _decode_cursor(cursor)
+            query = query.where(tuple_(Message.published_at, Message.id) < (cursor_published_at, cursor_id))
+        else:
+            query = query.offset(offset)
+        query = query.limit(limit)
+        result = await db.execute(query)
+        messages = result.scalars().all()
 
-    next_cursor = None
-    if messages:
-        last_message = messages[-1]
-        next_cursor = _encode_cursor(last_message.published_at, last_message.id)
+        next_cursor = None
+        if messages:
+            last_message = messages[-1]
+            next_cursor = _encode_cursor(last_message.published_at, last_message.id)
 
-    return MessageListResponse(
-        messages=[_message_to_response(message) for message in messages],
-        total=total,
-        page=offset // limit + 1 if not cursor else 1,
-        page_size=limit,
-        next_cursor=next_cursor,
-    )
+        return MessageListResponse(
+            messages=[_message_to_response(message) for message in messages],
+            total=total,
+            page=offset // limit + 1 if not cursor else 1,
+            page_size=limit,
+            next_cursor=next_cursor,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching messages for user {user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Search failed")
 
 
 @router.post("/fetch-historical/{channel_id}")
