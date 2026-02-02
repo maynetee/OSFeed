@@ -36,6 +36,18 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'recharts': ['recharts'],
+          'framer-motion': ['framer-motion'],
+          'i18next': ['react-i18next', 'i18next'],
+          'tanstack': ['@tanstack/react-query'],
+        },
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
