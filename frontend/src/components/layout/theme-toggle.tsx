@@ -27,6 +27,7 @@ export function ThemeToggle() {
             className={isActive ? 'h-8 w-8' : 'h-8 w-8 text-foreground/60'}
             onClick={() => setTheme(option.value)}
             aria-label={option.label}
+            aria-pressed={isActive}
           >
             <Icon className="h-4 w-4" />
           </Button>
