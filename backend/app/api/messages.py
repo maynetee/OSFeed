@@ -375,11 +375,12 @@ async def translate_messages(
     target_language: str = Query(..., description="Target language code"),
     channel_id: Optional[UUID] = None,
     user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Re-translate messages to a new target language."""
     from app.models.channel import user_channels
 
-    async with AsyncSessionLocal() as db:
+    async with AsyncSessionLocal() as db_local:
         query = select(Message.id, Message.original_text, Message.published_at).where(
             Message.needs_translation.is_(True)
         )
@@ -391,7 +392,7 @@ async def translate_messages(
         if channel_id:
             query = query.where(Message.channel_id == channel_id)
 
-        result = await db.execute(query)
+        result = await db_local.execute(query)
         messages_to_translate = [
             {'id': row.id, 'original_text': row.original_text, 'published_at': row.published_at}
             for row in result.all()
@@ -401,18 +402,32 @@ async def translate_messages(
     if not messages_to_translate:
         return {"message": "No messages to translate"}
 
+    # Record audit event
+    record_audit_event(
+        db=db,
+        user_id=user.id,
+        action="translate_messages_batch",
+        resource_type="message",
+        resource_id=str(channel_id) if channel_id else None,
+        metadata={
+            "target_language": target_language,
+            "channel_id": str(channel_id) if channel_id else None,
+            "message_count": len(messages_to_translate),
+        },
+    )
+
     translated_count = 0
     start_time = datetime.now()
     
     message_ids = [m['id'] for m in messages_to_translate]
     cache_hits = {}
-    
-    async with AsyncSessionLocal() as db:
+
+    async with AsyncSessionLocal() as db_local:
         cache_query = select(MessageTranslation).where(
             MessageTranslation.message_id.in_(message_ids),
             MessageTranslation.target_lang == target_language
         )
-        cache_result = await db.execute(cache_query)
+        cache_result = await db_local.execute(cache_query)
         for row in cache_result.scalars().all():
             cache_hits[row.message_id] = row
             
@@ -475,25 +490,25 @@ async def translate_messages(
             translated_count += 1
 
         if new_translations:
-            async with AsyncSessionLocal() as db:
+            async with AsyncSessionLocal() as db_local:
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
                 stmt = pg_insert(MessageTranslation).values(new_translations)
                 stmt = stmt.on_conflict_do_nothing(
                     index_elements=['message_id', 'target_lang']
                 )
-                await db.execute(stmt)
-                await db.commit()
+                await db_local.execute(stmt)
+                await db_local.commit()
 
     if updates:
-        async with AsyncSessionLocal() as db:
+        async with AsyncSessionLocal() as db_local:
             chunk_size = 100
             for i in range(0, len(updates), chunk_size):
                 chunk = updates[i:i + chunk_size]
-                await db.execute(
+                await db_local.execute(
                     update(Message),
                     chunk
                 )
-            await db.commit()
+            await db_local.commit()
 
     duration = datetime.now() - start_time
     return {
@@ -878,10 +893,11 @@ async def get_similar_messages(
 async def translate_message_on_demand(
     message_id: UUID,
     user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Translate a message on demand."""
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(
+    async with AsyncSessionLocal() as db_local:
+        result = await db_local.execute(
             select(Message).options(selectinload(Message.channel)).where(Message.id == message_id)
         )
         message = result.scalar_one_or_none()
@@ -889,22 +905,34 @@ async def translate_message_on_demand(
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
 
+    # Record audit event
+    target_language = message.target_language or settings.preferred_language
+    record_audit_event(
+        db=db,
+        user_id=user.id,
+        action="translate_message_on_demand",
+        resource_type="message",
+        resource_id=str(message_id),
+        metadata={
+            "target_language": target_language,
+            "channel_id": str(message.channel_id) if message.channel_id else None,
+        },
+    )
+
     if not message.needs_translation:
         return _message_to_response(message)
 
     original_text = message.original_text or ""
     if not original_text.strip():
-        async with AsyncSessionLocal() as db:
-            await db.execute(
+        async with AsyncSessionLocal() as db_local:
+            await db_local.execute(
                 update(Message)
                 .where(Message.id == message_id)
                 .values(needs_translation=False, translation_priority="skip")
             )
-            await db.commit()
+            await db_local.commit()
         message.needs_translation = False
         return _message_to_response(message)
-
-    target_language = message.target_language or settings.preferred_language
     translated_text, source_lang, priority = await run_translation(
         translator.translate(
             original_text,
@@ -914,8 +942,8 @@ async def translate_message_on_demand(
         )
     )
 
-    async with AsyncSessionLocal() as db:
-        await db.execute(
+    async with AsyncSessionLocal() as db_local:
+        await db_local.execute(
             update(Message)
             .where(Message.id == message_id)
             .values(
@@ -927,8 +955,8 @@ async def translate_message_on_demand(
                 translation_priority=priority,
             )
         )
-        await db.commit()
-        refreshed = await db.execute(
+        await db_local.commit()
+        refreshed = await db_local.execute(
             select(Message).options(selectinload(Message.channel)).where(Message.id == message_id)
         )
         message = refreshed.scalar_one_or_none()
