@@ -7,5 +7,6 @@
   "confirm": "Confirm",
   "errorTitle": "Something went wrong",
   "errorRetry": "Try again",
-  "errorReconnect": "Reconnect"
+  "errorReconnect": "Reconnect",
+  "errorUnknown": "Unknown error"
 }

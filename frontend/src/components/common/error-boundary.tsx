@@ -40,7 +40,7 @@ class ErrorBoundaryComponent extends React.Component<ErrorBoundaryProps, ErrorBo
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
           <h1 className="text-xl font-semibold text-foreground">{this.props.t('common.errorTitle')}</h1>
           <p className="text-sm text-foreground/60">
-            {this.state.error?.message || 'Erreur inconnue'}
+            {this.state.error?.message || this.props.t('common.errorUnknown')}
           </p>
           <div className="flex gap-2">
             <Button onClick={this.handleRetry}>{this.props.t('common.errorRetry')}</Button>
