@@ -20,6 +20,7 @@ interface ExportDialogProps {
     channel_ids?: string[]
     start_date?: string
     end_date?: string
+    media_types?: string[]
   }
 }
 
