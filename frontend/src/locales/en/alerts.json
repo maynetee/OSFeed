@@ -1,5 +1,6 @@
 {
   "notifications": "Alerts",
   "triggered": "Alert triggered",
-  "empty": "No alerts yet."
+  "empty": "No alerts yet.",
+  "error": "Failed to load alerts. Please try again."
 }

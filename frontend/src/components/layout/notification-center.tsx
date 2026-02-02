@@ -18,12 +18,18 @@ export function NotificationCenter() {
   })
 
   const triggers = triggersQuery.data ?? []
+  const unreadCount = triggers.length
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" aria-label={t('alerts.notifications')}>
+        <Button variant="outline" size="icon" aria-label={t('alerts.notifications')} className="relative">
           <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -31,7 +37,11 @@ export function NotificationCenter() {
           <DialogTitle>{t('alerts.notifications')}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 space-y-3">
-          {triggers.length ? (
+          {triggersQuery.isError ? (
+            <p className="text-sm text-destructive">{t('alerts.error')}</p>
+          ) : triggersQuery.isLoading && !triggers.length ? (
+            <p className="text-sm text-foreground/60">{t('common.loading')}</p>
+          ) : triggers.length ? (
             triggers.map((trigger) => (
               <div key={trigger.id} className="rounded-xl border border-border/60 p-3">
                 <p className="text-sm font-semibold">{t('alerts.triggered')}</p>

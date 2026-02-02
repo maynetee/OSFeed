@@ -95,7 +95,7 @@ export function Sidebar() {
     return () => drawer.removeEventListener('keydown', handleKeyDown)
   }, [isMobile, mobileDrawerOpen])
 
-  const { data: stats } = useQuery({
+  const { data: stats, isLoading, isError } = useQuery({
     queryKey: ['stats', 'overview'],
     queryFn: async () => (await statsApi.overview()).data,
     staleTime: 60000, // 1 minute
@@ -158,12 +158,25 @@ export function Sidebar() {
           {t('sidebar.status')}
         </p>
         {(isMobile || !collapsed) && (
-          <p className="mt-2 text-xs text-foreground-muted">
-            {t('sidebar.statusSummary', {
-              duplicates: statusDuplicates,
-              messages: statusMessages.toLocaleString(),
-            })}
-          </p>
+          <>
+            {isError ? (
+              <p className="mt-2 text-xs text-destructive">
+                {t('sidebar.error')}
+              </p>
+            ) : isLoading ? (
+              <div className="mt-2 space-y-2 animate-pulse">
+                <div className="h-3 w-full rounded bg-muted" />
+                <div className="h-3 w-4/5 rounded bg-muted" />
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-foreground-muted">
+                {t('sidebar.statusSummary', {
+                  duplicates: statusDuplicates,
+                  messages: statusMessages.toLocaleString(),
+                })}
+              </p>
+            )}
+          </>
         )}
       </div>
     </aside>
