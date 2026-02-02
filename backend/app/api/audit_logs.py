@@ -1,3 +1,4 @@
+"""Audit logs API routes for OSFeed."""
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -23,6 +24,7 @@ async def list_audit_logs(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
+    """Retrieve audit logs for the current user with optional filtering by action, resource type, and date range."""
     query = select(AuditLog).where(AuditLog.user_id == user.id)
 
     if action:
