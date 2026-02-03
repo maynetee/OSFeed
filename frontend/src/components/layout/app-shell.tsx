@@ -1,14 +1,24 @@
 import { Outlet } from 'react-router-dom'
-import { Toaster } from 'sonner'
+import { toast, Toaster } from 'sonner'
 
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { useMessageStream } from '@/hooks/use-message-stream'
 import { useMobile } from '@/hooks/use-mobile'
 
 export function AppShell() {
   useKeyboardShortcuts()
   const isMobile = useMobile()
+
+  useMessageStream({
+    enabled: true,
+    onAlert: (data) => {
+      toast.success(data.alert_name, {
+        description: data.summary,
+      })
+    },
+  })
 
   return (
     <>
