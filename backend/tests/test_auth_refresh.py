@@ -31,26 +31,46 @@ async def test_login_and_refresh_token_flow():
             data={"username": "test@example.com", "password": "password123"},
         )
         assert login_response.status_code == 200
-        payload = login_response.json()
-        assert "access_token" in payload
-        assert "refresh_token" in payload
 
-        refresh_response = await client.post(
-            "/api/auth/refresh",
-            json={"refresh_token": payload["refresh_token"]},
-        )
+        # Verify tokens are in cookies, not JSON body
+        assert "access_token" in login_response.cookies
+        assert "refresh_token" in login_response.cookies
+
+        # Verify JSON response contains user info only
+        payload = login_response.json()
+        assert "user" in payload
+        assert payload["user"]["email"] == "test@example.com"
+        assert "access_token" not in payload
+        assert "refresh_token" not in payload
+
+        # Verify cookie attributes
+        access_cookie = login_response.cookies.get("access_token")
+        refresh_cookie = login_response.cookies.get("refresh_token")
+        assert access_cookie is not None
+        assert refresh_cookie is not None
+
+        # Refresh using cookies (cookies are automatically sent by the client)
+        refresh_response = await client.post("/api/auth/refresh")
         assert refresh_response.status_code == 200
+
+        # Verify new tokens are in cookies
+        assert "access_token" in refresh_response.cookies
+        assert "refresh_token" in refresh_response.cookies
+
+        # Verify JSON response contains user info only
         refresh_payload = refresh_response.json()
-        assert refresh_payload["access_token"]
-        assert refresh_payload["refresh_token"]
+        assert "user" in refresh_payload
+        assert "access_token" not in refresh_payload
+        assert "refresh_token" not in refresh_payload
 
 
 @pytest.mark.asyncio
 async def test_refresh_token_rejects_invalid_token():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Set invalid refresh token cookie
         response = await client.post(
             "/api/auth/refresh",
-            json={"refresh_token": "invalid-token"},
+            cookies={"refresh_token": "invalid-token"},
         )
         assert response.status_code == 401
