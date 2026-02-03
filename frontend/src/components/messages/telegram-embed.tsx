@@ -3,7 +3,6 @@ import { ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
-import { useUserStore } from '@/stores/user-store'
 
 interface MediaPreviewProps {
   messageId: string
@@ -24,7 +23,6 @@ export const MediaPreview = memo(function MediaPreview({
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
 
-  const tokens = useUserStore((s) => s.tokens)
   const telegramLink = `https://t.me/${channelUsername}/${telegramMessageId}`
 
   const mediaUrl = `${API_URL}/api/messages/${messageId}/media`
@@ -58,11 +56,6 @@ export const MediaPreview = memo(function MediaPreview({
     )
   }
 
-  const authHeaders: Record<string, string> = {}
-  if (tokens?.accessToken) {
-    authHeaders['Authorization'] = `Bearer ${tokens.accessToken}`
-  }
-
   return (
     <div className="relative overflow-hidden rounded-lg border border-border/60">
       {isLoading && (
@@ -73,7 +66,6 @@ export const MediaPreview = memo(function MediaPreview({
       {mediaType === 'photo' ? (
         <AuthImage
           src={mediaUrl}
-          token={tokens?.accessToken}
           onLoad={handleLoad}
           onError={handleError}
           className={`max-h-[500px] w-auto object-contain ${isLoading ? 'invisible' : ''}`}
@@ -82,7 +74,6 @@ export const MediaPreview = memo(function MediaPreview({
       ) : (
         <AuthVideo
           src={mediaUrl}
-          token={tokens?.accessToken}
           onLoadedData={handleLoad}
           onError={handleError}
           className={`max-h-[500px] w-full ${isLoading ? 'invisible' : ''}`}
@@ -100,14 +91,12 @@ export const MediaPreview = memo(function MediaPreview({
  */
 function AuthImage({
   src,
-  token,
   onLoad,
   onError,
   className,
   alt,
 }: {
   src: string
-  token?: string
   onLoad: () => void
   onError: () => void
   className?: string
@@ -115,14 +104,14 @@ function AuthImage({
 }) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null)
 
-  // Fetch image with auth header and create object URL
+  // Fetch image with cookie-based auth and create object URL
   const imgRef = useCallback(
     (node: HTMLImageElement | null) => {
       if (!node || objectUrl) return
 
       const controller = new AbortController()
       fetch(src, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
         signal: controller.signal,
       })
         .then((res) => {
@@ -140,7 +129,7 @@ function AuthImage({
 
       return () => controller.abort()
     },
-    [src, token, objectUrl, onLoad, onError],
+    [src, objectUrl, onLoad, onError],
   )
 
   if (objectUrl) {
@@ -156,14 +145,12 @@ function AuthImage({
  */
 function AuthVideo({
   src,
-  token,
   onLoadedData,
   onError,
   className,
   controls,
 }: {
   src: string
-  token?: string
   onLoadedData: () => void
   onError: () => void
   className?: string
@@ -177,7 +164,7 @@ function AuthVideo({
 
       const controller = new AbortController()
       fetch(src, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
         signal: controller.signal,
       })
         .then((res) => {
@@ -194,7 +181,7 @@ function AuthVideo({
 
       return () => controller.abort()
     },
-    [src, token, objectUrl, onError],
+    [src, objectUrl, onError],
   )
 
   if (objectUrl) {

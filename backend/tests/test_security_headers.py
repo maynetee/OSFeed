@@ -98,9 +98,9 @@ async def test_security_headers_on_api_endpoints():
         assert "X-Content-Type-Options" in response.headers
         assert "Strict-Transport-Security" in response.headers
 
-        # Get access token for authenticated endpoint test
-        tokens = response.json()
-        access_token = tokens["access_token"]
+        # Get access token from cookies (tokens are now in httpOnly cookies)
+        access_token = response.cookies.get("access_token")
+        assert access_token, "access_token cookie not set in login response"
 
         # Test authenticated API endpoint
         auth_response = await client.get(

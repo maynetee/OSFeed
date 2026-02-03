@@ -141,7 +141,8 @@ async def test_forgot_and_reset_password_flow():
             data={"username": "reset_flow@example.com", "password": "NewPassword456!"},
         )
         assert login_response.status_code == 200
-        assert "access_token" in login_response.json()
+        assert "user" in login_response.json()
+        assert login_response.json()["user"]["email"] == "reset_flow@example.com"
 
 
 @pytest.mark.asyncio

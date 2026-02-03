@@ -16,10 +16,10 @@ import { useUserStore } from '@/stores/user-store'
 
 export function LandingPage() {
     const navigate = useNavigate()
-    const { tokens } = useUserStore()
+    const { user } = useUserStore()
 
     // Redirect to feed if already logged in
-    if (tokens?.accessToken) {
+    if (user) {
         navigate('/feed')
         return null
     }

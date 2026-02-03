@@ -35,8 +35,10 @@ async def _login(client: AsyncClient, email: str, password: str) -> str:
         data={"username": email, "password": password},
     )
     assert response.status_code == 200
-    payload = response.json()
-    return payload["access_token"]
+    # Tokens are now in httpOnly cookies, not JSON body
+    access_token = response.cookies.get("access_token")
+    assert access_token, "access_token cookie not set in login response"
+    return access_token
 
 
 @pytest.mark.asyncio

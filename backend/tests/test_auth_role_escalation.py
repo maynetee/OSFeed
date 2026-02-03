@@ -148,7 +148,7 @@ async def test_existing_admin_users_unaffected():
         )
         assert response.status_code == 200
         data = response.json()
-        assert "access_token" in data
+        assert "user" in data
         assert data["token_type"] == "bearer"
 
 
