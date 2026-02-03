@@ -18,7 +18,10 @@ from app.services.translation_pool import run_translation
 from app.services.translator import translator
 from app.services.message_utils import message_to_response, apply_message_filters
 from app.services.message_streaming_service import create_message_stream
-from app.services.message_export_service import export_messages_csv as service_export_messages_csv
+from app.services.message_export_service import (
+    export_messages_csv as service_export_messages_csv,
+    export_messages_html as service_export_messages_html,
+)
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
@@ -436,47 +439,19 @@ async def export_messages_html(
         },
     )
 
-    async def html_generator():
-        yield generate_html_template("OSFeed - Messages")
-        yield "<h1>Export messages</h1>"
-
-        batch_size = 100
-        offset = 0
-        processed = 0
-
-        while processed < limit:
-            curr_limit = min(batch_size, limit - processed)
-
-            async with AsyncSessionLocal() as db:
-                query = select(Message, Channel)
-                query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
-                query = query.order_by(desc(Message.published_at))
-                query = query.limit(curr_limit).offset(offset)
-                result = await db.execute(query)
-                rows = result.all()
-
-            if not rows:
-                break
-
-            chunk = []
-            for message, channel in rows:
-                chunk.append(generate_html_article(message, channel))
-
-            yield "".join(chunk)
-
-            count = len(rows)
-            processed += count
-            offset += count
-
-            if count < curr_limit:
-                break
-
-        yield "</body></html>"
-
+    filename = "osfeed-messages.html"
     return StreamingResponse(
-        html_generator(),
+        service_export_messages_html(
+            user_id=user.id,
+            channel_id=channel_id,
+            channel_ids=channel_ids,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            media_types=media_types,
+        ),
         media_type="text/html",
-        headers={"Content-Disposition": "attachment; filename=osfeed-messages.html"},
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
