@@ -17,6 +17,7 @@ from app.schemas.message import MessageResponse, MessageListResponse, SimilarMes
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
 from app.services.message_utils import message_to_response, apply_message_filters
+from app.services.message_streaming_service import create_message_stream
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
@@ -113,119 +114,18 @@ async def stream_messages(
     user: User = Depends(current_active_user),
 ):
     """Stream messages via SSE. Uses Redis Pub/Sub for realtime updates."""
-
-    async def event_stream():
-        offset = 0
-        sent = 0
-        last_published_at = None
-        last_message_id = None
-
-        # 1. Stream historical messages - reuse a single DB session for all batches
-        async with AsyncSessionLocal() as db:
-            while sent < limit:
-                current_batch = min(batch_size, limit - sent)
-                query = select(Message).options(selectinload(Message.channel))
-                query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
-                query = query.order_by(desc(Message.published_at), desc(Message.id))
-                query = query.limit(current_batch).offset(offset)
-                result = await db.execute(query)
-                messages = result.scalars().all()
-
-                if not messages:
-                    break
-
-                if offset == 0 and messages:
-                    newest = messages[0]
-                    last_published_at = newest.published_at
-                    last_message_id = newest.id
-
-                payload = {
-                    "messages": [
-                        message_to_response(message).model_dump(mode="json")
-                        for message in messages
-                    ],
-                    "offset": offset,
-                    "count": len(messages),
-                    "type": "history"
-                }
-                yield f"data: {json.dumps(payload)}\n\n"
-
-                offset += len(messages)
-                sent += len(messages)
-                await asyncio.sleep(0)
-
-        # 2. Realtime tailing via Redis Pub/Sub
-        if realtime:
-            redis = get_redis_client()
-            if not redis:
-                # Fallback to polling if Redis is down
-                yield "event: error\ndata: {\"error\": \"Realtime unavailable\"}\n\n"
-                return
-
-            pubsub = redis.pubsub()
-            await pubsub.subscribe("osfeed:events")
-            yield "event: connected\ndata: {}\n\n"
-            
-            if not last_published_at:
-                last_published_at = datetime.now(timezone.utc)
-            
-            try:
-                async for event in pubsub.listen():
-                    if event["type"] != "message":
-                        continue
-
-                    data = json.loads(event["data"])
-                    event_type = data.get("type", "")
-
-                    # Handle translation events - forward directly to client
-                    if event_type == "message:translated":
-                        translation_event = {
-                            "type": "message:translated",
-                            "data": data.get("data", {})
-                        }
-                        yield f"data: {json.dumps(translation_event)}\n\n"
-                        continue
-
-                    # Handle new message events - query DB and send
-                    if event_type == "message:new":
-                        async with AsyncSessionLocal() as db:
-                            query = select(Message).options(selectinload(Message.channel))
-                            query = apply_message_filters(query, user.id, channel_id, channel_ids, None, None, media_types)
-
-                            if last_message_id:
-                                query = query.where(
-                                    tuple_(Message.published_at, Message.id) > (last_published_at, last_message_id)
-                                )
-                            else:
-                                query = query.where(Message.published_at > last_published_at)
-
-                            query = query.order_by(Message.published_at.asc(), Message.id.asc())
-                            query = query.limit(50)
-
-                            result = await db.execute(query)
-                            new_messages = result.scalars().all()
-
-                        if new_messages:
-                            newest = new_messages[-1]
-                            last_published_at = newest.published_at
-                            last_message_id = newest.id
-
-                            payload = {
-                                "messages": [
-                                    message_to_response(msg).model_dump(mode="json")
-                                    for msg in new_messages
-                                ],
-                                "type": "realtime"
-                            }
-                            yield f"data: {json.dumps(payload)}\n\n"
-            except asyncio.CancelledError:
-                await pubsub.unsubscribe("osfeed:events")
-                raise
-
-        yield "event: end\ndata: {}\n\n"
-
     return StreamingResponse(
-        event_stream(),
+        create_message_stream(
+            user_id=user.id,
+            channel_id=channel_id,
+            channel_ids=channel_ids,
+            start_date=start_date,
+            end_date=end_date,
+            batch_size=batch_size,
+            limit=limit,
+            realtime=realtime,
+            media_types=media_types,
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
