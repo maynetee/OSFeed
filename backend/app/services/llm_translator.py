@@ -1,3 +1,27 @@
+"""LLM Translation Pipeline - Multi-Provider Translation Engine with Caching and Priority Routing
+
+This module implements the core translation pipeline for OSFeed, providing multi-provider
+LLM translation with intelligent routing, caching, and batch processing capabilities.
+
+Key Features:
+- Multi-provider support: OpenAI (GPT), Google Gemini, and Google Translate
+- Intelligent model selection based on content priority and language complexity
+- Three-tier caching: Database -> Redis -> In-memory for optimal performance
+- Batch processing with adaptive batching to stay within API token limits
+- Provider fallback chain for maximum availability
+- Cost tracking and API usage monitoring
+- Adaptive TTL caching based on translation popularity
+
+Main Classes:
+- LLMTranslator: Main translation orchestrator with provider routing and caching
+
+Cost Optimization Strategy:
+- Priority-based model selection (high priority = better/more expensive models)
+- Aggressive caching with adaptive TTL based on hit count
+- Batch API calls to reduce per-translation overhead
+- Automatic fallback to free Google Translate on provider failures
+"""
+
 import asyncio
 import hashlib
 import logging
@@ -86,6 +110,27 @@ class LLMTranslator:
             return "unknown"
 
     def _is_trivial_text(self, text: str) -> bool:
+        """Check if text is trivial and should be skipped for translation.
+
+        Trivial text includes URLs, hashtags, usernames, numbers, short words,
+        and other content that doesn't benefit from translation. This filtering
+        reduces unnecessary API costs and improves translation efficiency.
+
+        Skipped patterns (when translation_skip_trivial is enabled):
+        - Empty or whitespace-only text
+        - URLs (http://, https://)
+        - Social media handles (@username) and hashtags (#topic)
+        - Pure numbers
+        - Sequences of non-word characters (e.g., "...", "!!!")
+        - Short common words configured in translation_skip_short_words
+        - Very short alphabetic words (length <= translation_skip_short_max_chars)
+
+        Args:
+            text: Text to evaluate for triviality
+
+        Returns:
+            True if text should be skipped, False if it should be translated
+        """
         stripped = text.strip()
         if not stripped:
             return True
@@ -105,6 +150,25 @@ class LLMTranslator:
         return False
 
     def _priority_by_age(self, published_at: Optional[datetime]) -> str:
+        """Calculate translation priority based on content age.
+
+        Recent content gets higher priority (and thus better/more expensive models)
+        because timely translation is more valuable for breaking news and current events.
+        Older content gets lower priority to reduce costs while still providing translation.
+
+        Priority levels:
+        - "high": Recent content (age <= translation_high_priority_hours)
+        - "normal": Medium-aged content (age <= translation_normal_priority_days)
+        - "low": Old content (age > translation_normal_priority_days)
+
+        Args:
+            published_at: Publication timestamp of the content.
+                         If None, defaults to "normal" priority.
+                         Timezone-naive datetimes are assumed to be UTC.
+
+        Returns:
+            Priority level: "high", "normal", or "low"
+        """
         if not published_at:
             return "normal"
         if published_at.tzinfo is None:
@@ -155,14 +219,52 @@ class LLMTranslator:
         return self._priority_by_age(published_at)
 
     def _cache_key(self, text: str, source_lang: str, target_lang: str) -> str:
+        """Generate a cache key for a translation using SHA256 hash.
+
+        Creates a content-based cache key that allows translations to be reused
+        across different messages with identical text. Uses SHA256 for good
+        performance and collision resistance.
+
+        Args:
+            text: Original text to translate
+            source_lang: Source language code (e.g., 'en', 'es', 'fr')
+            target_lang: Target language code (e.g., 'en', 'es', 'fr')
+
+        Returns:
+            Cache key in format: "{source_lang}:{target_lang}:{text_hash}"
+        """
         # Use SHA256 for better performance/collision resistance than MD5
         text_hash = hashlib.sha256(text.encode()).hexdigest()
         return f"{source_lang}:{target_lang}:{text_hash}"
 
     def _cache_hit_key(self, cache_key: str) -> str:
+        """Generate a Redis key for storing cache hit count.
+
+        The hit count is used for adaptive TTL - frequently accessed translations
+        are cached longer to maximize cache efficiency.
+
+        Args:
+            cache_key: The main cache key for the translation
+
+        Returns:
+            Hit count key in format: "{cache_key}:hits"
+        """
         return f"{cache_key}:hits"
 
     def _adaptive_ttl(self, hit_count: int) -> int:
+        """Calculate adaptive TTL based on cache hit count.
+
+        Popular translations (high hit count) get longer TTL to reduce API costs.
+        The TTL increases linearly with hit count but is capped at max_ttl.
+
+        Formula: base_ttl * (1 + hit_count * multiplier), clamped to [base_ttl, max_ttl]
+
+        Args:
+            hit_count: Number of times this translation has been accessed from cache
+
+        Returns:
+            TTL in seconds, between translation_cache_base_ttl and translation_cache_max_ttl
+        """
         base_ttl = settings.translation_cache_base_ttl
         max_ttl = settings.translation_cache_max_ttl
         multiplier = settings.translation_cache_hit_multiplier
@@ -170,6 +272,19 @@ class LLMTranslator:
         return min(max(ttl, base_ttl), max_ttl)
 
     def _chunk_text(self, text: str, chunk_size: int = 3500) -> list[str]:
+        """Split large text into chunks for translation within token limits.
+
+        Breaks text into fixed-size chunks to prevent exceeding LLM context windows.
+        The default 3500 character limit provides a safe margin below typical 4K token
+        limits, accounting for prompt overhead and encoding variations.
+
+        Args:
+            text: Text to split into chunks
+            chunk_size: Maximum characters per chunk (default 3500)
+
+        Returns:
+            List of text chunks, each <= chunk_size characters
+        """
         return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
     async def _translate_with_google(self, text: str, source_lang: str, target_lang: str) -> str:
@@ -314,6 +429,25 @@ class LLMTranslator:
         return parts[0]["text"].strip()
 
     def _select_model(self, source_lang: str, priority: str) -> str:
+        """Select appropriate translation model based on priority and language.
+
+        Uses a tiered model selection strategy to balance translation quality with cost:
+        - High priority content always gets the best model (most expensive)
+        - Complex languages (configured in translation_high_quality_languages) get better models
+        - Everything else uses the default/cheaper model
+
+        Selection logic:
+        1. If priority is "high" -> use high priority model
+        2. If language is in high_quality_languages AND priority is not "low" -> use high priority model
+        3. Otherwise -> use default model
+
+        Args:
+            source_lang: Source language code (e.g., 'en', 'es', 'zh')
+            priority: Content priority level ("high", "normal", or "low")
+
+        Returns:
+            Model name to use (e.g., "gemini-flash", "gpt-4o-mini")
+        """
         if priority == "high":
             return settings.translation_high_priority_model
         if source_lang in settings.translation_high_quality_languages and priority != "low":
@@ -321,6 +455,28 @@ class LLMTranslator:
         return settings.translation_default_model
 
     def _resolve_model(self, model_name: str) -> tuple[str, str]:
+        """Resolve model name to provider and actual model, with fallback chain.
+
+        Maps requested model names to actual translation providers, implementing
+        a fallback chain to ensure translation always succeeds even if preferred
+        providers are unavailable.
+
+        Fallback chain:
+        1. For "google" or "google-translate": Always use Google Translate (free, no API key)
+        2. For "gemini-*" models: Try Gemini -> OpenAI -> Google Translate
+        3. For other models: Try OpenAI -> Gemini -> Google Translate
+
+        This ensures maximum availability while preferring higher-quality LLM providers
+        when API keys are configured.
+
+        Args:
+            model_name: Requested model name (e.g., "gemini-flash", "gpt-4o-mini", "google")
+
+        Returns:
+            Tuple of (provider_name, resolved_model_name):
+            - provider_name: "openai", "gemini", or "google"
+            - resolved_model_name: Actual model identifier to use
+        """
         normalized = model_name.lower()
         if normalized in {"google", "google-translate"}:
             return "google", "google"
@@ -337,6 +493,27 @@ class LLMTranslator:
         return "google", "google"
 
     async def _get_from_cache(self, cache_key: str) -> Optional[str]:
+        """Retrieve translation from two-tier cache with adaptive TTL.
+
+        Implements a two-tier cache lookup strategy:
+        1. Redis (Tier 1): Shared across instances, fast, persistent across restarts
+        2. In-memory (Tier 2): Instance-local, fastest, but limited by RAM
+
+        On Redis cache hit:
+        - Increments hit count for adaptive TTL calculation
+        - Extends TTL based on popularity (frequent hits = longer cache time)
+        - Updates cache metrics
+
+        On in-memory cache hit:
+        - Increments hit count
+        - Moves entry to end of LRU cache (most recent)
+
+        Args:
+            cache_key: Cache key generated by _cache_key()
+
+        Returns:
+            Cached translation text if found, None on cache miss
+        """
         if self._redis is not None:
             try:
                 cached = await self._redis.get(cache_key)
@@ -918,7 +1095,21 @@ class LLMTranslator:
     async def _cache_translation(
         self, original: str, translated: str, source_lang: str, target_lang: str
     ) -> None:
-        """Cache a translation result."""
+        """Cache a translation result in two-tier cache with write-through strategy.
+
+        Stores translation in both Redis and in-memory cache (write-through):
+        - Redis: Shared cache with initial TTL based on adaptive_ttl(hit_count=1)
+        - In-memory: LRU-evicted cache for ultra-fast access
+
+        On Redis write failure, falls back to in-memory cache only.
+        LRU eviction ensures memory cache doesn't grow unbounded.
+
+        Args:
+            original: Original text that was translated
+            translated: Translated text result
+            source_lang: Source language code (e.g., 'en', 'es', 'fr')
+            target_lang: Target language code (e.g., 'en', 'es', 'fr')
+        """
         # Use simple hex SHA256
         cache_key = self._cache_key(original, source_lang, target_lang)
         if self._redis is not None:
