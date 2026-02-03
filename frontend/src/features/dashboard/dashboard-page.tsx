@@ -25,22 +25,15 @@ export function DashboardPage() {
     queryFn: async () => (await collectionsApi.list()).data,
   })
 
-  const overviewQuery = useQuery({
-    queryKey: ['stats-overview'],
-    queryFn: async () => (await statsApi.overview()).data,
-    enabled: (channelsQuery.data?.length ?? 0) > 0 && selectedCollection === 'all',
-  })
-
-  const messagesByDayQuery = useQuery({
-    queryKey: ['stats-messages-by-day'],
-    queryFn: async () => (await statsApi.messagesByDay(7)).data,
-    enabled: (channelsQuery.data?.length ?? 0) > 0 && selectedCollection === 'all',
-  })
-
-  const messagesByChannelQuery = useQuery({
-    queryKey: ['stats-messages-by-channel'],
-    queryFn: async () => (await statsApi.messagesByChannel(5)).data,
-    enabled: (channelsQuery.data?.length ?? 0) > 0 && selectedCollection === 'all',
+  const dashboardQuery = useQuery({
+    queryKey: ['stats-dashboard', selectedCollection],
+    queryFn: async () => {
+      const collectionId = selectedCollection === 'all' ? undefined : selectedCollection
+      return (await statsApi.dashboard(collectionId)).data
+    },
+    enabled: selectedCollection === 'all'
+      ? (channelsQuery.data?.length ?? 0) > 0
+      : selectedCollection !== '',
   })
 
   const collectionStatsQuery = useQuery({
@@ -53,27 +46,10 @@ export function DashboardPage() {
     () => collectionsQuery.data ?? [],
     [collectionsQuery.data],
   )
-  const selectedCollectionData = useMemo(
-    () => collectionOptions.find((collection) => collection.id === selectedCollection) ?? null,
-    [collectionOptions, selectedCollection],
-  )
-  const selectedChannelIds = selectedCollectionData?.channel_ids ?? []
-
-  const trustQuery = useQuery({
-    queryKey: ['dashboard', 'trust', selectedCollection, selectedChannelIds],
-    queryFn: async () => {
-      const params = selectedCollection === 'all' ? undefined : { channel_ids: selectedChannelIds }
-      const response = await statsApi.trust(params)
-      return response.data
-    },
-    enabled: selectedCollection === 'all'
-      ? (channelsQuery.data?.length ?? 0) > 0
-      : selectedChannelIds.length > 0,
-  })
 
   // All hooks must be called before any early returns
   const channels = channelsQuery.data ?? []
-  const overview = overviewQuery.data
+  const dashboardData = dashboardQuery.data
   const collectionStats = collectionStatsQuery.data
   const hasNoChannels = channelsQuery.isSuccess && channels.length === 0
   const hasNoCollectionChannels = selectedCollection !== 'all'
@@ -95,26 +71,26 @@ export function DashboardPage() {
   }
 
   const kpiMessages = selectedCollection === 'all'
-    ? overview?.messages_last_24h ?? 0
+    ? dashboardData?.overview?.messages_last_24h ?? 0
     : collectionStats?.message_count_24h ?? 0
   const kpiDuplicates = selectedCollection === 'all'
     ? Math.round(
-        ((overview?.duplicates_last_24h ?? 0) / ((overview?.messages_last_24h ?? 0) || 1)) * 100,
+        ((dashboardData?.overview?.duplicates_last_24h ?? 0) / ((dashboardData?.overview?.messages_last_24h ?? 0) || 1)) * 100,
       )
     : Math.round((collectionStats?.duplicate_rate ?? 0) * 100)
   const kpiChannels = selectedCollection === 'all'
-    ? overview?.active_channels ?? 0
+    ? dashboardData?.overview?.active_channels ?? 0
     : collectionStats?.channel_count ?? 0
 
   const trendData = selectedCollection === 'all'
-    ? messagesByDayQuery.data ?? []
+    ? dashboardData?.messages_by_day ?? []
     : collectionStats?.activity_trend ?? []
 
   const topChannels = selectedCollection === 'all'
-    ? messagesByChannelQuery.data ?? []
+    ? dashboardData?.messages_by_channel ?? []
     : (collectionStats?.top_channels ?? [])
 
-  const trustStats = trustQuery.data
+  const trustStats = dashboardData?.trust_stats
 
   return (
     <div className="flex flex-col gap-8">

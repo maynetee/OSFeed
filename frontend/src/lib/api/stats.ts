@@ -1,5 +1,11 @@
 import { api, buildParams } from './axios-instance'
-import type { StatsOverview, MessagesByDay, MessagesByChannel, TrustStats } from './types'
+import type {
+  StatsOverview,
+  MessagesByDay,
+  MessagesByChannel,
+  TrustStats,
+  DashboardData,
+} from './types'
 
 export const statsApi = {
   /**
@@ -9,6 +15,19 @@ export const statsApi = {
    * @returns Promise resolving to a StatsOverview object with aggregate statistics
    */
   overview: () => api.get<StatsOverview>('/api/stats/overview'),
+
+  /**
+   * Retrieve unified dashboard statistics in a single API call.
+   * Returns all dashboard data including overview, daily messages, channel rankings, and trust metrics.
+   * Optionally filter by a specific collection ID.
+   *
+   * @param collectionId - Optional collection ID to filter statistics by
+   * @returns Promise resolving to a DashboardData object with all dashboard statistics
+   */
+  dashboard: (collectionId?: string) =>
+    api.get<DashboardData>('/api/stats/dashboard', {
+      params: collectionId ? { collection_id: collectionId } : undefined,
+    }),
 
   /**
    * Retrieve message count statistics grouped by day.
