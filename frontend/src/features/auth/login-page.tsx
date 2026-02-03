@@ -34,7 +34,7 @@ const getErrorMessage = (detail: string | undefined): string => {
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { setUser, setTokens } = useUserStore()
+  const { setUser } = useUserStore()
   const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
 
@@ -46,21 +46,14 @@ export function LoginPage() {
   const handleLogin = async (values: LoginFormValues) => {
     setError(null)
     try {
+      // Login - tokens are set as httpOnly cookies automatically
       const response = await authApi.login(values.email, values.password)
-      const { access_token, refresh_token, refresh_expires_at } = response.data
 
-      setTokens({
-        accessToken: access_token,
-        refreshToken: refresh_token,
-        refreshExpiresAt: refresh_expires_at,
-      })
-
-      // Fetch user profile
-      const userResponse = await authApi.me()
+      // Extract user info from login response
       setUser({
-        id: userResponse.data.id,
-        email: userResponse.data.email,
-        name: userResponse.data.email.split('@')[0],
+        id: response.data.id,
+        email: response.data.email,
+        name: response.data.email.split('@')[0],
       })
 
       navigate('/feed')
