@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 
 import { MessageFeed } from '@/components/messages/message-feed'
@@ -16,6 +17,8 @@ export function SearchPage() {
   const [collectionIds, setCollectionIds] = useState<string[]>([])
   const { t } = useTranslation()
   const channelIds = useFilterStore((state) => state.channelIds)
+  const dateRange = useFilterStore((state) => state.dateRange)
+  const mediaTypes = useFilterStore((state) => state.mediaTypes)
 
   const channelsQuery = useQuery({
     queryKey: ['channels'],
@@ -26,6 +29,8 @@ export function SearchPage() {
     queryKey: ['collections'],
     queryFn: async () => (await collectionsApi.list()).data,
   })
+
+  const rangeDays = dateRange === '24h' ? 1 : dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : null
 
   const activeChannelIds = useMemo(() => {
     const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
@@ -52,7 +57,7 @@ export function SearchPage() {
   }, [collectionsQuery.data, collectionIds])
 
   const keywordQuery = useQuery({
-    queryKey: ['search', 'keyword', query, searchChannelIds],
+    queryKey: ['search', 'keyword', query, searchChannelIds, dateRange, mediaTypes],
     queryFn: async () =>
       (
         await messagesApi.search({
@@ -60,6 +65,8 @@ export function SearchPage() {
           limit: 20,
           offset: 0,
           channel_ids: searchChannelIds,
+          start_date: rangeDays ? subDays(new Date(), rangeDays).toISOString() : undefined,
+          media_types: mediaTypes.length ? mediaTypes : undefined,
         })
       ).data,
     enabled: query.length > 2,
