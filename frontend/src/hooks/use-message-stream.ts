@@ -8,10 +8,11 @@ interface UseMessageStreamOptions {
   channelIds?: string[]
   onMessages?: (messages: Message[], isRealtime: boolean) => void
   onTranslation?: (update: TranslationUpdate) => void
+  onAlert?: (data: any) => void
 }
 
 export function useMessageStream(options: UseMessageStreamOptions = {}) {
-  const { enabled = true, channelId, channelIds, onMessages, onTranslation } = options
+  const { enabled = true, channelId, channelIds, onMessages, onTranslation, onAlert } = options
   const [isConnected, setIsConnected] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -83,6 +84,13 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
                 continue
               }
 
+              // Handle alert events
+              if (payload.type === 'alert:triggered') {
+                console.log('Alert received:', payload.data)
+                onAlert?.(payload.data)
+                continue
+              }
+
               // Handle message events (existing behavior)
               if (payload.messages && payload.messages.length > 0) {
                 onMessages?.(payload.messages, payload.type === 'realtime')
@@ -101,7 +109,7 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
       })
     })
 
-  }, [enabled, channelId, channelIds, onMessages, onTranslation])
+  }, [enabled, channelId, channelIds, onMessages, onTranslation, onAlert])
 
   useEffect(() => {
     connect()
