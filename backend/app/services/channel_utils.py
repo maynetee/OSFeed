@@ -138,6 +138,36 @@ async def check_user_channel_link(db: AsyncSession, user_id: UUID, channel_id: U
     return existing_link is not None
 
 
+async def get_authorized_channel(db: AsyncSession, channel_id: UUID, user_id: UUID) -> Optional[Channel]:
+    """Get a channel by ID with user authorization check.
+
+    Queries the database for a channel that the user has access to.
+    Returns the channel if found and user has permission, None otherwise.
+
+    Args:
+        db: Active database session
+        channel_id: UUID of the channel
+        user_id: UUID of the user
+
+    Returns:
+        Channel object if found and user has access, None otherwise
+
+    Examples:
+        >>> channel = await get_authorized_channel(db, channel_id, user.id)
+        >>> if channel:
+        ...     print(f"User has access to {channel.title}")
+        ... else:
+        ...     print("Channel not found or access denied")
+    """
+    result = await db.execute(
+        select(Channel).join(
+            user_channels,
+            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user_id)
+        ).where(Channel.id == channel_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def resolve_and_join_telegram_channel(telegram_client, username: str) -> dict:
     """Resolve and join a Telegram channel, returning channel information.
 
