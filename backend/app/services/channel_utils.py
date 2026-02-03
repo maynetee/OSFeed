@@ -5,6 +5,12 @@ Shared helper functions for channel handling across API endpoints and services.
 
 import re
 from typing import Optional
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
+
+from app.models.channel import Channel, user_channels
 
 
 def clean_channel_username(username: str) -> str:
@@ -71,3 +77,62 @@ def validate_channel_username(username: str) -> bool:
     # Telegram username pattern: 5-32 chars, starts with letter, ends with letter/digit
     pattern = r"^[a-zA-Z][\w\d]{3,30}[a-zA-Z\d]$"
     return bool(re.match(pattern, username))
+
+
+async def get_existing_channel(db: AsyncSession, username: str) -> Optional[Channel]:
+    """Get an existing channel from the database by username.
+
+    Queries the database to find a channel with the given username.
+    Returns the channel if found, or None if it doesn't exist.
+
+    Args:
+        db: Active database session
+        username: Cleaned channel username (should be cleaned with clean_channel_username first)
+
+    Returns:
+        Channel object if found, None otherwise
+
+    Examples:
+        >>> channel = await get_existing_channel(db, "example_channel")
+        >>> if channel:
+        ...     print(f"Found: {channel.title}")
+        ... else:
+        ...     print("Channel not found")
+    """
+    result = await db.execute(
+        select(Channel).where(Channel.username == username)
+    )
+    return result.scalar_one_or_none()
+
+
+async def check_user_channel_link(db: AsyncSession, user_id: UUID, channel_id: UUID) -> bool:
+    """Check if a user has a link to a specific channel.
+
+    Queries the user_channels association table to determine if a user
+    is already linked to a channel.
+
+    Args:
+        db: Active database session
+        user_id: UUID of the user
+        channel_id: UUID of the channel
+
+    Returns:
+        True if the user has a link to the channel, False otherwise
+
+    Examples:
+        >>> has_link = await check_user_channel_link(db, user.id, channel.id)
+        >>> if has_link:
+        ...     print("User already has this channel")
+        ... else:
+        ...     print("User doesn't have this channel yet")
+    """
+    result = await db.execute(
+        select(user_channels).where(
+            and_(
+                user_channels.c.user_id == user_id,
+                user_channels.c.channel_id == channel_id
+            )
+        )
+    )
+    existing_link = result.first()
+    return existing_link is not None
