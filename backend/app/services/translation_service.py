@@ -10,6 +10,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.database import AsyncSessionLocal
 from app.models.message import Message
@@ -153,7 +154,7 @@ async def should_channel_translate(channel_id: UUID) -> bool:
             )
             return False
 
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.exception(f"Failed to check translation need for channel {channel_id}: {e}")
         # Default to translating on error to be safe
         return True
@@ -252,6 +253,6 @@ async def translate_message_immediate(
 
             return True
 
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.exception(f"Failed to translate message {message_id}: {e}")
         return False
