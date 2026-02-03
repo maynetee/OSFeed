@@ -67,6 +67,26 @@ jobs:
         cd frontend
         npm run format:check
 
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run tests
+      run: |
+        cd frontend
+        npm run test
+
   frontend-build:
     runs-on: ubuntu-latest
     steps:
