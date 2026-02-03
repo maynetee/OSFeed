@@ -1,7 +1,7 @@
 from typing import List, Optional
 import asyncio
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, or_, and_, case
@@ -236,6 +236,10 @@ async def get_trust_stats(
         select(func.count()).select_from(base_query.subquery())
     )
     total_messages = total_result.scalar() or 0
+
+    # If specific channel_ids were requested but user has no access to any of them, return 404
+    if channel_ids and total_messages == 0:
+        raise HTTPException(status_code=404, detail="Channel not found")
 
     primary_result = await db.execute(
         select(func.count())
