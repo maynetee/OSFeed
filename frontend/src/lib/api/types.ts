@@ -185,6 +185,36 @@ export interface TrustStats {
   total_messages_24h: number
 }
 
+export interface ApiUsageStats {
+  /** Time window in days for the statistics */
+  window_days: number
+  /** Total tokens consumed */
+  total_tokens: number
+  /** Estimated cost in USD */
+  estimated_cost_usd: number
+  /** Detailed breakdown by service/model */
+  breakdown: Array<{
+    provider: string
+    model: string
+    purpose: string
+    total_tokens: number
+    estimated_cost_usd: number
+  }>
+}
+
+export interface TranslationMetrics {
+  /** Total number of translations performed */
+  total_translations: number
+  /** Number of cache hits */
+  cache_hits: number
+  /** Number of cache misses */
+  cache_misses: number
+  /** Cache hit rate as percentage (0-100) */
+  cache_hit_rate: number
+  /** Tokens saved by caching */
+  tokens_saved: number
+}
+
 export interface Alert {
   /** Unique identifier for the alert */
   id: string
@@ -298,4 +328,8 @@ export interface DashboardData {
   messages_by_channel: MessagesByChannel[]
   /** Trust metrics including primary sources and propaganda rates */
   trust_stats: TrustStats
+  /** API usage and cost statistics */
+  api_usage: ApiUsageStats
+  /** Translation cache performance metrics */
+  translation_metrics: TranslationMetrics
 }

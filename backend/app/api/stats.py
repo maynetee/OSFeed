@@ -22,6 +22,7 @@ from app.models.api_usage import ApiUsage
 from app.auth.users import current_active_user
 from app.config import get_settings
 from app.utils.response_cache import response_cache
+from app.schemas.stats import DashboardResponse
 
 router = APIRouter()
 settings = get_settings()
@@ -82,7 +83,7 @@ async def get_overview_stats(
     }
 
 
-@router.get("/dashboard")
+@router.get("/dashboard", response_model=DashboardResponse)
 @response_cache(expire=settings.response_cache_ttl, namespace="stats-dashboard")
 async def get_dashboard_stats(
     days: int = Query(7, ge=1, le=90),
@@ -106,7 +107,7 @@ async def get_dashboard_stats(
         "overview": overview,
         "messages_by_day": messages_by_day,
         "messages_by_channel": messages_by_channel,
-        "trust": trust,
+        "trust_stats": trust,
         "api_usage": api_usage,
         "translation_metrics": translation,
     }

@@ -74,7 +74,7 @@ async def test_dashboard_endpoint_structure(mock_user):
             assert "overview" in data
             assert "messages_by_day" in data
             assert "messages_by_channel" in data
-            assert "trust" in data
+            assert "trust_stats" in data
             assert "api_usage" in data
             assert "translation_metrics" in data
 
@@ -83,7 +83,7 @@ async def test_dashboard_endpoint_structure(mock_user):
             assert data["overview"]["active_channels"] == 5
             assert len(data["messages_by_day"]) == 1
             assert len(data["messages_by_channel"]) == 1
-            assert data["trust"]["primary_sources_rate"] == 80.0
+            assert data["trust_stats"]["primary_sources_rate"] == 80.0
             assert data["api_usage"]["total_tokens"] == 1000
             assert data["translation_metrics"]["cache_hit_rate"] == 80.0
 
