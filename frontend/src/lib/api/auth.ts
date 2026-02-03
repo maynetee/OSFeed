@@ -3,11 +3,11 @@ import { api } from './axios-instance'
 export const authApi = {
   /**
    * Authenticate a user with email and password credentials.
-   * Returns an access token upon successful authentication.
+   * Sets secure httpOnly cookies for authentication tokens.
    *
    * @param email - User's email address
    * @param password - User's password
-   * @returns Promise resolving to authentication response with access token
+   * @returns Promise resolving to authentication response with user info
    */
   login: (email: string, password: string) =>
     api.post('/api/auth/login', new URLSearchParams({ username: email, password }), {
@@ -76,7 +76,7 @@ export const authApi = {
 
   /**
    * Log out the currently authenticated user.
-   * Invalidates the current access token and ends the session.
+   * Clears authentication cookies and ends the session.
    *
    * @returns Promise resolving to logout response
    */

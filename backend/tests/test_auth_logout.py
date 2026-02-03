@@ -39,24 +39,32 @@ async def test_logout_endpoint():
             data={"username": "test_logout@example.com", "password": "password123"},
         )
         assert login_response.status_code == 200
-        tokens = login_response.json()
-        access_token = tokens["access_token"]
-        
+
+        # Verify tokens are in cookies, not JSON body
+        assert "access_token" in login_response.cookies
+        assert "refresh_token" in login_response.cookies
+
+        # Verify user info is in JSON response
+        payload = login_response.json()
+        assert "user" in payload
+        assert "access_token" not in payload
+        assert "refresh_token" not in payload
+
         # Verify user has refresh token hash
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(User).where(User.email == "test_logout@example.com"))
             user = result.scalars().first()
             assert user.refresh_token_hash is not None
-        
-        # Logout
+
+        # Logout (manually send cookies from login)
         logout_response = await client.post(
             "/api/auth/logout",
-            headers={"Authorization": f"Bearer {access_token}"},
+            cookies=login_response.cookies
         )
         assert logout_response.status_code == 200
         assert logout_response.json()["message"] == "Successfully logged out"
-        
-        # Verify refresh token hash is cleared
+
+        # Verify refresh token hash is cleared in database
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(User).where(User.email == "test_logout@example.com"))
             user = result.scalars().first()

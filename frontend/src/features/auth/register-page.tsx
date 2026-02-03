@@ -59,7 +59,7 @@ const getErrorMessage = (detail: string | { code: string; reason: string } | und
 
 export function RegisterPage() {
   const navigate = useNavigate()
-  const { setUser, setTokens } = useUserStore()
+  const { setUser } = useUserStore()
   const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
   const [registrationSuccess, setRegistrationSuccess] = useState(false)
@@ -96,20 +96,12 @@ export function RegisterPage() {
       } else {
         // No email verification (email_enabled=false or already verified) - auto-login
         const loginResponse = await authApi.login(values.email, values.password)
-        const { access_token, refresh_token, refresh_expires_at } = loginResponse.data
 
-        setTokens({
-          accessToken: access_token,
-          refreshToken: refresh_token,
-          refreshExpiresAt: refresh_expires_at,
-        })
-
-        // Fetch user profile
-        const userResponse = await authApi.me()
+        // Extract user info from login response (tokens set as httpOnly cookies automatically)
         setUser({
-          id: userResponse.data.id,
-          email: userResponse.data.email,
-          name: userResponse.data.email.split('@')[0],
+          id: loginResponse.data.user.id,
+          email: loginResponse.data.user.email,
+          name: loginResponse.data.user.email.split('@')[0],
         })
 
         navigate('/feed')

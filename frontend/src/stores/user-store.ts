@@ -8,18 +8,10 @@ interface User {
   role?: string
 }
 
-interface AuthTokens {
-  accessToken: string
-  refreshToken: string
-  refreshExpiresAt: string
-}
-
 interface UserState {
   user: User | null
-  tokens: AuthTokens | null
   _hasHydrated: boolean
   setUser: (user: User | null) => void
-  setTokens: (tokens: AuthTokens | null) => void
   logout: () => void
   setHasHydrated: (state: boolean) => void
 }
@@ -34,16 +26,14 @@ export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
       user: null,
-      tokens: null,
       _hasHydrated: false,
       setUser: (user) => set({ user }),
-      setTokens: (tokens) => set({ tokens }),
-      logout: () => set({ user: null, tokens: null }),
+      logout: () => set({ user: null }),
       setHasHydrated: (state) => set({ _hasHydrated: state }),
     }),
     {
       name: 'osfeed-auth',
-      partialize: (state) => ({ user: state.user, tokens: state.tokens }),
+      partialize: (state) => ({ user: state.user }),
       onRehydrateStorage: () => (_state, error) => {
         if (error) {
           console.error('Error rehydrating auth store:', error)

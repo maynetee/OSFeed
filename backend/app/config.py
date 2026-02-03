@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field, field_validator
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 import secrets
 
 # Get the project root (osfeed/)
@@ -53,6 +54,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60  # 1 hour
     refresh_token_expire_days: int = 7
     scheduler_enabled: bool = True
+
+    # Authentication - Cookies
+    cookie_access_token_name: str = "access_token"
+    cookie_refresh_token_name: str = "refresh_token"
+    cookie_secure: bool = False  # Set to True in production (requires HTTPS)
+    cookie_samesite: str = "lax"  # CSRF protection
+    cookie_domain: Optional[str] = None  # Optional: specific domain for cookies
 
     # Security Headers
     security_headers_enabled: bool = True  # Enable security headers middleware
