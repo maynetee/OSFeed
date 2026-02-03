@@ -27,6 +27,7 @@ from app.services.auth_rate_limiter import (
 )
 from app.services.email_service import _redact_email
 from app.services.translation_service import invalidate_channel_translation_cache
+from app.services.audit import record_audit_event
 from app.models.channel import user_channels
 
 logger = logging.getLogger(__name__)
@@ -40,12 +41,21 @@ async def register(
     request: Request,
     user_create: UserCreate,
     user_manager: BaseUserManager = Depends(get_user_manager),
+    db: AsyncSession = Depends(get_db),
 ):
     """Register a new user with detailed error logging."""
     logger.info(f"Registration attempt for email: {_redact_email(user_create.email)}")
     try:
         created_user = await user_manager.create(user_create, safe=True, request=request)
         logger.info(f"Registration successful for email: {_redact_email(user_create.email)}")
+        record_audit_event(
+            db,
+            user_id=created_user.id,
+            action="auth.register",
+            resource_type="user",
+            resource_id=str(created_user.id),
+            metadata={"email": _redact_email(user_create.email)},
+        )
         return created_user
     except UserAlreadyExists:
         logger.warning(f"Registration failed: email already exists ({_redact_email(user_create.email)})")
@@ -102,6 +112,7 @@ async def login(
     credentials: OAuth2PasswordRequestForm = Depends(),
     user_manager: BaseUserManager = Depends(get_user_manager),
     strategy: Strategy = Depends(auth_backend.get_strategy),
+    db: AsyncSession = Depends(get_db),
 ):
     """Authenticate a user and return access and refresh tokens."""
     user = await user_manager.authenticate(credentials)
@@ -119,6 +130,14 @@ async def login(
             "refresh_token_hash": hash_refresh_token(refresh_token),
             "refresh_token_expires_at": refresh_expires_at,
         },
+    )
+
+    record_audit_event(
+        db,
+        user_id=user.id,
+        action="auth.login",
+        resource_type="user",
+        resource_id=str(user.id),
     )
 
     response = JSONResponse(
@@ -238,6 +257,7 @@ async def update_language(
 async def logout(
     user: User = Depends(current_active_user),
     user_manager: BaseUserManager = Depends(get_user_manager),
+    db: AsyncSession = Depends(get_db),
 ):
     """Logout the current user by invalidating their refresh token."""
     await user_manager.user_db.update(
@@ -246,5 +266,12 @@ async def logout(
             "refresh_token_hash": None,
             "refresh_token_expires_at": None,
         },
+    )
+    record_audit_event(
+        db,
+        user_id=user.id,
+        action="auth.logout",
+        resource_type="user",
+        resource_id=str(user.id),
     )
     return JSONResponse({"message": "Successfully logged out"})
