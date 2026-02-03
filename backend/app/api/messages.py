@@ -468,6 +468,12 @@ async def translate_message_on_demand(
     db: AsyncSession = Depends(get_db),
 ):
     """Translate a message on demand."""
+    # Verify user has access to this message
+    message = await get_single_message(message_id, user.id, db)
+
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
     # Get target language from settings
     target_language = settings.preferred_language
 

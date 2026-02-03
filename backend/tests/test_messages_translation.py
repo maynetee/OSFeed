@@ -49,12 +49,25 @@ async def test_translate_message_on_demand_updates_message(monkeypatch) -> None:
     channel_id = uuid.uuid4()
     message_id = uuid.uuid4()
     async with AsyncSessionLocal() as session:
+        # Fetch user
+        user = (await session.execute(select(User).where(User.email == email))).scalar_one()
+
         channel = Channel(
             id=channel_id,
             username="testchannel",
             title="Test Channel",
         )
         session.add(channel)
+        await session.commit()
+
+        # Manually link user to channel
+        await session.execute(
+            user_channels.insert().values(
+                user_id=user.id,
+                channel_id=channel.id
+            )
+        )
+
         session.add(
             Message(
                 id=message_id,
