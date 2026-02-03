@@ -68,6 +68,10 @@ The first run copies `.env.example` to `.env` if missing. Update `.env` with:
 - OpenAI / Qdrant settings
 - Telegram API credentials
 - Redis settings (optional but recommended for translation cache)
+- **Cookie-based Authentication Settings:**
+  - `COOKIE_SECURE` (default `false`) - Set to `true` in production with HTTPS to prevent cookie transmission over insecure connections
+  - `COOKIE_SAMESITE` (default `lax`) - CSRF protection; options: `lax`, `strict`, or `none`
+  - `COOKIE_DOMAIN` (optional) - Specific domain for cookies; leave empty for default behavior
 - Optional settings:
   - `SCHEDULER_ENABLED` (default `true`)
   - `AUDIT_LOG_RETENTION_DAYS` (default `365`)
@@ -97,9 +101,13 @@ docker compose exec backend python scripts/migrate_sqlite_to_postgres.py
 
 ## API notes
 
-- Auth refresh flow:
-  - `POST /api/auth/login` returns `access_token` + `refresh_token`
-  - `POST /api/auth/refresh` rotates refresh token and returns a new access token
+- **Cookie-based Authentication:**
+  - Authentication tokens are stored in secure httpOnly cookies (not accessible to JavaScript)
+  - `POST /api/auth/login` sets `access_token` and `refresh_token` as httpOnly cookies, returns user info
+  - `POST /api/auth/refresh` reads refresh token from cookies, rotates it, and sets new cookies
+  - `POST /api/auth/logout` clears both authentication cookies
+  - All authenticated requests automatically include cookies (use `credentials: 'include'` in fetch/axios)
+  - **Security benefits:** XSS attacks cannot steal tokens; CSRF protection via SameSite attribute
 - API usage stats:
   - `GET /api/stats/api-usage?days=7`
 
