@@ -330,7 +330,9 @@ async def logout(
     user_manager: BaseUserManager = Depends(get_user_manager),
     db: AsyncSession = Depends(get_db),
 ):
-    """Logout the current user by invalidating their refresh token."""
+    """Logout the current user by invalidating their refresh token and clearing cookies."""
+    settings = get_settings()
+
     await user_manager.user_db.update(
         user,
         {
@@ -345,4 +347,30 @@ async def logout(
         resource_type="user",
         resource_id=str(user.id),
     )
-    return JSONResponse({"message": "Successfully logged out"})
+
+    # Create JSON response
+    json_response = JSONResponse({"message": "Successfully logged out"})
+
+    # Clear access token cookie
+    json_response.set_cookie(
+        key=settings.cookie_access_token_name,
+        value="",
+        max_age=0,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        domain=settings.cookie_domain,
+    )
+
+    # Clear refresh token cookie
+    json_response.set_cookie(
+        key=settings.cookie_refresh_token_name,
+        value="",
+        max_age=0,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        domain=settings.cookie_domain,
+    )
+
+    return json_response
