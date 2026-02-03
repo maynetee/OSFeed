@@ -2,7 +2,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users.manager import BaseUserManager
@@ -20,6 +20,7 @@ from app.auth.refresh import generate_refresh_token, hash_refresh_token, refresh
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.models.user import User
 from app.database import get_db
+from app.config import get_settings
 from app.services.auth_rate_limiter import (
     rate_limit_forgot_password,
     rate_limit_request_verify,
@@ -123,7 +124,8 @@ async def login(
     strategy: Strategy = Depends(auth_backend.get_strategy),
     db: AsyncSession = Depends(get_db),
 ):
-    """Authenticate a user and return access and refresh tokens."""
+    """Authenticate a user and return access and refresh tokens as httpOnly cookies."""
+    settings = get_settings()
     user = await user_manager.authenticate(credentials)
     if user is None or not user.is_active:
         raise HTTPException(
@@ -149,16 +151,44 @@ async def login(
         resource_id=str(user.id),
     )
 
-    response = JSONResponse(
+    # Create JSON response with user info
+    json_response = JSONResponse(
         {
-            "access_token": access_token,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "is_active": user.is_active,
+                "is_superuser": user.is_superuser,
+                "is_verified": user.is_verified,
+            },
             "token_type": "bearer",
-            "refresh_token": refresh_token,
-            "refresh_expires_at": refresh_expires_at.isoformat(),
         }
     )
-    await user_manager.on_after_login(user, request, response)
-    return response
+
+    # Set access token cookie
+    json_response.set_cookie(
+        key=settings.cookie_access_token_name,
+        value=access_token,
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        domain=settings.cookie_domain,
+    )
+
+    # Set refresh token cookie
+    json_response.set_cookie(
+        key=settings.cookie_refresh_token_name,
+        value=refresh_token,
+        max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        domain=settings.cookie_domain,
+    )
+
+    await user_manager.on_after_login(user, request, json_response)
+    return json_response
 
 
 @router.post("/refresh")
