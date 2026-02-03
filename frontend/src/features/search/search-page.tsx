@@ -1,43 +1,64 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 
 import { MessageFeed } from '@/components/messages/message-feed'
+import { MessageFilters } from '@/components/messages/message-filters'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { collectionsApi, messagesApi } from '@/lib/api/client'
+import { channelsApi, collectionsApi, messagesApi } from '@/lib/api/client'
+import { useFilterStore } from '@/stores/filter-store'
 
 export function SearchPage() {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState('keyword')
-  const [collectionIds, setCollectionIds] = useState<string[]>([])
   const { t } = useTranslation()
+  const channelIds = useFilterStore((state) => state.channelIds)
+  const dateRange = useFilterStore((state) => state.dateRange)
+  const collectionIds = useFilterStore((state) => state.collectionIds)
+  const mediaTypes = useFilterStore((state) => state.mediaTypes)
+
+  const channelsQuery = useQuery({
+    queryKey: ['channels'],
+    queryFn: async () => (await channelsApi.list()).data,
+  })
 
   const collectionsQuery = useQuery({
     queryKey: ['collections'],
     queryFn: async () => (await collectionsApi.list()).data,
   })
 
-  const searchChannelIds = useMemo(() => {
-    if (!collectionIds.length) return undefined
-    const ids =
+  const rangeDays = dateRange === '24h' ? 1 : dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : null
+
+  const activeChannelIds = useMemo(() => {
+    const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
+    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const validChannelIds = channelIds.filter((id) => availableChannelIds.has(id))
+    const validCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
+    const collectionChannelIds =
       collectionsQuery.data
-        ?.filter((collection) => collectionIds.includes(collection.id))
+        ?.filter((collection) => validCollectionIds.includes(collection.id))
         .flatMap((collection) => collection.channel_ids) ?? []
-    return ids.length ? Array.from(new Set(ids)) : undefined
-  }, [collectionsQuery.data, collectionIds])
+    const scopedIds = [...validChannelIds, ...collectionChannelIds].filter((id) =>
+      availableChannelIds.has(id),
+    )
+    return Array.from(new Set(scopedIds))
+  }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds])
 
   const keywordQuery = useQuery({
-    queryKey: ['search', 'keyword', query, searchChannelIds],
+    queryKey: ['search', 'keyword', query, activeChannelIds, dateRange, mediaTypes],
     queryFn: async () =>
       (
         await messagesApi.search({
           q: query,
           limit: 20,
           offset: 0,
-          channel_ids: searchChannelIds,
+          channel_ids: activeChannelIds.length ? activeChannelIds : undefined,
+          start_date: rangeDays ? subDays(new Date(), rangeDays).toISOString() : undefined,
+          media_types: mediaTypes.length ? mediaTypes : undefined,
         })
       ).data,
     enabled: query.length > 2,
@@ -74,73 +95,52 @@ export function SearchPage() {
         />
         <Button variant="secondary">{t('search.launch')}</Button>
       </div>
-      <fieldset>
-        <legend className="text-xs font-semibold uppercase text-foreground/40">
-          {t('filters.collections')}
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={!collectionIds.length ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setCollectionIds([])}
-            aria-pressed={!collectionIds.length}
-          >
-            {t('collections.allCollections')}
-          </Button>
-          {(collectionsQuery.data ?? []).map((collection) => {
-            const active = collectionIds.includes(collection.id)
-            return (
-              <Button
-                key={collection.id}
-                variant={active ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() =>
-                  setCollectionIds(
-                    active
-                      ? collectionIds.filter((id) => id !== collection.id)
-                      : [...collectionIds, collection.id],
-                  )
-                }
-                aria-pressed={active}
-              >
-                {collection.name}
-              </Button>
-            )
-          })}
-        </div>
-      </fieldset>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="keyword">{t('search.keyword')}</TabsTrigger>
-          <TabsTrigger value="entities">{t('search.entities')}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="keyword">
-          {query.length < 3 ? (
-            <Card>
-              <CardContent className="py-10 text-sm text-foreground/60">
-                {t('search.minChars')}
-              </CardContent>
-            </Card>
-          ) : (
-            <MessageFeed
-              messages={keywordQuery.data?.messages ?? []}
-              isLoading={keywordQuery.isLoading}
-            />
-          )}
-        </TabsContent>
-        <TabsContent value="entities">
-          {query.length < 3 ? (
-            <Card>
-              <CardContent className="py-10 text-sm text-foreground/60">
-                {t('search.minChars')}
-              </CardContent>
-            </Card>
-          ) : (
-            <MessageFeed messages={entityResults} isLoading={keywordQuery.isLoading} />
-          )}
-        </TabsContent>
-      </Tabs>
+      <div className="grid gap-6 lg:grid-cols-[1fr_3fr]">
+        <MessageFilters
+          channels={(channelsQuery.data ?? []).map((channel) => ({
+            id: channel.id,
+            title: channel.title,
+          }))}
+          collections={(collectionsQuery.data ?? []).map((collection) => ({
+            id: collection.id,
+            name: collection.name,
+          }))}
+        />
+        <div className="flex flex-col gap-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="keyword">{t('search.keyword')}</TabsTrigger>
+              <TabsTrigger value="entities">{t('search.entities')}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="keyword">
+              {query.length < 3 ? (
+                <Card>
+                  <CardContent className="py-10 text-sm text-foreground/60">
+                    {t('search.minChars')}
+                  </CardContent>
+                </Card>
+              ) : (
+                <MessageFeed
+                  messages={keywordQuery.data?.messages ?? []}
+                  isLoading={keywordQuery.isLoading}
+                />
+              )}
+            </TabsContent>
+            <TabsContent value="entities">
+              {query.length < 3 ? (
+                <Card>
+                  <CardContent className="py-10 text-sm text-foreground/60">
+                    {t('search.minChars')}
+                  </CardContent>
+                </Card>
+              ) : (
+                <MessageFeed messages={entityResults} isLoading={keywordQuery.isLoading} />
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   )
 }
