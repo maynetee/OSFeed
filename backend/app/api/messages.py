@@ -22,7 +22,7 @@ from app.services.message_export_service import (
     export_messages_html as service_export_messages_html,
     export_messages_pdf as service_export_messages_pdf,
 )
-from app.services.message_translation_bulk_service import translate_messages_batch
+from app.services.message_translation_bulk_service import translate_messages_batch, translate_single_message
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
@@ -554,17 +554,10 @@ async def translate_message_on_demand(
     db: AsyncSession = Depends(get_db),
 ):
     """Translate a message on demand."""
-    async with AsyncSessionLocal() as db_local:
-        result = await db_local.execute(
-            select(Message).options(selectinload(Message.channel)).where(Message.id == message_id)
-        )
-        message = result.scalar_one_or_none()
-
-    if not message:
-        raise HTTPException(status_code=404, detail="Message not found")
+    # Get target language from settings
+    target_language = settings.preferred_language
 
     # Record audit event
-    target_language = message.target_language or settings.preferred_language
     record_audit_event(
         db=db,
         user_id=user.id,
@@ -573,62 +566,26 @@ async def translate_message_on_demand(
         resource_id=str(message_id),
         metadata={
             "target_language": target_language,
-            "channel_id": str(message.channel_id) if message.channel_id else None,
         },
     )
 
-    if not message.needs_translation:
-        return message_to_response(message)
-
-    original_text = message.original_text or ""
-    if not original_text.strip():
-        async with AsyncSessionLocal() as db_local:
-            await db_local.execute(
-                update(Message)
-                .where(Message.id == message_id)
-                .values(needs_translation=False, translation_priority="skip")
-            )
-            await db_local.commit()
-        message.needs_translation = False
-        return message_to_response(message)
-    translated_text, source_lang, priority = await run_translation(
-        translator.translate(
-            original_text,
-            source_lang=message.source_language,
-            target_lang=target_language,
-            published_at=message.published_at,
+    try:
+        # Use service to translate the message
+        message = await translate_single_message(
+            message_id=message_id,
+            target_language=target_language,
         )
-    )
-
-    async with AsyncSessionLocal() as db_local:
-        await db_local.execute(
-            update(Message)
-            .where(Message.id == message_id)
-            .values(
-                translated_text=translated_text,
-                source_language=source_lang,
-                target_language=target_language,
-                needs_translation=False,
-                translated_at=datetime.now(timezone.utc),
-                translation_priority=priority,
-            )
-        )
-        await db_local.commit()
-        refreshed = await db_local.execute(
-            select(Message).options(selectinload(Message.channel)).where(Message.id == message_id)
-        )
-        message = refreshed.scalar_one_or_none()
-
-    if not message:
-        raise HTTPException(status_code=404, detail="Message not found")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
     # Publish event for real-time updates across all clients
-    await publish_message_translated(
-        message_id=message.id,
-        channel_id=message.channel_id,
-        translated_text=translated_text,
-        source_language=source_lang,
-        target_language=target_language
-    )
+    if message.translated_text:
+        await publish_message_translated(
+            message_id=message.id,
+            channel_id=message.channel_id,
+            translated_text=message.translated_text,
+            source_language=message.source_language or "",
+            target_language=message.target_language or target_language,
+        )
 
     return message_to_response(message)
