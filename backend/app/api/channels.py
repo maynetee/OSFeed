@@ -18,6 +18,7 @@ from app.services.audit import record_audit_event
 from app.services.telegram_client import get_telegram_client
 from app.services.channel_join_queue import queue_channel_join
 from app.services.translation_service import invalidate_channel_translation_cache
+from app.services import channel_utils
 from typing import List, Optional
 from pydantic import BaseModel
 from app.schemas.fetch_job import FetchJobStatus
@@ -80,41 +81,24 @@ async def add_channel(
 
     Requires authentication.
     """
-    # Clean username - remove URL prefix if present
-    username = channel_data.username.strip()
-    if username.startswith("https://t.me/"):
-        username = username.replace("https://t.me/", "")
-    if username.startswith("t.me/"):
-        username = username.replace("t.me/", "")
-    username = username.lstrip("@")
+    # Clean and validate username
+    username = channel_utils.clean_channel_username(channel_data.username)
 
-    # Fix regex: remove double escaping and ensure correct pattern
-    if not re.match(r"^[a-zA-Z][\w\d]{3,30}[a-zA-Z\d]$", username):
+    if not channel_utils.validate_channel_username(username):
         raise HTTPException(status_code=400, detail="Invalid Telegram username format. Must be 5-32 chars, start with letter.")
 
     try:
         # Check if channel already exists
-        result = await db.execute(
-            select(Channel).where(Channel.username == username)
-        )
-        existing_channel = result.scalar_one_or_none()
+        existing_channel = await channel_utils.get_existing_channel(db, username)
 
         channel_to_use = None
         is_new = False
 
         if existing_channel:
             # Check if user already has this channel
-            link_result = await db.execute(
-                select(user_channels).where(
-                    and_(
-                        user_channels.c.user_id == user.id,
-                        user_channels.c.channel_id == existing_channel.id
-                    )
-                )
-            )
-            existing_link = link_result.first()
+            has_link = await channel_utils.check_user_channel_link(db, user.id, existing_channel.id)
 
-            if existing_link:
+            if has_link:
                 # Link exists - ensure channel is active
                 if not existing_channel.is_active:
                     # Reactivate and return the channel
@@ -157,9 +141,7 @@ async def add_channel(
 
             try:
                 # Resolve and join channel via Telegram
-                channel_info = await telegram_client.resolve_channel(username)
-                await telegram_client.join_public_channel(username)
-                await telegram_client.record_channel_join()
+                channel_info = await channel_utils.resolve_and_join_telegram_channel(telegram_client, username)
 
                 # Create new channel record
                 channel_to_use = Channel(
@@ -179,38 +161,7 @@ async def add_channel(
                 raise HTTPException(status_code=400, detail="Unable to add channel. It may be private or invalid.")
 
         # Assign to collections (for both new and existing linked channels)
-        collections_result = await db.execute(
-            select(Collection)
-            .options(selectinload(Collection.channels))
-            .where(Collection.user_id == user.id)
-        )
-        collections = collections_result.scalars().all()
-
-        # Re-check collections for the user
-        channel_lang = channel_to_use.detected_language
-        search_text = f"{channel_to_use.title} {channel_to_use.description or ''}".lower()
-
-        for collection in collections:
-            # Check if already in collection to avoid dupes
-            if channel_to_use in collection.channels:
-                continue
-
-            if collection.is_global:
-                continue
-            if collection.is_default:
-                collection.channels.append(channel_to_use)
-                continue
-            if collection.auto_assign_languages and channel_lang:
-                if channel_lang in (collection.auto_assign_languages or []):
-                    collection.channels.append(channel_to_use)
-                    continue
-            if collection.auto_assign_keywords:
-                if any(keyword.lower() in search_text for keyword in collection.auto_assign_keywords or []):
-                    collection.channels.append(channel_to_use)
-                    continue
-            if collection.auto_assign_tags and channel_to_use.tags:
-                if any(tag in (collection.auto_assign_tags or []) for tag in channel_to_use.tags):
-                    collection.channels.append(channel_to_use)
+        await channel_utils.auto_assign_to_collections(db, user.id, channel_to_use)
 
         record_audit_event(
             db,
