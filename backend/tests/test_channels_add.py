@@ -1,6 +1,7 @@
 import itertools
 from uuid import UUID, uuid4
 from types import SimpleNamespace
+from typing import Optional
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -46,7 +47,7 @@ async def _create_user(email: str, password: str) -> SimpleNamespace:
         return SimpleNamespace(id=UUID(user_id), email=email)
 
 
-async def _create_channel(username: str, telegram_id: int | None = None) -> Channel:
+async def _create_channel(username: str, telegram_id: Optional[int] = None) -> Channel:
     """Create a channel without linking to any user."""
     if telegram_id is None:
         telegram_id = next(_telegram_id_counter)
