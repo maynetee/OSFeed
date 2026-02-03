@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, update, or_, tuple_, insert, and_, literal
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 import asyncio
@@ -339,9 +340,12 @@ async def search_messages(
         )
     except HTTPException:
         raise
+    except (SQLAlchemyError, IntegrityError) as e:
+        logger.error(f"Database error searching messages for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="MESSAGE_SEARCH_DATABASE_ERROR")
     except Exception as e:
-        logger.error(f"Error searching messages for user {user.id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Search failed")
+        logger.error(f"Unexpected error searching messages for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="MESSAGE_SEARCH_ERROR")
 
 
 @router.post("/fetch-historical/{channel_id}")
@@ -806,8 +810,8 @@ async def get_message_media(
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception(f"Failed to fetch media for message {message_id}: {e}")
-        raise HTTPException(status_code=502, detail="Failed to fetch media from Telegram")
+        logger.error(f"Unexpected error fetching media for message {message_id}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=502, detail="MEDIA_FETCH_ERROR")
 
 
 @router.get("/{message_id}", response_model=MessageResponse)
