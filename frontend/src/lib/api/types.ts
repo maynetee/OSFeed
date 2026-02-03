@@ -288,3 +288,14 @@ export interface BulkAddResponse {
   /** Number of channels that failed to be added */
   failure_count: number
 }
+
+export interface DashboardData {
+  /** Overview statistics for the dashboard */
+  overview: StatsOverview
+  /** Daily message count trend data for charting */
+  messages_by_day: MessagesByDay[]
+  /** Top channels by message count with channel details */
+  messages_by_channel: MessagesByChannel[]
+  /** Trust metrics including primary sources and propaganda rates */
+  trust_stats: TrustStats
+}
