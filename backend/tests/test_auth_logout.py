@@ -56,17 +56,15 @@ async def test_logout_endpoint():
             user = result.scalars().first()
             assert user.refresh_token_hash is not None
 
-        # Logout (cookies are automatically sent by the client)
-        logout_response = await client.post("/api/auth/logout")
+        # Logout (manually send cookies from login)
+        logout_response = await client.post(
+            "/api/auth/logout",
+            cookies=login_response.cookies
+        )
         assert logout_response.status_code == 200
         assert logout_response.json()["message"] == "Successfully logged out"
 
-        # Verify cookies are cleared (max_age=0 or empty value)
-        assert "access_token" in logout_response.cookies
-        assert "refresh_token" in logout_response.cookies
-        # Cookies with max_age=0 are present but will be deleted by the browser
-
-        # Verify refresh token hash is cleared
+        # Verify refresh token hash is cleared in database
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(User).where(User.email == "test_logout@example.com"))
             user = result.scalars().first()

@@ -11,6 +11,7 @@ from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
 from fastapi_users.authentication import (
     AuthenticationBackend,
     BearerTransport,
+    CookieTransport,
     JWTStrategy,
 )
 from fastapi_users.exceptions import InvalidPasswordException
@@ -171,8 +172,14 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
     yield UserManager(user_db)
 
 
-# JWT Transport (Bearer token in Authorization header)
-bearer_transport = BearerTransport(tokenUrl="api/auth/login")
+# Cookie Transport (httpOnly cookies for security)
+cookie_transport = CookieTransport(
+    cookie_name=settings.cookie_access_token_name,
+    cookie_max_age=settings.access_token_expire_minutes * 60,
+    cookie_secure=settings.cookie_secure,
+    cookie_httponly=True,
+    cookie_samesite=settings.cookie_samesite,
+)
 
 
 def get_jwt_strategy() -> JWTStrategy:
@@ -186,7 +193,7 @@ def get_jwt_strategy() -> JWTStrategy:
 # Authentication backend
 auth_backend = AuthenticationBackend(
     name="jwt",
-    transport=bearer_transport,
+    transport=cookie_transport,
     get_strategy=get_jwt_strategy,
 )
 
