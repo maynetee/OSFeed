@@ -19,7 +19,7 @@ from app.config import get_settings
 from app.services.translator import translator
 from app.services.translation_pool import run_translation
 from app.services.events import publish_message_translated
-from app.services.cache import get_redis_client
+from app.services.cache_service import get_cache_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -39,18 +39,12 @@ async def get_cached_channel_translation_status(channel_id: UUID) -> Optional[bo
         True if translation is needed, False if not needed,
         None if not cached (cache miss)
     """
-    client = get_redis_client()
-    if client is None:
+    cache = get_cache_service()
+    key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+    value = await cache.get(key)
+    if value is None:
         return None
-    try:
-        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
-        value = await client.get(key)
-        if value is None:
-            return None
-        return value == "1"
-    except Exception:
-        logger.debug(f"Failed to get cached translation status for channel {channel_id}")
-        return None
+    return value == "1"
 
 
 async def set_cached_channel_translation_status(channel_id: UUID, should_translate: bool) -> None:
@@ -60,16 +54,12 @@ async def set_cached_channel_translation_status(channel_id: UUID, should_transla
         channel_id: UUID of the channel
         should_translate: Whether translation is needed for this channel
     """
-    client = get_redis_client()
-    if client is None:
-        return
-    try:
-        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
-        value = "1" if should_translate else "0"
-        await client.setex(key, CHANNEL_TRANSLATE_CACHE_TTL, value)
+    cache = get_cache_service()
+    key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+    value = "1" if should_translate else "0"
+    success = await cache.setex(key, CHANNEL_TRANSLATE_CACHE_TTL, value)
+    if success:
         logger.debug(f"Cached translation status for channel {channel_id}: {should_translate}")
-    except Exception:
-        logger.debug(f"Failed to cache translation status for channel {channel_id}")
 
 
 async def invalidate_channel_translation_cache(channel_id: UUID) -> None:
@@ -83,15 +73,11 @@ async def invalidate_channel_translation_cache(channel_id: UUID) -> None:
     Args:
         channel_id: UUID of the channel to invalidate cache for
     """
-    client = get_redis_client()
-    if client is None:
-        return
-    try:
-        key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
-        await client.delete(key)
+    cache = get_cache_service()
+    key = f"{CHANNEL_TRANSLATE_CACHE_PREFIX}{channel_id}"
+    success = await cache.delete(key)
+    if success:
         logger.debug(f"Invalidated translation cache for channel {channel_id}")
-    except Exception:
-        logger.debug(f"Failed to invalidate translation cache for channel {channel_id}")
 
 
 async def should_channel_translate(channel_id: UUID) -> bool:
