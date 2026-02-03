@@ -9,6 +9,9 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 
 from sqlalchemy import select, func, and_
+from sqlalchemy.exc import SQLAlchemyError
+from redis.exceptions import RedisError
+from telethon.errors import RPCError, FloodWaitError
 
 from app.models.message import Message
 from app.models.channel import Channel
@@ -70,12 +73,12 @@ async def collect_messages_job() -> None:
                         channel.username,
                         days=1  # Only fetch last day for incremental sync
                     )
-                except Exception as e:
+                except (RedisError, SQLAlchemyError) as e:
                     logger.error(f"Failed to enqueue fetch for {channel.username}: {e}")
 
         logger.info("Message collection job completed")
 
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.exception(f"Message collection job failed: {e}")
 
 
@@ -170,7 +173,7 @@ async def collect_channel_messages(channel: Channel, days: int = 7) -> int:
         logger.info(f"Collected {new_messages} new messages from {channel.username}")
         return new_messages
 
-    except Exception as e:
+    except (RPCError, FloodWaitError, SQLAlchemyError) as e:
         logger.exception(f"Error collecting from {channel.username}: {e}")
         return new_messages
 

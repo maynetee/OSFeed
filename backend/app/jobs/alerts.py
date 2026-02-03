@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 from sqlalchemy import select, func, or_
+from redis.exceptions import RedisError
 from app.database import AsyncSessionLocal
 from app.models.alert import Alert, AlertTrigger
 from app.models.collection import Collection
@@ -106,7 +107,7 @@ async def evaluate_alerts_job():
                     message_count=count
                 )
                 logger.debug(f"Published alert:triggered event for alert {alert.name}")
-            except Exception as e:
+            except RedisError as e:
                 logger.error(f"Failed to publish alert:triggered event for alert {alert.name}: {e}")
 
         await session.commit()
