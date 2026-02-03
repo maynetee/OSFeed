@@ -7,18 +7,40 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { collectionsApi, messagesApi } from '@/lib/api/client'
+import { channelsApi, collectionsApi, messagesApi } from '@/lib/api/client'
+import { useFilterStore } from '@/stores/filter-store'
 
 export function SearchPage() {
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState('keyword')
   const [collectionIds, setCollectionIds] = useState<string[]>([])
   const { t } = useTranslation()
+  const channelIds = useFilterStore((state) => state.channelIds)
+
+  const channelsQuery = useQuery({
+    queryKey: ['channels'],
+    queryFn: async () => (await channelsApi.list()).data,
+  })
 
   const collectionsQuery = useQuery({
     queryKey: ['collections'],
     queryFn: async () => (await collectionsApi.list()).data,
   })
+
+  const activeChannelIds = useMemo(() => {
+    const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
+    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const validChannelIds = channelIds.filter((id) => availableChannelIds.has(id))
+    const validCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
+    const collectionChannelIds =
+      collectionsQuery.data
+        ?.filter((collection) => validCollectionIds.includes(collection.id))
+        .flatMap((collection) => collection.channel_ids) ?? []
+    const scopedIds = [...validChannelIds, ...collectionChannelIds].filter((id) =>
+      availableChannelIds.has(id),
+    )
+    return Array.from(new Set(scopedIds))
+  }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds])
 
   const searchChannelIds = useMemo(() => {
     if (!collectionIds.length) return undefined
