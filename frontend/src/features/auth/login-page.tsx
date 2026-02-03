@@ -51,9 +51,9 @@ export function LoginPage() {
 
       // Extract user info from login response
       setUser({
-        id: response.data.id,
-        email: response.data.email,
-        name: response.data.email.split('@')[0],
+        id: response.data.user.id,
+        email: response.data.user.email,
+        name: response.data.user.email.split('@')[0],
       })
 
       navigate('/feed')
