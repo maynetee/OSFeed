@@ -1,4 +1,5 @@
 from typing import List, Optional
+import asyncio
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
@@ -21,6 +22,7 @@ from app.models.api_usage import ApiUsage
 from app.auth.users import current_active_user
 from app.config import get_settings
 from app.utils.response_cache import response_cache
+from app.schemas.stats import DashboardResponse
 
 router = APIRouter()
 settings = get_settings()
@@ -78,6 +80,36 @@ async def get_overview_stats(
         "active_channels": total_channels.scalar() or 0,
         "messages_last_24h": messages_24h.scalar() or 0,
         "duplicates_last_24h": duplicates_24h.scalar() or 0,
+    }
+
+
+@router.get("/dashboard", response_model=DashboardResponse)
+@response_cache(expire=settings.response_cache_ttl, namespace="stats-dashboard")
+async def get_dashboard_stats(
+    days: int = Query(7, ge=1, le=90),
+    channel_limit: int = Query(10, ge=1, le=50),
+    collection_id: Optional[UUID] = Query(None),
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get unified dashboard statistics with parallel queries for optimal performance."""
+    # Fetch all stats in parallel using asyncio.gather
+    overview, messages_by_day, messages_by_channel, trust, api_usage, translation = await asyncio.gather(
+        get_overview_stats(user=user, db=db),
+        get_messages_by_day(days=days, user=user, db=db),
+        get_messages_by_channel(limit=channel_limit, user=user, db=db),
+        get_trust_stats(channel_ids=None, user=user, db=db),
+        get_api_usage_stats(days=days, user=user, db=db),
+        get_translation_metrics(user=user, db=db),
+    )
+
+    return {
+        "overview": overview,
+        "messages_by_day": messages_by_day,
+        "messages_by_channel": messages_by_channel,
+        "trust_stats": trust,
+        "api_usage": api_usage,
+        "translation_metrics": translation,
     }
 
 
