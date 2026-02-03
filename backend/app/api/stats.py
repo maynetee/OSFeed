@@ -43,8 +43,14 @@ async def get_overview_stats(
     messages_result = await db.execute(
         select(
             func.count().label("total_messages"),
-            func.sum(case((Message.published_at >= day_ago, 1), else_=0)).label("messages_24h"),
-            func.sum(case((and_(Message.published_at >= day_ago, Message.is_duplicate == True), 1), else_=0)).label("duplicates_24h"),
+            func.coalesce(
+                func.sum(case((Message.published_at >= day_ago, 1), else_=0)),
+                0
+            ).label("messages_24h"),
+            func.coalesce(
+                func.sum(case((and_(Message.published_at >= day_ago, Message.is_duplicate == True), 1), else_=0)),
+                0
+            ).label("duplicates_24h"),
         )
         .select_from(Message)
         .join(Channel, Message.channel_id == Channel.id)
