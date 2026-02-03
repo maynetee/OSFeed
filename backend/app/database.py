@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import event
+from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 from app.config import get_settings
 import os
 import logging
@@ -109,7 +110,7 @@ async def get_db():
         try:
             yield session
             await session.commit()
-        except Exception:
+        except SQLAlchemyError:
             await session.rollback()
             raise
         finally:
@@ -132,7 +133,7 @@ async def init_db():
                 await conn.run_sync(Base.metadata.create_all)
             logger.info("Database tables initialized")
             return
-        except Exception as e:
+        except (OperationalError, DatabaseError) as e:
             if attempt < max_retries - 1:
                 delay = base_delay * (2 ** attempt)
                 logger.warning(f"Database connection attempt {attempt + 1}/{max_retries} failed: {e}. Retrying in {delay}s...")
