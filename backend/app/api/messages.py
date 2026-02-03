@@ -16,6 +16,7 @@ from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
+from app.services.message_utils import message_to_response, apply_message_filters
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
@@ -32,14 +33,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
-
-
-def _message_to_response(message: Message) -> MessageResponse:
-    data = MessageResponse.model_validate(message).model_dump()
-    if message.channel:
-        data["channel_title"] = message.channel.title
-        data["channel_username"] = message.channel.username
-    return MessageResponse(**data)
 
 
 def _encode_cursor(published_at: datetime, message_id: UUID) -> str:
@@ -61,52 +54,6 @@ def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
         raise HTTPException(status_code=400, detail="Invalid cursor format")
 
 
-from app.models.channel import user_channels
-
-def _apply_message_filters(
-    query,
-    user_id: UUID,
-    channel_id: Optional[UUID],
-    channel_ids: Optional[list[UUID]],
-    start_date: Optional[datetime],
-    end_date: Optional[datetime],
-    media_types: Optional[list[str]] = None,
-):
-    query = query.join(Channel, Message.channel_id == Channel.id).join(
-        user_channels,
-        and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user_id)
-    )
-
-    if channel_ids:
-        query = query.where(Message.channel_id.in_(channel_ids))
-    elif channel_id:
-        query = query.where(Message.channel_id == channel_id)
-
-    if start_date:
-        query = query.where(Message.published_at >= start_date)
-
-    if end_date:
-        query = query.where(Message.published_at <= end_date)
-
-    if media_types:
-        # Handle "text" filter specially - it means messages with no media
-        if "text" in media_types:
-            # If text is the only filter, show only text messages
-            if len(media_types) == 1:
-                query = query.where(Message.media_type.is_(None))
-            else:
-                # If text + other types, show text OR the other media types
-                other_types = [mt for mt in media_types if mt != "text"]
-                query = query.where(
-                    or_(Message.media_type.is_(None), Message.media_type.in_(other_types))
-                )
-        else:
-            # Only non-text media types selected
-            query = query.where(Message.media_type.in_(media_types))
-
-    return query
-
-
 @router.get("", response_model=MessageListResponse)
 @response_cache(expire=60, namespace="messages-list")
 async def list_messages(
@@ -123,7 +70,7 @@ async def list_messages(
 ):
     """Get paginated message feed with optional filters."""
     query = select(Message).options(selectinload(Message.channel))
-    query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
+    query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
@@ -145,7 +92,7 @@ async def list_messages(
         next_cursor = _encode_cursor(last_message.published_at, last_message.id)
 
     return MessageListResponse(
-        messages=[_message_to_response(message) for message in messages],
+        messages=[message_to_response(message) for message in messages],
         total=total,
         page=offset // limit + 1 if not cursor else 1,
         page_size=limit,
@@ -178,7 +125,7 @@ async def stream_messages(
             while sent < limit:
                 current_batch = min(batch_size, limit - sent)
                 query = select(Message).options(selectinload(Message.channel))
-                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
+                query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at), desc(Message.id))
                 query = query.limit(current_batch).offset(offset)
                 result = await db.execute(query)
@@ -194,7 +141,7 @@ async def stream_messages(
 
                 payload = {
                     "messages": [
-                        _message_to_response(message).model_dump(mode="json")
+                        message_to_response(message).model_dump(mode="json")
                         for message in messages
                     ],
                     "offset": offset,
@@ -243,7 +190,7 @@ async def stream_messages(
                     if event_type == "message:new":
                         async with AsyncSessionLocal() as db:
                             query = select(Message).options(selectinload(Message.channel))
-                            query = _apply_message_filters(query, user.id, channel_id, channel_ids, None, None, media_types)
+                            query = apply_message_filters(query, user.id, channel_id, channel_ids, None, None, media_types)
 
                             if last_message_id:
                                 query = query.where(
@@ -265,7 +212,7 @@ async def stream_messages(
 
                             payload = {
                                 "messages": [
-                                    _message_to_response(msg).model_dump(mode="json")
+                                    message_to_response(msg).model_dump(mode="json")
                                     for msg in new_messages
                                 ],
                                 "type": "realtime"
@@ -309,7 +256,7 @@ async def search_messages(
             func.coalesce(Message.translated_text, literal("")).ilike(search_term),
         )
         query = select(Message).options(selectinload(Message.channel)).where(search_filter)
-        query = _apply_message_filters(query, user.id, None, channel_ids, start_date, end_date, media_types)
+        query = apply_message_filters(query, user.id, None, channel_ids, start_date, end_date, media_types)
 
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await db.execute(count_query)
@@ -331,7 +278,7 @@ async def search_messages(
             next_cursor = _encode_cursor(last_message.published_at, last_message.id)
 
         return MessageListResponse(
-            messages=[_message_to_response(message) for message in messages],
+            messages=[message_to_response(message) for message in messages],
             total=total,
             page=offset // limit + 1 if not cursor else 1,
             page_size=limit,
@@ -558,7 +505,7 @@ async def export_messages_csv(
         while True:
             async with AsyncSessionLocal() as db:
                 query = select(Message, Channel)
-                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
+                query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(batch_size).offset(offset)
 
@@ -631,7 +578,7 @@ async def export_messages_html(
 
             async with AsyncSessionLocal() as db:
                 query = select(Message, Channel)
-                query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
+                query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
                 query = query.order_by(desc(Message.published_at))
                 query = query.limit(curr_limit).offset(offset)
                 result = await db.execute(query)
@@ -695,7 +642,7 @@ async def export_messages_pdf(
 
     async with AsyncSessionLocal() as db_local:
         query = select(Message, Channel)
-        query = _apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
+        query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
         query = query.order_by(desc(Message.published_at))
         query = query.limit(limit)
         result = await db_local.execute(query)
@@ -832,7 +779,7 @@ async def get_message(
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
 
-    return _message_to_response(message)
+    return message_to_response(message)
 
 
 @router.get("/{message_id}/similar", response_model=SimilarMessagesResponse)
@@ -881,7 +828,7 @@ async def get_similar_messages(
     messages = result.scalars().all()
 
     return SimilarMessagesResponse(
-        messages=[_message_to_response(message) for message in messages],
+        messages=[message_to_response(message) for message in messages],
         total=len(messages),
         page=1,
         page_size=len(messages),
@@ -920,7 +867,7 @@ async def translate_message_on_demand(
     )
 
     if not message.needs_translation:
-        return _message_to_response(message)
+        return message_to_response(message)
 
     original_text = message.original_text or ""
     if not original_text.strip():
@@ -932,7 +879,7 @@ async def translate_message_on_demand(
             )
             await db_local.commit()
         message.needs_translation = False
-        return _message_to_response(message)
+        return message_to_response(message)
     translated_text, source_lang, priority = await run_translation(
         translator.translate(
             original_text,
@@ -973,4 +920,4 @@ async def translate_message_on_demand(
         target_language=target_language
     )
 
-    return _message_to_response(message)
+    return message_to_response(message)
