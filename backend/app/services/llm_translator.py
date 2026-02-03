@@ -590,8 +590,22 @@ class LLMTranslator:
     def _create_batches(
         self, items: list[tuple[int, str]]
     ) -> list[list[tuple[int, str]]]:
-        """
-        Split items into batches respecting MAX_BATCH_SIZE and MAX_BATCH_CHARS.
+        """Split items into batches respecting size and character limits.
+
+        Creates batches of text items for efficient batch translation while
+        staying within API limits. Each batch respects both:
+        - MAX_BATCH_SIZE (100 messages per batch)
+        - MAX_BATCH_CHARS (10000 characters per batch)
+
+        The batches preserve the original index mapping to allow results
+        to be correctly assigned back to the original input order.
+
+        Args:
+            items: List of (index, text) tuples to batch, where index
+                   is the original position in the input list
+
+        Returns:
+            List of batches, where each batch is a list of (index, text) tuples
         """
         batches = []
         current_batch = []
@@ -625,9 +639,32 @@ class LLMTranslator:
         target_lang: str,
         model: str,
     ) -> list[str]:
-        """
-        Translate multiple texts in a single LLM API call.
-        Uses a separator to combine messages and splits the response.
+        """Translate multiple texts in a single OpenAI LLM API call.
+
+        Uses a batch translation strategy to reduce API costs and latency:
+        1. Combines all texts with BATCH_SEPARATOR delimiter
+        2. Sends combined text in single API call
+        3. Splits response on separator to extract individual translations
+        4. Records API usage metrics for the entire batch
+
+        If the response doesn't contain the expected number of translations,
+        automatically falls back to individual translation for each text.
+
+        Uses the same OSINT translation prompt as _translate_with_llm to
+        preserve names, dates, URLs, and numbers.
+
+        Args:
+            texts: List of texts to translate
+            source_lang: Source language code (e.g., 'en', 'es', 'fr')
+            target_lang: Target language code (e.g., 'en', 'es', 'fr')
+            model: OpenAI model to use (e.g., 'gpt-4', 'gpt-3.5-turbo')
+
+        Returns:
+            List of translated texts in same order as input
+
+        Raises:
+            RuntimeError: If OpenAI API key is not configured
+            Exception: If API call fails (propagated from OpenAI client)
         """
         if not texts:
             return []
@@ -703,6 +740,34 @@ class LLMTranslator:
         target_lang: str,
         model: str,
     ) -> list[str]:
+        """Translate multiple texts in a single Google Gemini API call.
+
+        Uses a batch translation strategy similar to _translate_batch_llm:
+        1. Combines all texts with BATCH_SEPARATOR delimiter
+        2. Sends combined text to Gemini's REST endpoint
+        3. Splits response on separator to extract individual translations
+
+        Unlike the OpenAI method, this raises an error instead of falling back
+        if the response doesn't contain the expected number of translations.
+        The caller should handle this by using individual translation fallback.
+
+        Uses the same OSINT translation prompt to preserve names, dates,
+        URLs, and numbers.
+
+        Args:
+            texts: List of texts to translate
+            source_lang: Source language code (e.g., 'en', 'es', 'fr')
+            target_lang: Target language code (e.g., 'en', 'es', 'fr')
+            model: Gemini model to use (e.g., 'gemini-pro', from settings.gemini_model)
+
+        Returns:
+            List of translated texts in same order as input
+
+        Raises:
+            RuntimeError: If Gemini API key is not configured, if API returns
+                         no candidates/text, or if translation count mismatch
+            httpx.HTTPStatusError: If API request fails (from response.raise_for_status())
+        """
         if not texts:
             return []
         if not self.gemini_api_key:
