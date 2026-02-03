@@ -15,7 +15,11 @@ from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
 from app.services.translation_pool import run_translation
 from app.services.translator import translator
-from app.services.message_utils import message_to_response, apply_message_filters
+from app.services.message_utils import (
+    message_to_response,
+    apply_message_filters,
+    get_similar_messages as get_similar_messages_service,
+)
 from app.services.message_streaming_service import create_message_stream
 from app.services.message_export_service import (
     export_messages_csv as service_export_messages_csv,
@@ -443,49 +447,28 @@ async def get_similar_messages(
     db: AsyncSession = Depends(get_db),
 ):
     """Get similar messages based on duplicate_group_id."""
-    result = await db.execute(
-        select(Message).where(Message.id == message_id)
-    )
-    source_message = result.scalar_one_or_none()
-
-    if not source_message:
-        raise HTTPException(status_code=404, detail="Message not found")
-
-    if not source_message.duplicate_group_id:
-        return SimilarMessagesResponse(
-            messages=[],
-            total=0,
-            page=1,
-            page_size=0,
-            duplicate_group_id=None,
-        )
-
-    query = (
-        select(Message)
-        .options(selectinload(Message.channel))
-        .join(Channel, Message.channel_id == Channel.id)
-        .join(
-            user_channels,
-            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id)
-        )
-        .where(
-            and_(
-                Message.duplicate_group_id == source_message.duplicate_group_id,
-                Message.id != message_id
-            )
-        )
-        .order_by(desc(Message.published_at), desc(Message.id))
+    messages, duplicate_group_id = await get_similar_messages_service(
+        message_id=message_id,
+        user_id=user.id,
+        db=db,
     )
 
-    result = await db.execute(query)
-    messages = result.scalars().all()
+    # Service returns ([], None) if source message not found or has no duplicate_group_id
+    # Check if source message exists by trying to fetch it
+    if duplicate_group_id is None and not messages:
+        result = await db.execute(
+            select(Message).where(Message.id == message_id)
+        )
+        source_message = result.scalar_one_or_none()
+        if not source_message:
+            raise HTTPException(status_code=404, detail="Message not found")
 
     return SimilarMessagesResponse(
         messages=[message_to_response(message) for message in messages],
         total=len(messages),
         page=1,
         page_size=len(messages),
-        duplicate_group_id=source_message.duplicate_group_id,
+        duplicate_group_id=duplicate_group_id,
     )
 
 
