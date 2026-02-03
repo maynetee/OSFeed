@@ -10,7 +10,7 @@ import json
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
-from app.utils.export import MESSAGE_CSV_COLUMNS, create_csv_writer, generate_csv_row, generate_html_template, generate_html_article, generate_pdf_bytes
+from app.utils.export import generate_html_template, generate_html_article, generate_pdf_bytes
 from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
@@ -18,6 +18,7 @@ from app.services.translation_pool import run_translation
 from app.services.translator import translator
 from app.services.message_utils import message_to_response, apply_message_filters
 from app.services.message_streaming_service import create_message_stream
+from app.services.message_export_service import export_messages_csv as service_export_messages_csv
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
@@ -391,46 +392,16 @@ async def export_messages_csv(
         },
     )
 
-    async def csv_generator():
-        writer, output = create_csv_writer()
-
-        writer.writerow(MESSAGE_CSV_COLUMNS)
-        yield output.getvalue()
-        output.seek(0)
-        output.truncate(0)
-
-        batch_size = 500
-        offset = 0
-
-        while True:
-            async with AsyncSessionLocal() as db:
-                query = select(Message, Channel)
-                query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
-                query = query.order_by(desc(Message.published_at))
-                query = query.limit(batch_size).offset(offset)
-
-                result = await db.execute(query)
-                rows = result.all()
-
-                if not rows:
-                    break
-
-                for message, channel in rows:
-                    writer.writerow(generate_csv_row(message, channel))
-
-                data = output.getvalue()
-                if data:
-                    yield data
-                    output.seek(0)
-                    output.truncate(0)
-
-                offset += len(rows)
-                if len(rows) < batch_size:
-                    break
-
     filename = "osfeed-messages.csv"
     return StreamingResponse(
-        csv_generator(),
+        service_export_messages_csv(
+            user_id=user.id,
+            channel_id=channel_id,
+            channel_ids=channel_ids,
+            start_date=start_date,
+            end_date=end_date,
+            media_types=media_types,
+        ),
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
