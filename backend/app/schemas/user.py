@@ -19,7 +19,7 @@ class UserRead(schemas.BaseUser[UUID]):
 class UserCreate(schemas.BaseUserCreate):
     """Schema for creating a new user."""
     full_name: Optional[str] = None
-    role: UserRole = UserRole.VIEWER
+    # role field removed per security fix - prevents clients from specifying role
     preferred_language: str = "en"
     consent_given_at: Optional[datetime] = None  # Set when user accepts terms
 
