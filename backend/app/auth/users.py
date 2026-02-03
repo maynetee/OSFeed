@@ -1,6 +1,7 @@
 """FastAPI-Users configuration for OSFeed."""
 import asyncio
 import logging
+import re
 from typing import Optional
 from uuid import UUID
 from datetime import datetime, timezone
@@ -12,6 +13,7 @@ from fastapi_users.authentication import (
     BearerTransport,
     JWTStrategy,
 )
+from fastapi_users.exceptions import InvalidPasswordException
 from fastapi_users.jwt import generate_jwt
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +40,53 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     verification_token_secret = settings.secret_key
     verification_token_audience = "fastapi-users:verify"
     verification_token_lifetime_seconds = 86400  # 24 hours
+
+    async def validate_password(
+        self,
+        password: str,
+        user: Optional[User] = None,
+    ) -> None:
+        """
+        Validate password against OWASP-recommended strength requirements.
+
+        Requirements:
+        - Minimum 8 characters
+        - At least 1 uppercase letter
+        - At least 1 lowercase letter
+        - At least 1 digit
+        - At least 1 special character
+
+        Args:
+            password: The password to validate
+            user: Optional user object (unused, but part of base signature)
+
+        Raises:
+            InvalidPasswordException: If password doesn't meet requirements
+        """
+        if len(password) < 8:
+            raise InvalidPasswordException(
+                reason="Password must be at least 8 characters long"
+            )
+
+        if not re.search(r"[A-Z]", password):
+            raise InvalidPasswordException(
+                reason="Password must contain at least one uppercase letter"
+            )
+
+        if not re.search(r"[a-z]", password):
+            raise InvalidPasswordException(
+                reason="Password must contain at least one lowercase letter"
+            )
+
+        if not re.search(r"\d", password):
+            raise InvalidPasswordException(
+                reason="Password must contain at least one digit"
+            )
+
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            raise InvalidPasswordException(
+                reason="Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"
+            )
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """Called after a user successfully registers. Sends verification email."""

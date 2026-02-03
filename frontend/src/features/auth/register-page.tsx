@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AxiosError } from 'axios'
-import { Bot, Loader2 } from 'lucide-react'
+import { Bot, Loader2, Check, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
@@ -16,7 +16,12 @@ import { authApi } from '@/lib/api/client'
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters long")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/\d/, "Password must contain at least one digit")
+    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"),
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -65,6 +70,17 @@ export function RegisterPage() {
     resolver: zodResolver(registerSchema),
     defaultValues: { email: '', password: '', confirmPassword: '' },
   })
+
+  const password = form.watch('password')
+
+  // Password requirement checks
+  const requirements = [
+    { label: 'At least 8 characters', met: (password?.length || 0) >= 8 },
+    { label: 'One uppercase letter', met: /[A-Z]/.test(password || '') },
+    { label: 'One lowercase letter', met: /[a-z]/.test(password || '') },
+    { label: 'One number', met: /\d/.test(password || '') },
+    { label: 'One special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password || '') },
+  ]
 
   const handleRegister = async (values: RegisterFormValues) => {
     setError(null)
@@ -214,6 +230,23 @@ export function RegisterPage() {
                   {form.formState.errors.password.message}
                 </span>
               )}
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Password requirements:</p>
+                <ul className="space-y-1.5">
+                  {requirements.map((req, index) => (
+                    <li key={index} className="flex items-center gap-2 text-xs">
+                      {req.met ? (
+                        <Check className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <X className="h-4 w-4 text-muted-foreground/40" />
+                      )}
+                      <span className={req.met ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
+                        {req.label}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
