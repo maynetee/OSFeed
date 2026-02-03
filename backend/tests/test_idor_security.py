@@ -433,3 +433,37 @@ async def test_shared_channel_access_isolation():
     assert response_b.status_code == 200
     assert response_a.json()["id"] == str(channel.id)
     assert response_b.json()["id"] == str(channel.id)
+
+
+# Test trust stats endpoint
+
+
+@pytest.mark.asyncio
+async def test_trust_stats_unauthorized_access():
+    """Test that user A cannot access trust stats for user B's channels."""
+    await init_db()
+
+    # Create user A with a channel
+    user_a = await _create_user("user_a_trust_stats@example.com", "password123")
+    channel_a = await _create_channel_for_user(user_a.id, "user_a_trust_ch")
+
+    # Create user B
+    user_b = await _create_user("user_b_trust_stats@example.com", "password123")
+
+    # User B tries to access trust stats for user A's channel
+    async def _override_user():
+        return user_b
+
+    app.dependency_overrides[current_active_user] = _override_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                f"/api/stats/trust?channel_ids={channel_a.id}"
+            )
+    finally:
+        app.dependency_overrides.pop(current_active_user, None)
+
+    # Should return 404 (not 403) to avoid information leakage
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Channel not found"
