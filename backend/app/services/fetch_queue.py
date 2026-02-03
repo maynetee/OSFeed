@@ -10,6 +10,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from uuid import UUID
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -173,7 +175,7 @@ async def _process_fetch_job(job_data: dict) -> None:
                     channel.subscriber_count = channel_info.get('subscribers', 0)
                     await db.commit()
                     logger.info(f"Updated channel info for {username}: {channel_info.get('subscribers', 0)} subscribers")
-        except Exception as e:
+        except (SQLAlchemyError, RuntimeError, KeyError, AttributeError) as e:
             logger.warning(f"Failed to update channel info for {username}: {e}")
             # Continue with fetch even if info update fails
 
@@ -315,7 +317,7 @@ async def _process_fetch_job(job_data: dict) -> None:
             f"Fetch job {job_id} completed: {total_fetched} total, {new_messages} new messages"
         )
 
-    except Exception as e:
+    except (RedisError, SQLAlchemyError, RuntimeError, ValueError, KeyError, AttributeError) as e:
         logger.exception(f"Fetch job {job_id} failed: {e}")
         await _update_job_status(job_id, "failed", error=str(e))
 
@@ -341,7 +343,7 @@ async def _fetch_worker(worker_id: int) -> None:
 
         except asyncio.CancelledError:
             break
-        except Exception as e:
+        except (RedisError, SQLAlchemyError, RuntimeError, ValueError, KeyError, AttributeError) as e:
             logger.exception(f"Fetch worker {worker_id} error: {e}")
             await asyncio.sleep(5)  # Back off on error
 

@@ -8,6 +8,8 @@ import json
 import logging
 from uuid import UUID
 
+from redis.exceptions import RedisError
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -43,7 +45,7 @@ async def publish_event(event_type: str, data: dict) -> bool:
         logger.debug(f"Published {event_type} event")
         return True
 
-    except Exception as e:
+    except RedisError as e:
         logger.error(f"Failed to publish event {event_type}: {e}")
         return False
 
