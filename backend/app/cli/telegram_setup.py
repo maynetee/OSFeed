@@ -36,7 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.errors import SessionPasswordNeededError
+from telethon.errors import SessionPasswordNeededError, RPCError, FloodWaitError
 
 
 def get_env_or_prompt(var_name: str, prompt_text: str, is_secret: bool = False) -> str:
@@ -147,8 +147,14 @@ async def setup_telegram_session():
         print("  - Keep it secret like a password")
         print("  - Never commit it to git")
 
+    except (RPCError, FloodWaitError) as e:
+        print(f"\nTelegram error: {e}")
+        sys.exit(1)
+    except OSError as e:
+        print(f"\nNetwork error: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"\nError: {e}")
+        print(f"\nUnexpected error: {e}")
         sys.exit(1)
     finally:
         await client.disconnect()
