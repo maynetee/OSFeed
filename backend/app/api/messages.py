@@ -239,6 +239,15 @@ async def stream_messages(
                         yield f"data: {json.dumps(translation_event)}\n\n"
                         continue
 
+                    # Handle alert events - forward directly to client
+                    if event_type == "alert:triggered":
+                        alert_event = {
+                            "type": "alert:triggered",
+                            "data": data.get("data", {})
+                        }
+                        yield f"data: {json.dumps(alert_event)}\n\n"
+                        continue
+
                     # Handle new message events - query DB and send
                     if event_type == "message:new":
                         async with AsyncSessionLocal() as db:
