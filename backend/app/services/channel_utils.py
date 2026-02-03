@@ -136,3 +136,38 @@ async def check_user_channel_link(db: AsyncSession, user_id: UUID, channel_id: U
     )
     existing_link = result.first()
     return existing_link is not None
+
+
+async def resolve_and_join_telegram_channel(telegram_client, username: str) -> dict:
+    """Resolve and join a Telegram channel, returning channel information.
+
+    Connects to Telegram to resolve channel details, joins the channel,
+    and records the join operation. This is used when adding a new channel
+    that doesn't exist in the database yet.
+
+    Args:
+        telegram_client: Active Telegram client instance
+        username: Cleaned channel username (should be cleaned with clean_channel_username first)
+
+    Returns:
+        Dictionary containing channel information with keys:
+        - telegram_id: Telegram's unique ID for the channel
+        - title: Channel display title
+        - description: Channel description (may be None)
+        - subscribers: Number of subscribers (defaults to 0)
+
+    Raises:
+        ValueError: If the channel cannot be resolved (invalid username, private channel, etc.)
+
+    Examples:
+        >>> from app.services.telegram_client import get_telegram_client
+        >>> telegram_client = get_telegram_client()
+        >>> channel_info = await resolve_and_join_telegram_channel(telegram_client, "example_channel")
+        >>> print(channel_info['title'])
+    """
+    # Resolve and join channel via Telegram
+    channel_info = await telegram_client.resolve_channel(username)
+    await telegram_client.join_public_channel(username)
+    await telegram_client.record_channel_join()
+
+    return channel_info
