@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, insert, delete
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 import logging
@@ -187,6 +188,10 @@ async def add_channel(
 
     except HTTPException:
         raise
+    except (SQLAlchemyError, IntegrityError) as e:
+        logger.error(f"Database error adding channel '{username}' for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="CHANNEL_ADD_DATABASE_ERROR")
     except Exception as e:
         logger.error(f"Unexpected error adding channel '{username}' for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         await db.rollback()
@@ -343,6 +348,13 @@ async def add_channels_bulk(
 
             succeeded.append(ChannelResponse.model_validate(response))
 
+        except (SQLAlchemyError, IntegrityError) as e:
+            logger.error(f"Database error adding channel '{username}' in bulk operation for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+            failed.append(BulkChannelFailure(
+                username=username,
+                error="Failed to add channel due to a database error."
+            ))
+            continue
         except Exception as e:
             logger.error(f"Unexpected error adding channel '{username}' in bulk operation for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
             failed.append(BulkChannelFailure(
@@ -487,6 +499,15 @@ async def refresh_channel_info(
                 success=True
             ))
             logger.info(f"Updated info for {channel.username}: {channel.subscriber_count} subscribers")
+        except (SQLAlchemyError, IntegrityError) as e:
+            logger.error(f"Database error refreshing info for {channel.username} (user {user.id}): {type(e).__name__}: {e}", exc_info=True)
+            results.append(ChannelInfoUpdate(
+                channel_id=channel.id,
+                subscriber_count=channel.subscriber_count,
+                title=channel.title,
+                success=False,
+                error="Failed to refresh channel information due to database error."
+            ))
         except Exception as e:
             logger.error(f"Failed to refresh info for {channel.username} (user {user.id}): {type(e).__name__}: {e}", exc_info=True)
             results.append(ChannelInfoUpdate(
