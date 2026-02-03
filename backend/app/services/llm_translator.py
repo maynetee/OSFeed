@@ -133,6 +133,22 @@ class LLMTranslator:
         return [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
 
     async def _translate_with_google(self, text: str, source_lang: str, target_lang: str) -> str:
+        """Translate text using Google Translate (via deep-translator library).
+
+        This is a free translation method with no API key required.
+        Uses asyncio.to_thread to run the synchronous GoogleTranslator in a thread pool.
+
+        Args:
+            text: Text to translate
+            source_lang: Source language code (e.g., 'en', 'es', 'fr')
+            target_lang: Target language code (e.g., 'en', 'es', 'fr')
+
+        Returns:
+            Translated text string
+
+        Raises:
+            Exception: If translation fails (propagated from GoogleTranslator)
+        """
         translator = GoogleTranslator(source=source_lang, target=target_lang)
         return await asyncio.to_thread(translator.translate, text)
 
@@ -143,6 +159,25 @@ class LLMTranslator:
         target_lang: str,
         model: str,
     ) -> str:
+        """Translate text using OpenAI LLM (GPT models).
+
+        Automatically chunks large texts (>3500 chars) to stay within token limits.
+        Uses a specialized OSINT translation prompt that preserves names, dates, URLs, and numbers.
+        Records API usage metrics for cost tracking.
+
+        Args:
+            text: Text to translate (will be chunked if > 3500 chars)
+            source_lang: Source language code (e.g., 'en', 'es', 'fr')
+            target_lang: Target language code (e.g., 'en', 'es', 'fr')
+            model: OpenAI model to use (e.g., 'gpt-4', 'gpt-3.5-turbo')
+
+        Returns:
+            Translated text string (chunks rejoined if text was chunked)
+
+        Raises:
+            RuntimeError: If OpenAI API key is not configured
+            Exception: If API call fails (propagated from OpenAI client)
+        """
         client = self.client
         if client is None:
             raise RuntimeError("OpenAI API key is not configured")
@@ -190,6 +225,25 @@ class LLMTranslator:
         target_lang: str,
         model: str,
     ) -> str:
+        """Translate text using Google Gemini LLM API.
+
+        Uses httpx to make direct API calls to Gemini's REST endpoint.
+        Uses the same specialized OSINT translation prompt as OpenAI method
+        to preserve names, dates, URLs, and numbers.
+
+        Args:
+            text: Text to translate
+            source_lang: Source language code (e.g., 'en', 'es', 'fr')
+            target_lang: Target language code (e.g., 'en', 'es', 'fr')
+            model: Gemini model to use (e.g., 'gemini-pro', from settings.gemini_model)
+
+        Returns:
+            Translated text string
+
+        Raises:
+            RuntimeError: If Gemini API key is not configured, or if API returns no candidates/text
+            httpx.HTTPStatusError: If API request fails (from response.raise_for_status())
+        """
         if not self.gemini_api_key:
             raise RuntimeError("Gemini API key is not configured")
         prompt = (
