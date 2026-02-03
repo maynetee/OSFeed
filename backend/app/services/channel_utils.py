@@ -171,3 +171,76 @@ async def resolve_and_join_telegram_channel(telegram_client, username: str) -> d
     await telegram_client.record_channel_join()
 
     return channel_info
+
+
+async def auto_assign_to_collections(db: AsyncSession, user_id: UUID, channel: Channel) -> None:
+    """Automatically assign a channel to user's collections based on rules.
+
+    Evaluates all collections for a user and automatically adds the channel
+    to collections that match auto-assignment criteria:
+    - Default collections (always added)
+    - Language-based matching (if channel language matches collection's auto_assign_languages)
+    - Keyword-based matching (if collection keywords appear in channel title/description)
+    - Tag-based matching (if channel tags match collection's auto_assign_tags)
+
+    Global collections are always skipped. Duplicate assignments are prevented
+    by checking if the channel is already in the collection.
+
+    Args:
+        db: Active database session
+        user_id: UUID of the user whose collections should be evaluated
+        channel: Channel object to be assigned to collections
+
+    Returns:
+        None. Collections are modified in place via the ORM relationship.
+
+    Examples:
+        >>> # After creating or linking a channel for a user
+        >>> await auto_assign_to_collections(db, user.id, channel)
+        >>> await db.commit()  # Don't forget to commit after calling this
+    """
+    from sqlalchemy.orm import selectinload
+    from app.models.collection import Collection
+
+    # Fetch all collections for the user with channels preloaded
+    collections_result = await db.execute(
+        select(Collection)
+        .options(selectinload(Collection.channels))
+        .where(Collection.user_id == user_id)
+    )
+    collections = collections_result.scalars().all()
+
+    # Prepare channel data for matching
+    channel_lang = channel.detected_language
+    search_text = f"{channel.title} {channel.description or ''}".lower()
+
+    for collection in collections:
+        # Check if already in collection to avoid dupes
+        if channel in collection.channels:
+            continue
+
+        # Skip global collections
+        if collection.is_global:
+            continue
+
+        # Add to default collections
+        if collection.is_default:
+            collection.channels.append(channel)
+            continue
+
+        # Check language-based auto-assignment
+        if collection.auto_assign_languages and channel_lang:
+            if channel_lang in (collection.auto_assign_languages or []):
+                collection.channels.append(channel)
+                continue
+
+        # Check keyword-based auto-assignment
+        if collection.auto_assign_keywords:
+            if any(keyword.lower() in search_text for keyword in collection.auto_assign_keywords or []):
+                collection.channels.append(channel)
+                continue
+
+        # Check tag-based auto-assignment
+        if collection.auto_assign_tags and channel.tags:
+            if any(tag in (collection.auto_assign_tags or []) for tag in channel.tags):
+                collection.channels.append(channel)
