@@ -2,6 +2,8 @@ from typing import Optional, Dict, Any
 from decimal import Decimal
 import logging
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.models.api_usage import ApiUsage
@@ -47,6 +49,6 @@ async def record_api_usage(
                 )
             )
             await session.commit()
-        except Exception:
+        except SQLAlchemyError:
             await session.rollback()
             logger.exception("Failed to record API usage")
