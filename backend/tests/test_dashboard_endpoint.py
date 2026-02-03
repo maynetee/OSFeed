@@ -1,4 +1,5 @@
 import pytest
+from uuid import uuid4
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch
 
@@ -41,7 +42,7 @@ async def test_dashboard_endpoint_structure(mock_user):
             "duplicates_last_24h": 2,
         }
         mock_by_day.return_value = [{"date": "2024-01-01", "count": 10}]
-        mock_by_channel.return_value = [{"channel_id": "ch1", "channel_title": "Channel 1", "count": 50}]
+        mock_by_channel.return_value = [{"channel_id": str(uuid4()), "channel_title": "Channel 1", "count": 50}]
         mock_trust.return_value = {
             "primary_sources_rate": 80.0,
             "propaganda_rate": 5.0,
@@ -107,13 +108,34 @@ async def test_dashboard_endpoint_uses_asyncio_gather(mock_user):
          patch("app.api.stats.get_api_usage_stats", new_callable=AsyncMock) as mock_api_usage, \
          patch("app.api.stats.get_translation_metrics", new_callable=AsyncMock) as mock_translation:
 
-        # Set up mock return values
-        mock_overview.return_value = {}
+        # Set up mock return values with required fields
+        mock_overview.return_value = {
+            "total_messages": 0,
+            "active_channels": 0,
+            "messages_last_24h": 0,
+            "duplicates_last_24h": 0,
+        }
         mock_by_day.return_value = []
         mock_by_channel.return_value = []
-        mock_trust.return_value = {}
-        mock_api_usage.return_value = {}
-        mock_translation.return_value = {}
+        mock_trust.return_value = {
+            "primary_sources_rate": 0.0,
+            "propaganda_rate": 0.0,
+            "verified_channels": 0,
+            "total_messages_24h": 0,
+        }
+        mock_api_usage.return_value = {
+            "window_days": 7,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0,
+            "breakdown": [],
+        }
+        mock_translation.return_value = {
+            "total_translations": 0,
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "cache_hit_rate": 0.0,
+            "tokens_saved": 0,
+        }
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
