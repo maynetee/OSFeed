@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 
 from app.models.message import Message
 from app.models.channel import Channel, user_channels
@@ -70,6 +70,19 @@ def apply_message_filters(
         query = query.where(Message.published_at <= end_date)
 
     if media_types:
-        query = query.where(Message.media_type.in_(media_types))
+        # Handle "text" filter specially - it means messages with no media
+        if "text" in media_types:
+            # If text is the only filter, show only text messages
+            if len(media_types) == 1:
+                query = query.where(Message.media_type.is_(None))
+            else:
+                # If text + other types, show text OR the other media types
+                other_types = [mt for mt in media_types if mt != "text"]
+                query = query.where(
+                    or_(Message.media_type.is_(None), Message.media_type.in_(other_types))
+                )
+        else:
+            # Only non-text media types selected
+            query = query.where(Message.media_type.in_(media_types))
 
     return query
