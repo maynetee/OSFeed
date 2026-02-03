@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.services.email_service import email_service, _redact_email
 
 settings = get_settings()
@@ -87,6 +87,43 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             raise InvalidPasswordException(
                 reason="Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"
             )
+
+    async def create(
+        self,
+        user_create,
+        safe: bool = False,
+        request: Optional[Request] = None,
+    ):
+        """
+        Override create to enforce VIEWER role for all new users.
+
+        This prevents privilege escalation by forcing all newly registered
+        users to have the VIEWER role, regardless of what role was requested.
+
+        Args:
+            user_create: User creation schema
+            safe: Whether to use safe mode (ignore is_superuser, is_verified)
+            request: Optional request object
+
+        Returns:
+            Created user with VIEWER role
+        """
+        # Force role to VIEWER to prevent privilege escalation
+        user_dict = user_create.dict() if hasattr(user_create, 'dict') else user_create.model_dump()
+        user_dict['role'] = UserRole.VIEWER
+
+        # Log if a different role was attempted
+        if hasattr(user_create, 'role') and user_create.role != UserRole.VIEWER:
+            logger.warning(
+                f"User registration attempted with role {user_create.role}, "
+                f"enforcing VIEWER role instead"
+            )
+
+        # Create new user_create object with enforced role
+        user_create_safe = type(user_create)(**user_dict)
+
+        # Call parent create with enforced role
+        return await super().create(user_create_safe, safe=safe, request=request)
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """Called after a user successfully registers. Sends verification email."""
