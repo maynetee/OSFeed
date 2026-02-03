@@ -50,6 +50,15 @@ class LLMTranslator:
 
     @property
     def client(self) -> Optional[AsyncOpenAI]:
+        """Get or create the OpenAI async client instance.
+
+        Lazily initializes the OpenAI client with configured API key and timeout.
+        Returns None if no API key is configured, allowing graceful fallback to
+        other translation providers (Gemini or Google Translate).
+
+        Returns:
+            AsyncOpenAI client instance if API key is configured, None otherwise
+        """
         if not self.api_key:
             return None
         if self._client is None:
@@ -57,7 +66,18 @@ class LLMTranslator:
         return self._client
 
     async def detect_language(self, text: str) -> str:
-        """Detect the language of given text (async)."""
+        """Detect the language of given text using langdetect library.
+
+        Uses asyncio.to_thread to run the synchronous langdetect.detect function
+        in a thread pool to avoid blocking the event loop. Returns "unknown" for
+        texts shorter than 10 characters or if language detection fails.
+
+        Args:
+            text: Text to detect language from
+
+        Returns:
+            ISO 639-1 language code (e.g., 'en', 'es', 'fr') or "unknown"
+        """
         try:
             if not text or len(text.strip()) < 10:
                 return "unknown"
@@ -104,6 +124,26 @@ class LLMTranslator:
         target_lang: Optional[str] = None,
         published_at: Optional[datetime] = None,
     ) -> str:
+        """Determine translation priority based on content characteristics and age.
+
+        Priority determines which translation model to use (high priority gets better models).
+        Returns "skip" for content that shouldn't be translated (empty, trivial, same language).
+
+        Priority levels:
+        - "skip": Don't translate (empty, trivial content, URLs, same language as target)
+        - "high": Recent content (within translation_high_priority_hours)
+        - "normal": Medium-aged content (within translation_normal_priority_days)
+        - "low": Old content (beyond normal priority window)
+
+        Args:
+            text: Text to evaluate for translation priority
+            source_lang: Source language code (optional, used for same-language check)
+            target_lang: Target language code (defaults to preferred_language from settings)
+            published_at: Publication timestamp (used for age-based priority calculation)
+
+        Returns:
+            Priority level: "skip", "high", "normal", or "low"
+        """
         if not text or not text.strip():
             return "skip"
         if self._is_trivial_text(text):
