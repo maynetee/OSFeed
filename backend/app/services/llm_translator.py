@@ -34,8 +34,10 @@ from uuid import UUID
 import httpx
 from deep_translator import GoogleTranslator
 from langdetect import detect, LangDetectException
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAIError
+from redis.exceptions import RedisError
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.message import MessageTranslation
@@ -525,7 +527,7 @@ class LLMTranslator:
                     await self._redis.expire(cache_key, ttl)
                     await increment_translation_cache_hit()
                     return cached
-            except Exception:
+            except RedisError:
                 pass
         if cache_key in self.cache:
             cached, hits = self.cache[cache_key]
@@ -588,7 +590,7 @@ class LLMTranslator:
                 if db_translation:
                     # Cache hit in DB - return immediately without checking other tiers
                     return db_translation, source_lang, priority
-            except Exception as e:
+            except SQLAlchemyError as e:
                 # DB lookup failures are non-fatal - fall through to next cache tier
                 logger.warning(f"DB translation lookup failed: {e}")
 
@@ -621,7 +623,7 @@ class LLMTranslator:
             else:
                 # Already using Google as primary - no fallback needed
                 translated_text = await self._translate_with_google(text, source_lang, target_lang)
-        except Exception as e:
+        except (OpenAIError, httpx.HTTPError, Exception) as e:
             # Primary provider failed - fall back to free Google Translate
             logger.error(f"LLM translation failed: {e}")
             try:
@@ -734,7 +736,7 @@ class LLMTranslator:
                     rows = db.execute(stmt).all()
                     # Build lookup map for O(1) access
                     db_map = {row.message_id: row.translated_text for row in rows}
-                except Exception as e:
+                except SQLAlchemyError as e:
                     # DB failures are non-fatal - continue to next cache tier
                     logger.warning(f"Batch DB lookup failed: {e}")
 
@@ -838,7 +840,7 @@ class LLMTranslator:
 
                     success = True
 
-                except Exception as e:
+                except (OpenAIError, httpx.HTTPError, Exception) as e:
                     # Batch translation failed - will fall back to individual translations
                     logger.warning(f"Batch translation failed ({provider}), falling back to parallel individual: {e}")
 
@@ -1117,7 +1119,7 @@ class LLMTranslator:
                 ttl = self._adaptive_ttl(1)
                 await self._redis.set(cache_key, translated, ex=ttl)
                 await self._redis.set(self._cache_hit_key(cache_key), 1, ex=ttl)
-            except Exception:
+            except RedisError:
                 # LRU eviction: remove oldest entry if cache is full
                 if len(self.cache) >= settings.translation_memory_cache_max_size:
                     self.cache.popitem(last=False)

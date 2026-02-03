@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from typing import Optional, List
 from uuid import UUID
 import logging
@@ -107,9 +108,14 @@ async def create_alert(
         return alert
     except HTTPException:
         raise
+    except (SQLAlchemyError, IntegrityError) as e:
+        logger.error(f"Database error creating alert for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="ALERT_CREATE_DATABASE_ERROR")
     except Exception as e:
-        logger.error(f"Error creating alert for user {user.id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create alert")
+        logger.error(f"Unexpected error creating alert for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="ALERT_CREATE_ERROR")
 
 
 @router.get("/triggers/recent", response_model=List[AlertTriggerResponse])

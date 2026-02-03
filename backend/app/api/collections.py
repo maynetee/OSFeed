@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, update, or_, case
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import selectinload
 from uuid import UUID
 from typing import List, Optional
@@ -307,9 +308,14 @@ async def create_collection(
         return _collection_response(collection, channel_ids)
     except HTTPException:
         raise
+    except (SQLAlchemyError, IntegrityError) as e:
+        logger.error(f"Database error creating collection for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="COLLECTION_CREATE_DATABASE_ERROR")
     except Exception as e:
-        logger.error(f"Error creating collection for user {user.id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create collection")
+        logger.error(f"Unexpected error creating collection for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="COLLECTION_CREATE_ERROR")
 
 
 @router.get("/compare")

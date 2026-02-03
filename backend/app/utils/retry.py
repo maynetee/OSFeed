@@ -68,7 +68,8 @@ def async_retry(
                         raise
 
                 except Exception as e:
-                    # Non-retryable error - log and re-raise immediately
+                    # Intentional catch-all for non-retryable errors (anything not in retryable_exceptions)
+                    # Log the error type for debugging, then re-raise immediately to fail fast
                     logger.error(
                         f"Non-retryable error in {func.__name__}: {type(e).__name__}: {e}"
                     )

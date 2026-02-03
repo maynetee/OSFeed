@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -184,7 +186,7 @@ async def process_join_queue() -> int:
             processed += 1
             logger.info(f"Processed queued channel: {username} for user {user_id}")
 
-        except Exception as e:
+        except (RedisError, SQLAlchemyError, RuntimeError, ValueError, KeyError, AttributeError) as e:
             failed += 1
             logger.error(f"Failed to process queued channel {username}: {e}")
             # Don't re-queue failed entries to avoid infinite loops

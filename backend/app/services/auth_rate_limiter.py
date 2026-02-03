@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from fastapi import HTTPException, Request, status
 
 from app.config import get_settings
@@ -51,8 +52,14 @@ class AuthRateLimiter:
                 )
         except HTTPException:
             raise
-        except Exception as e:
+        except RedisError as e:
             logger.error(f"Redis connection error - rate limiter unavailable: {type(e).__name__}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter unavailable",
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in rate limiter: {type(e).__name__}: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Rate limiter unavailable",

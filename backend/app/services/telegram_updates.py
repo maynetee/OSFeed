@@ -10,6 +10,15 @@ from datetime import datetime, timezone
 
 from telethon import events
 from telethon.tl.types import Channel as TelegramChannel
+from telethon.errors import (
+    RPCError,
+    FloodWaitError,
+    ChannelPrivateError,
+    UsernameNotOccupiedError,
+)
+from redis.exceptions import RedisError
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
 from app.database import AsyncSessionLocal
@@ -17,7 +26,6 @@ from app.models.channel import Channel
 from app.models.message import Message
 from app.services.telegram_client import get_telegram_client
 from app.services.translation_service import should_channel_translate
-from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +70,7 @@ class TelegramUpdateHandler:
 
             logger.info("Telegram update handler started")
 
-        except Exception as e:
+        except (RPCError, FloodWaitError, SQLAlchemyError) as e:
             logger.exception(f"Failed to start update handler: {e}")
             self._running = False
             raise
@@ -190,7 +198,7 @@ class TelegramUpdateHandler:
                         )
                     )
 
-        except Exception as e:
+        except (RPCError, FloodWaitError, ChannelPrivateError, SQLAlchemyError) as e:
             logger.exception(f"Error handling new message: {e}")
 
     async def _process_message(self, tg_msg, channel: Channel) -> Message:
@@ -267,7 +275,7 @@ class TelegramUpdateHandler:
 
             logger.debug(f"Published message:new event for {message.id}")
 
-        except Exception as e:
+        except RedisError as e:
             logger.error(f"Failed to publish message event: {e}")
 
 

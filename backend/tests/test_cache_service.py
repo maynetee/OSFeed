@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
+from redis.exceptions import RedisError
 
 from app.services.cache_service import CacheService, get_cache_service
 
@@ -153,7 +154,7 @@ class TestCacheServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_get_returns_none_on_redis_error(self):
         mock_redis = AsyncMock()
-        mock_redis.get.side_effect = Exception("Redis connection failed")
+        mock_redis.get.side_effect = RedisError("Redis connection failed")
 
         with patch("app.services.cache_service.get_settings", return_value=_make_settings()):
             service = CacheService()
@@ -165,7 +166,7 @@ class TestCacheServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_set_returns_false_on_redis_error(self):
         mock_redis = AsyncMock()
-        mock_redis.set.side_effect = Exception("Redis connection failed")
+        mock_redis.set.side_effect = RedisError("Redis connection failed")
 
         with patch("app.services.cache_service.get_settings", return_value=_make_settings()):
             service = CacheService()
@@ -177,7 +178,7 @@ class TestCacheServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_setex_returns_false_on_redis_error(self):
         mock_redis = AsyncMock()
-        mock_redis.setex.side_effect = Exception("Redis connection failed")
+        mock_redis.setex.side_effect = RedisError("Redis connection failed")
 
         with patch("app.services.cache_service.get_settings", return_value=_make_settings()):
             service = CacheService()
@@ -189,7 +190,7 @@ class TestCacheServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_delete_returns_false_on_redis_error(self):
         mock_redis = AsyncMock()
-        mock_redis.delete.side_effect = Exception("Redis connection failed")
+        mock_redis.delete.side_effect = RedisError("Redis connection failed")
 
         with patch("app.services.cache_service.get_settings", return_value=_make_settings()):
             service = CacheService()
@@ -201,7 +202,7 @@ class TestCacheServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_incr_returns_zero_on_redis_error(self):
         mock_redis = AsyncMock()
-        mock_redis.incr.side_effect = Exception("Redis connection failed")
+        mock_redis.incr.side_effect = RedisError("Redis connection failed")
 
         with patch("app.services.cache_service.get_settings", return_value=_make_settings()):
             service = CacheService()

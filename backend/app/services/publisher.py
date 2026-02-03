@@ -3,6 +3,8 @@ import logging
 from typing import Literal
 from uuid import UUID
 
+from redis.exceptions import RedisError
+
 from app.services.cache import get_redis_client
 
 logger = logging.getLogger(__name__)
@@ -39,5 +41,5 @@ async def publish_message_event(
         # We publish to a global channel. Subscribers will filter based on payload.
         await redis.publish("osfeed:events", json.dumps(payload))
         logger.debug(f"Published {event_type} for {len(message_ids)} messages")
-    except Exception as e:
+    except RedisError as e:
         logger.error(f"Failed to publish message event: {e}")

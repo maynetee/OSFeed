@@ -107,6 +107,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             try:
                 asyncio.create_task(email_service.send_verification(user.email, token))
                 logger.info(f"Verification email task created for {_redact_email(user.email)}")
+            except RuntimeError as e:
+                logger.error(f"Failed to create verification email task for {_redact_email(user.email)} (event loop error): {e}")
             except Exception as e:
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)}: {e}")
         else:
@@ -133,6 +135,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             try:
                 asyncio.create_task(email_service.send_password_reset(user.email, token))
                 logger.info(f"Password reset email task created for {_redact_email(user.email)}")
+            except RuntimeError as e:
+                logger.error(f"Failed to create password reset email task for {_redact_email(user.email)} (event loop error): {e}")
             except Exception as e:
                 logger.error(f"Failed to create password reset email task for {_redact_email(user.email)}: {e}")
         else:
@@ -154,6 +158,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             try:
                 asyncio.create_task(email_service.send_verification(user.email, token))
                 logger.info(f"Verification email task created for {_redact_email(user.email)}")
+            except RuntimeError as e:
+                logger.error(f"Failed to create verification email task for {_redact_email(user.email)} (event loop error): {e}")
             except Exception as e:
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)}: {e}")
         else:

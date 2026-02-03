@@ -5,9 +5,12 @@ from pathlib import Path
 from typing import Optional
 
 import aiosmtplib
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from jinja2.exceptions import TemplateError
+import httpx
 
 from app.config import get_settings
 
@@ -51,7 +54,7 @@ class TemplateRenderer:
         try:
             template = self._get_env().get_template(template_name)
             return template.render(**context)
-        except Exception as e:
+        except TemplateError as e:
             logger.error(f"Failed to render template {template_name}: {e}")
             # Return a simple fallback
             return f"Error rendering email template: {template_name}"
@@ -110,7 +113,7 @@ class SMTPProvider(EmailProvider):
                 f"SMTP error for {redacted}: code={e.code}, message={e.message}"
             )
             return False
-        except Exception as e:
+        except (smtplib.SMTPException, OSError) as e:
             logger.error(
                 f"SMTP: unexpected error sending to {redacted}: {type(e).__name__}: {e}"
             )
@@ -141,7 +144,7 @@ class ResendProvider(EmailProvider):
         except ImportError:
             logger.error("Resend package not installed - cannot send email")
             return False
-        except Exception as e:
+        except (httpx.HTTPError, httpx.RequestError, httpx.TimeoutException) as e:
             logger.error(
                 f"Resend: failed to send email to {redacted}: {type(e).__name__}: {e}"
             )
