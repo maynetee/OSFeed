@@ -90,6 +90,34 @@ def apply_message_filters(
     return query
 
 
+async def get_single_message(
+    message_id: UUID,
+    user_id: UUID,
+    db: AsyncSession,
+) -> Optional[Message]:
+    """Get a single message by ID with user authorization.
+
+    Args:
+        message_id: ID of the message
+        user_id: User ID for permission filtering
+        db: Database session
+
+    Returns:
+        Message if found and user has access, None otherwise
+    """
+    result = await db.execute(
+        select(Message)
+        .options(selectinload(Message.channel))
+        .join(Channel, Message.channel_id == Channel.id)
+        .join(
+            user_channels,
+            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user_id),
+        )
+        .where(Message.id == message_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_similar_messages(
     message_id: UUID,
     user_id: UUID,

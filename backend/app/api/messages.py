@@ -19,6 +19,7 @@ from app.services.message_utils import (
     message_to_response,
     apply_message_filters,
     get_similar_messages as get_similar_messages_service,
+    get_single_message,
 )
 from app.services.message_streaming_service import create_message_stream
 from app.services.message_export_service import (
@@ -28,6 +29,7 @@ from app.services.message_export_service import (
 )
 from app.services.message_translation_bulk_service import translate_messages_batch, translate_single_message
 from app.services.message_media_service import get_media_stream
+from app.services.channel_utils import get_authorized_channel
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
 from app.auth.users import current_active_user
@@ -209,14 +211,7 @@ async def fetch_historical_messages(
 ):
     """Fetch historical messages for a channel."""
     async with AsyncSessionLocal() as db:
-        from app.models.channel import user_channels
-        result = await db.execute(
-            select(Channel).join(
-                user_channels, 
-                and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id)
-            ).where(Channel.id == channel_id)
-        )
-        channel = result.scalar_one_or_none()
+        channel = await get_authorized_channel(db, channel_id, user.id)
 
         if not channel:
             raise HTTPException(status_code=404, detail="Channel not found or access denied")
@@ -421,17 +416,7 @@ async def get_message(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single message by ID."""
-    result = await db.execute(
-        select(Message)
-        .options(selectinload(Message.channel))
-        .join(Channel, Message.channel_id == Channel.id)
-        .join(
-            user_channels,
-            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id),
-        )
-        .where(Message.id == message_id)
-    )
-    message = result.scalar_one_or_none()
+    message = await get_single_message(message_id, user.id, db)
 
     if not message:
         raise HTTPException(status_code=404, detail="Message not found")
