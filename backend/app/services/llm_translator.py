@@ -352,33 +352,47 @@ class LLMTranslator:
 
         cache_key = self._cache_key(text, source_lang, target_lang)
 
-        # 1. DB Cache Lookup
+        # Three-tier cache lookup strategy: DB -> Redis -> Memory
+        # This layered approach provides different trade-offs:
+        # - DB: Persistent, shared across instances, but slower
+        # - Redis: Fast, shared across instances, but volatile
+        # - Memory: Fastest, but instance-local and limited by RAM
+
+        # Tier 1: Database cache lookup
+        # Check if this specific message has already been translated and persisted.
+        # This is the most reliable cache but slowest to access.
         if db and message_id:
             stmt = select(MessageTranslation.translated_text).where(
                 MessageTranslation.message_id == message_id,
                 MessageTranslation.target_lang == target_lang,
             )
             try:
-                # Use a new transaction or the existing session cautiously
-                # Since we are just reading, it should be fine.
                 db_translation = db.execute(stmt).scalar_one_or_none()
                 if db_translation:
-                    # Async update Redis cache for future speed?
-                    # Maybe not strictly necessary if DB is fast, but consistent.
+                    # Cache hit in DB - return immediately without checking other tiers
                     return db_translation, source_lang, priority
             except Exception as e:
+                # DB lookup failures are non-fatal - fall through to next cache tier
                 logger.warning(f"DB translation lookup failed: {e}")
 
-        # 2. Redis/Memory Cache Lookup
+        # Tier 2 & 3: Redis and in-memory cache lookup
+        # _get_from_cache checks Redis first (if available), then falls back to memory cache.
+        # Redis provides cross-instance caching with adaptive TTL based on hit count.
+        # Memory cache provides ultra-fast access for frequently used translations.
         cached = await self._get_from_cache(cache_key)
         if cached:
             return cached, source_lang, priority
 
+        # Cache miss across all tiers - need to perform actual translation
         await increment_translation_cache_miss()
+        # Select appropriate model based on language and priority
         model_name = self._select_model(source_lang, priority)
         provider, resolved_model = self._resolve_model(model_name)
 
+        # Translation fallback chain: Primary provider -> Google Translate -> Original text
+        # This ensures maximum availability while preferring higher quality LLM translations
         try:
+            # Try primary translation provider (OpenAI, Gemini, or Google)
             if provider == "openai":
                 translated_text = await self._translate_with_llm(
                     text, source_lang, target_lang, resolved_model
@@ -388,12 +402,16 @@ class LLMTranslator:
                     text, source_lang, target_lang, resolved_model
                 )
             else:
+                # Already using Google as primary - no fallback needed
                 translated_text = await self._translate_with_google(text, source_lang, target_lang)
         except Exception as e:
+            # Primary provider failed - fall back to free Google Translate
             logger.error(f"LLM translation failed: {e}")
             try:
                 translated_text = await self._translate_with_google(text, source_lang, target_lang)
             except Exception as fallback_error:
+                # All translation methods failed - return original text unchanged
+                # This ensures the application continues functioning even when translation fails
                 logger.error(f"Fallback translation failed (All methods): {fallback_error}")
                 return text, source_lang, priority
 
@@ -417,35 +435,45 @@ class LLMTranslator:
             return []
 
         target_lang = target_lang or self.target_language
+        # Pre-allocate results array to preserve input order
         results: list[tuple[str, str, str]] = [("", "unknown", "skip")] * len(texts)
         published_at_list = published_at_list or []
-        
+
         # Ensure message_ids length matches if provided
         if message_ids and len(message_ids) != len(texts):
             logger.warning("message_ids length mismatch with texts, ignoring message_ids")
             message_ids = None
 
-        # Step 1: Detect language and categorize texts
-        # Store index to map back
-        # Tuple: (index, text, detected_lang, priority, message_id)
+        # Step 1: Categorize texts - filter out skippable content and prepare for translation
+        # This step reduces unnecessary API calls by:
+        # - Detecting language for each text (unless already known)
+        # - Calculating priority based on content age
+        # - Filtering out trivial content (URLs, short words, etc.)
+        # - Filtering out same-language content (if configured)
+        # Store tuple: (index, text, detected_lang, priority, message_id)
         to_translate_info: list[tuple[int, str, str, str, Optional[UUID]]] = []
 
         for i, text in enumerate(texts):
             msg_id = message_ids[i] if message_ids else None
-            
+
+            # Skip empty or whitespace-only texts
             if not text or not text.strip():
                 results[i] = (text or "", "unknown", "skip")
                 continue
+
+            # Skip trivial content (URLs, hashtags, numbers, short words)
             if self._is_trivial_text(text):
                 results[i] = (text, "unknown", "skip")
                 continue
-            
-            # Avoid redundant detection if source_lang is explicitly provided
+
+            # Detect language if not explicitly provided
+            # Reuse source_lang across batch if provided to avoid redundant detection
             if source_lang:
                 detected = source_lang
             else:
                 detected = await self.detect_language(text)
-            
+
+            # Calculate translation priority based on content age
             published_at = published_at_list[i] if i < len(published_at_list) else None
             priority = self.get_translation_priority(
                 text,
@@ -453,136 +481,175 @@ class LLMTranslator:
                 target_lang=target_lang,
                 published_at=published_at,
             )
-            
+
+            # Skip same-language content (if configured)
             if priority == "skip":
                 results[i] = (text, detected, priority)
                 continue
-            
+
+            # Add to translation queue with metadata for cache lookups
             to_translate_info.append((i, text, detected, priority, msg_id))
 
         logger.info(f"DEBUG: translate_batch: {len(to_translate_info)} items to translate after filtering")
 
+        # Early return if all texts were filtered out
         if not to_translate_info:
             return results
 
-        # Step 2: DB Cache Lookup (Cache-first)
+        # Step 2: Tier 1 Cache - Bulk DB cache lookup
+        # For batch operations, we can efficiently query multiple translations in one DB call
+        # This is faster than N individual queries and provides persistent cross-instance caching
         uncached_after_db: list[tuple[int, str, str, str, Optional[UUID]]] = []
-        
+
         if db:
-            # Gather IDs to query
+            # Gather message IDs for bulk database query
+            # Only check items that have associated message_ids
             ids_to_check = [item[4] for item in to_translate_info if item[4] is not None]
             db_map = {}
+
             if ids_to_check:
                 try:
+                    # Single bulk query for all message translations
                     stmt = select(MessageTranslation.message_id, MessageTranslation.translated_text).where(
                         MessageTranslation.message_id.in_(ids_to_check),
                         MessageTranslation.target_lang == target_lang
                     )
                     rows = db.execute(stmt).all()
+                    # Build lookup map for O(1) access
                     db_map = {row.message_id: row.translated_text for row in rows}
                 except Exception as e:
+                    # DB failures are non-fatal - continue to next cache tier
                     logger.warning(f"Batch DB lookup failed: {e}")
-            
+
+            # Separate cached vs uncached items
             for item in to_translate_info:
                 idx, text, lang, prio, mid = item
                 if mid and mid in db_map:
+                    # DB cache hit - store result and skip further processing
                     results[idx] = (db_map[mid], lang, prio)
                 else:
+                    # DB cache miss - proceed to next cache tier
                     uncached_after_db.append(item)
         else:
+            # No DB session - skip DB cache tier entirely
             uncached_after_db = to_translate_info
 
+        # Early return if all translations found in DB cache
         if not uncached_after_db:
             return results
 
-        # Step 3: Check Redis/Memory cache
+        # Step 3: Tier 2 & 3 Cache - Redis and in-memory cache lookup
+        # Check each uncached text against Redis (shared, fast) and memory (local, fastest)
+        # These caches use content-based keys (hash of text + languages) rather than message IDs,
+        # so they can cache translations even for texts without persistent message records
         uncached_final: list[tuple[int, str, str, str]] = []
-        
+
         for item in uncached_after_db:
             idx, text, lang, prio, mid = item
+            # Generate content-based cache key from text hash and language pair
             cache_key = self._cache_key(text, lang, target_lang)
+            # _get_from_cache checks Redis first, then falls back to memory cache
             cached_text = await self._get_from_cache(cache_key)
 
             if cached_text:
+                # Cache hit in Redis or memory - store result
                 results[idx] = (cached_text, lang, prio)
             else:
+                # Complete cache miss across all tiers - needs actual translation
+                # Drop message_id since it's not needed for translation
                 uncached_final.append((idx, text, lang, prio))
 
+        # Early return if all translations found in Redis/memory cache
         if not uncached_final:
             return results
 
-        # Step 4: Group by source language + model
+        # Step 4: Group by translation route (source language + model)
+        # Texts with the same source language and model can be batched together in a single API call
+        # This significantly reduces API costs and latency compared to individual translations
         by_route: dict[tuple[str, str], list[tuple[int, str, str]]] = {}
         for i, text, lang, priority in uncached_final:
+            # Select appropriate model based on language and priority
             model_name = self._select_model(lang, priority)
+            # Group by (source_lang, model) tuple to enable efficient batching
             by_route.setdefault((lang, model_name), []).append((i, text, priority))
 
-        # Step 5: Execute batches
+        # Step 5: Execute batch translations with fallback handling
+        # Process each route group independently, respecting batch size and character limits
         for (src_lang, model_name), items in by_route.items():
+            # Split items into batches respecting MAX_BATCH_SIZE and MAX_BATCH_CHARS
             batches = self._create_batches([(idx, text) for idx, text, _ in items])
 
             for batch in batches:
                 indices = [idx for idx, _ in batch]
                 batch_texts = [txt for _, txt in batch]
-                
-                # Validation of list lengths handled within calls or by checking results
-                
+
+                # Build priority lookup for storing results
                 priorities_by_index = {
                     idx: priority for idx, _, priority in items if idx in indices
                 }
+
+                # Resolve model name to actual provider and model
                 provider, resolved_model = self._resolve_model(model_name)
 
                 translated_batch: list[str] = []
                 success = False
 
+                # Translation fallback chain for batches: Batch API -> Individual parallel -> Original text
+                # First, try the batch translation API for the selected provider
                 try:
                     if provider == "openai":
+                        # Single API call for entire batch using separator-based approach
                         translated_batch = await self._translate_batch_llm(
                             batch_texts, src_lang, target_lang, resolved_model
                         )
                     elif provider == "gemini":
+                        # Single API call for entire batch using separator-based approach
                         translated_batch = await self._translate_batch_gemini(
                             batch_texts, src_lang, target_lang, resolved_model
                         )
                     else:
-                        # Google translate implies sequential/individual but wrapped in list
+                        # Google Translate doesn't have true batch API - translate sequentially
                         translated_batch = []
                         for txt in batch_texts:
                             translated_batch.append(
                                 await self._translate_with_google(txt, src_lang, target_lang)
                             )
-                    
-                    # Validate list lengths before zip
+
+                    # Validate response contains expected number of translations
                     if len(translated_batch) != len(batch_texts):
                         raise ValueError(f"Translation length mismatch: {len(translated_batch)} vs {len(batch_texts)}")
-                        
+
                     success = True
 
                 except Exception as e:
+                    # Batch translation failed - will fall back to individual translations
                     logger.warning(f"Batch translation failed ({provider}), falling back to parallel individual: {e}")
-                
+
                 if success:
-                    # Store results
+                    # Batch translation succeeded - store results and update caches
                     for idx, orig_text, trans_text in zip(indices, batch_texts, translated_batch):
                         priority = priorities_by_index.get(idx, "normal")
                         results[idx] = (trans_text, src_lang, priority)
-                        # Fire and forget cache
+                        # Fire-and-forget cache update (non-blocking)
                         asyncio.create_task(self._cache_translation(orig_text, trans_text, src_lang, target_lang))
                 else:
-                    # Parallel Fallback
+                    # Fallback: Translate each text individually in parallel
+                    # Use translate() method which has its own fallback chain (LLM -> Google -> Original)
                     fallback_tasks = []
                     for txt in batch_texts:
-                        # Use translate() which handles individual fallback logic (LLM -> Google)
                         fallback_tasks.append(self.translate(txt, src_lang, target_lang))
-                    
+
+                    # Execute all individual translations concurrently
                     fallback_results = await asyncio.gather(*fallback_tasks, return_exceptions=True)
-                    
+
+                    # Process fallback results
                     for idx, res in zip(indices, fallback_results):
                         if isinstance(res, Exception):
+                            # Individual translation also failed - return original text
                             logger.error(f"Individual fallback failed for item {idx}: {res}")
                             results[idx] = (batch_texts[indices.index(idx)], src_lang, "normal")
                         else:
-                            # res is (text, lang, priority)
+                            # Individual translation succeeded - res is (text, lang, priority)
                             results[idx] = res
 
         return results
