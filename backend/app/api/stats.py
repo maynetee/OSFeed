@@ -87,6 +87,7 @@ async def get_overview_stats(
 async def get_dashboard_stats(
     days: int = Query(7, ge=1, le=90),
     channel_limit: int = Query(10, ge=1, le=50),
+    collection_id: Optional[UUID] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
