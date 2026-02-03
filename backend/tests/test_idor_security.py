@@ -265,6 +265,39 @@ async def test_get_message_nonexistent():
     assert response.json()["detail"] == "Message not found"
 
 
+# Test translate endpoint
+
+
+@pytest.mark.asyncio
+async def test_translate_message_unauthorized_access():
+    """Test that user A cannot translate user B's message."""
+    await init_db()
+
+    # Create user A with a channel and message
+    user_a = await _create_user("user_a_translate@example.com", "password123")
+    channel_a = await _create_channel_for_user(user_a.id, "user_a_translate_ch")
+    message_a = await _create_message_for_channel(channel_a.id, "User A's message to translate")
+
+    # Create user B
+    user_b = await _create_user("user_b_translate@example.com", "password123")
+
+    # User B tries to translate user A's message
+    async def _override_user():
+        return user_b
+
+    app.dependency_overrides[current_active_user] = _override_user
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(f"/api/messages/{message_a.id}/translate")
+    finally:
+        app.dependency_overrides.pop(current_active_user, None)
+
+    # Should return 404 (not 403) to avoid information leakage
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Message not found"
+
+
 # Test delete_channel endpoint
 
 
