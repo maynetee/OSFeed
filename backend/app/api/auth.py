@@ -12,6 +12,7 @@ from fastapi_users.authentication import Strategy
 from fastapi_users import exceptions as fapi_exceptions
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from pydantic import BaseModel
 
 from app.auth.users import auth_backend, fastapi_users, current_active_user, get_user_manager
@@ -57,6 +58,8 @@ async def register(
             metadata={"email": _redact_email(user_create.email)},
         )
         return created_user
+    except HTTPException:
+        raise
     except UserAlreadyExists:
         logger.warning(f"Registration failed: email already exists ({_redact_email(user_create.email)})")
         raise HTTPException(
@@ -71,6 +74,12 @@ async def register(
                 "code": ErrorCode.REGISTER_INVALID_PASSWORD,
                 "reason": e.reason,
             },
+        )
+    except (SQLAlchemyError, IntegrityError) as e:
+        logger.error(f"Database error during registration for {_redact_email(user_create.email)}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="REGISTER_DATABASE_ERROR",
         )
     except Exception as e:
         logger.error(f"Registration failed with unexpected error for {_redact_email(user_create.email)}: {type(e).__name__}: {e}", exc_info=True)
