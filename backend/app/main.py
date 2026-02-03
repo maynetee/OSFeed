@@ -4,8 +4,10 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.database import init_db, get_engine
@@ -47,8 +49,8 @@ async def lifespan(app: FastAPI):
             redis_cache = Redis.from_url(settings.redis_url)
             FastAPICache.init(RedisBackend(redis_cache), prefix="osfeed-api-cache")
             logger.info("Response cache initialized")
-        except Exception as e:
-            logger.error(f"Failed to initialize Redis cache: {e}")
+        except RedisError as e:
+            logger.error(f"Failed to initialize Redis cache: {type(e).__name__}: {e}")
             redis_cache = None
     elif settings.enable_response_cache:
         logger.warning("Response cache enabled but REDIS_URL is missing; caching disabled")
@@ -159,8 +161,14 @@ async def health():
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
+    except SQLAlchemyError as e:
+        logger.warning(f"Health check failed: {type(e).__name__}: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "disconnected"}
+        )
     except Exception as e:
-        logger.warning(f"Health check failed: {e}")
+        logger.warning(f"Health check failed with unexpected error: {type(e).__name__}: {e}")
         return JSONResponse(
             status_code=503,
             content={"status": "unhealthy", "database": "disconnected"}
