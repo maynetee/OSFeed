@@ -215,33 +215,51 @@ async def get_trust_stats(
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(days=1)
 
-    filters = [Message.published_at >= day_ago]
+    # Base filter for user isolation
+    from app.models.channel import user_channels
+
+    # Build base query with user isolation
+    base_query = (
+        select(Message)
+        .join(Channel, Message.channel_id == Channel.id)
+        .join(
+            user_channels,
+            and_(user_channels.c.channel_id == Channel.id, user_channels.c.user_id == user.id)
+        )
+        .where(Message.published_at >= day_ago)
+    )
+
     if channel_ids:
-        filters.append(Message.channel_id.in_(channel_ids))
+        base_query = base_query.where(Message.channel_id.in_(channel_ids))
 
     total_result = await db.execute(
-        select(func.count()).select_from(Message).where(*filters)
+        select(func.count()).select_from(base_query.subquery())
     )
     total_messages = total_result.scalar() or 0
 
     primary_result = await db.execute(
         select(func.count())
-        .select_from(Message)
-        .where(*filters)
-        .where(Message.is_duplicate == False)
-        .where(or_(Message.originality_score.is_(None), Message.originality_score >= 90))
+        .select_from(base_query.subquery())
+        .where(
+            and_(
+                Message.is_duplicate == False,
+                or_(Message.originality_score.is_(None), Message.originality_score >= 90)
+            )
+        )
     )
     propaganda_result = await db.execute(
         select(func.count())
-        .select_from(Message)
-        .where(*filters)
-        .where(Message.is_duplicate == True)
-        .where(Message.originality_score <= 20)
+        .select_from(base_query.subquery())
+        .where(
+            and_(
+                Message.is_duplicate == True,
+                Message.originality_score <= 20
+            )
+        )
     )
     verified_result = await db.execute(
         select(func.count(func.distinct(Message.channel_id)))
-        .select_from(Message)
-        .where(*filters)
+        .select_from(base_query.subquery())
     )
 
     primary_count = primary_result.scalar() or 0
