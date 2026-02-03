@@ -10,7 +10,7 @@ from typing import Optional, Any
 from redis.asyncio import Redis
 from redis.backoff import ExponentialBackoff
 from redis.retry import Retry
-from redis.exceptions import ConnectionError, TimeoutError
+from redis.exceptions import ConnectionError, TimeoutError, RedisError
 
 from app.config import get_settings
 
@@ -74,7 +74,7 @@ class CacheService:
             return None
         try:
             return await client.get(key)
-        except Exception as e:
+        except RedisError as e:
             logger.debug(f"Failed to get cache key '{key}': {e}")
             return None
 
@@ -94,7 +94,7 @@ class CacheService:
         try:
             await client.set(key, value)
             return True
-        except Exception as e:
+        except RedisError as e:
             logger.debug(f"Failed to set cache key '{key}': {e}")
             return False
 
@@ -115,7 +115,7 @@ class CacheService:
         try:
             await client.setex(key, ttl, value)
             return True
-        except Exception as e:
+        except RedisError as e:
             logger.debug(f"Failed to setex cache key '{key}' with TTL {ttl}: {e}")
             return False
 
@@ -134,7 +134,7 @@ class CacheService:
         try:
             await client.delete(key)
             return True
-        except Exception as e:
+        except RedisError as e:
             logger.debug(f"Failed to delete cache key '{key}': {e}")
             return False
 
@@ -152,7 +152,7 @@ class CacheService:
             return 0
         try:
             return await client.incr(key)
-        except Exception as e:
+        except RedisError as e:
             logger.debug(f"Failed to increment cache key '{key}': {e}")
             return 0
 
