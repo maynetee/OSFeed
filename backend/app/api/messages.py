@@ -10,7 +10,6 @@ import json
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
-from app.utils.export import generate_html_template, generate_html_article, generate_pdf_bytes
 from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
@@ -21,6 +20,7 @@ from app.services.message_streaming_service import create_message_stream
 from app.services.message_export_service import (
     export_messages_csv as service_export_messages_csv,
     export_messages_html as service_export_messages_html,
+    export_messages_pdf as service_export_messages_pdf,
 )
 from app.config import get_settings
 from app.services.fetch_queue import enqueue_fetch_job
@@ -486,36 +486,17 @@ async def export_messages_pdf(
         },
     )
 
-    async with AsyncSessionLocal() as db_local:
-        query = select(Message, Channel)
-        query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
-        query = query.order_by(desc(Message.published_at))
-        query = query.limit(limit)
-        result = await db_local.execute(query)
-        rows = result.all()
-
-    if not rows:
-        return StreamingResponse(
-            BytesIO(b""),
-            media_type="application/pdf",
-            headers={"Content-Disposition": "attachment; filename=osfeed-messages.pdf"},
-        )
-
-    # Build HTML using shared utilities
-    html_parts = [generate_html_template("OSFeed - Messages")]
-    html_parts.append("<h1>OSFeed - Messages</h1>")
-
-    for message, channel in rows:
-        html_parts.append(generate_html_article(message, channel))
-
-    html_parts.append("</body></html>")
-    html_content = "".join(html_parts)
-
-    # Convert HTML to PDF using shared utility
-    pdf_bytes = await asyncio.to_thread(generate_pdf_bytes, html_content)
+    pdf_bytes = await service_export_messages_pdf(
+        user_id=user.id,
+        channel_id=channel_id,
+        channel_ids=channel_ids,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit,
+        media_types=media_types,
+    )
 
     filename = "osfeed-messages.pdf"
-
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",
