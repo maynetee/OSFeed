@@ -1,0 +1,18 @@
+{{ app_name }} - Alert Triggered
+
+Hello,
+
+Your alert "{{ alert_name }}" has been triggered for your account {{ user_email }}.
+
+Alert Details:
+--------------
+Alert Name: {{ alert_name }}
+Summary: {{ summary }}
+Matching Messages: {{ message_count }}
+
+This alert was triggered based on your configured monitoring criteria. Please review your messages to take appropriate action.
+
+To manage your alerts or adjust notification settings, please log in to your {{ app_name }} account.
+
+---
+© {{ app_name }}. All rights reserved.
