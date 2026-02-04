@@ -145,132 +145,37 @@ async def add_channels_bulk(
             ))
             continue
 
-        try:
-            # Check if channel already exists
-            existing_channel = await channel_utils.get_existing_channel(db, username)
+        # Use shared channel add logic
+        result = await channel_utils.process_channel_add(
+            db=db,
+            user_id=user.id,
+            username=username,
+            error_mode="return"
+        )
 
-            channel_to_use = None
-            is_new = False
-
-            if existing_channel:
-                # Check if user already has this channel
-                has_link = await channel_utils.check_user_channel_link(db, user.id, existing_channel.id)
-
-                if has_link:
-                    # Link exists
-                    if not existing_channel.is_active:
-                        # Reactivate the channel
-                        existing_channel.is_active = True
-                        channel_to_use = existing_channel
-                    else:
-                        # Channel is active and linked - already in user's list
-                        failed.append(BulkChannelFailure(
-                            username=username,
-                            error="Channel already exists in your list"
-                        ))
-                        continue
-                else:
-                    # Channel exists but user doesn't have it linked yet
-                    if not existing_channel.is_active:
-                        existing_channel.is_active = True
-
-                    await db.execute(
-                        insert(user_channels).values(
-                            user_id=user.id,
-                            channel_id=existing_channel.id
-                        )
-                    )
-                    channel_to_use = existing_channel
-            else:
-                # Channel doesn't exist - create via Telegram
-                telegram_client = get_telegram_client()
-
-                # Check JoinChannel limit before proceeding
-                if not await telegram_client.can_join_channel():
-                    if settings.telegram_join_channel_queue_enabled:
-                        # Queue for later processing
-                        await queue_channel_join(username, user.id)
-                        failed.append(BulkChannelFailure(
-                            username=username,
-                            error="Daily channel join limit reached. Request has been queued."
-                        ))
-                        continue
-                    else:
-                        failed.append(BulkChannelFailure(
-                            username=username,
-                            error="Daily channel join limit reached. Please try again tomorrow."
-                        ))
-                        continue
-
-                try:
-                    # Resolve and join channel via Telegram
-                    channel_info = await channel_utils.resolve_and_join_telegram_channel(telegram_client, username)
-
-                    # Create new channel record
-                    channel_to_use = Channel(
-                        username=username,
-                        telegram_id=channel_info['telegram_id'],
-                        title=channel_info['title'],
-                        description=channel_info.get('description'),
-                        subscriber_count=channel_info.get('subscribers', 0),
-                        is_active=True
-                    )
-                    db.add(channel_to_use)
-                    is_new = True
-
-                except ValueError as e:
-                    # Invalid username, private channel, etc.
-                    logger.warning(f"Failed to resolve/join channel '{username}' in bulk operation: {e}")
-                    failed.append(BulkChannelFailure(
-                        username=username,
-                        error="Unable to add channel. It may be private or invalid."
-                    ))
-                    continue
-
-            # Assign to collections (for both new and existing linked channels)
-            await channel_utils.auto_assign_to_collections(db, user.id, channel_to_use)
-
-            record_audit_event(
-                db,
-                user_id=user.id,
-                action="channel.create" if is_new else "channel.link",
-                resource_type="channel",
-                resource_id=str(channel_to_use.id),
-                metadata={"username": username, "is_new": is_new, "bulk": True},
-            )
-
-            # Flush to get the channel ID for the response
-            await db.flush()
-            await db.refresh(channel_to_use)
-
-            # Invalidate translation cache since user-channel association changed
-            await invalidate_channel_translation_cache(channel_to_use.id)
-
-            # Enqueue fetch job (enqueue_fetch_job handles deduplication if already running)
-            job = await enqueue_fetch_job(channel_to_use.id, channel_to_use.username, days=7)
-
-            response = ChannelResponse.model_validate(channel_to_use).model_dump()
-            if job:
-                response["fetch_job"] = FetchJobStatus.model_validate(job).model_dump()
-            else:
-                response["fetch_job"] = None
-
-            succeeded.append(ChannelResponse.model_validate(response))
-
-        except (SQLAlchemyError, IntegrityError) as e:
-            logger.error(f"Database error adding channel '{username}' in bulk operation for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        if not result['success']:
+            # Add to failed list
             failed.append(BulkChannelFailure(
-                username=username,
-                error="Failed to add channel due to a database error."
+                username=raw_username,
+                error=result['error']
             ))
             continue
-        except Exception as e:
-            logger.error(f"Unexpected error adding channel '{username}' in bulk operation for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
-            failed.append(BulkChannelFailure(
-                username=username,
-                error="Failed to add channel due to an internal error."
-            ))
-            continue
+
+        # Success - prepare response
+        channel_to_use = result['channel']
+
+        # Flush to get the channel ID for the response
+        await db.flush()
+        await db.refresh(channel_to_use)
+
+        # Invalidate translation cache since user-channel association changed
+        await invalidate_channel_translation_cache(channel_to_use.id)
+
+        # Build response
+        response = ChannelResponse.model_validate(channel_to_use).model_dump()
+        response["fetch_job"] = result['job']
+
+        succeeded.append(ChannelResponse.model_validate(response))
 
     # Commit all successful changes
     await db.commit()
