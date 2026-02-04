@@ -67,9 +67,13 @@ def async_retry(
                         )
                         raise
 
-                except Exception as e:
-                    # Intentional catch-all for non-retryable errors (anything not in retryable_exceptions)
-                    # Log the error type for debugging, then re-raise immediately to fail fast
+                except Exception as e:  # noqa: BLE001 - Intentional catch-all for retry decorator
+                    # This bare Exception catch is INTENTIONAL and follows best practices for retry decorators:
+                    # - Catches any error not in retryable_exceptions (non-retryable errors like ValueError, TypeError, etc.)
+                    # - Logs the specific error type for debugging and observability
+                    # - Re-raises immediately to fail fast (does NOT swallow the exception)
+                    # This pattern ensures non-retryable errors are logged but not retried, while still
+                    # propagating up the call stack to be handled by the caller or global error handlers.
                     logger.error(
                         f"Non-retryable error in {func.__name__}: {type(e).__name__}: {e}"
                     )
