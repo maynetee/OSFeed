@@ -9,11 +9,14 @@ from app.auth.users import current_active_user
 from app.models.user import User
 
 
+TEST_USER_UUID = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+
 @pytest.fixture
 def mock_user():
     """Create a mock user for testing."""
     user = AsyncMock(spec=User)
-    user.id = "test-user-id"
+    user.id = TEST_USER_UUID
     user.email = "test@example.com"
     return user
 
@@ -92,7 +95,7 @@ async def test_dashboard_endpoint_structure(mock_user):
         mock_collections.return_value = [
             {
                 "id": str(collection_id),
-                "user_id": "test-user-id",
+                "user_id": TEST_USER_UUID,
                 "name": "Test Collection",
                 "description": "Test collection description",
                 "color": "#FF0000",
@@ -145,7 +148,7 @@ async def test_dashboard_endpoint_structure(mock_user):
             # Verify collections structure
             assert len(data["collections"]) == 1
             assert data["collections"][0]["name"] == "Test Collection"
-            assert data["collections"][0]["user_id"] == "test-user-id"
+            assert data["collections"][0]["user_id"] == TEST_USER_UUID
             assert len(data["collections"][0]["channel_ids"]) == 1
 
     # Clean up
