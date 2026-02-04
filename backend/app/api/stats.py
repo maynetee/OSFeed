@@ -303,6 +303,20 @@ async def get_trust_stats(
     # Base filter for user isolation
     from app.models.channel import user_channels
 
+    # Verify channel access if specific channel_ids are requested
+    if channel_ids:
+        # Get all channel IDs the user has access to
+        accessible_channels_result = await db.execute(
+            select(user_channels.c.channel_id)
+            .where(user_channels.c.user_id == user.id)
+        )
+        accessible_channel_ids = {row[0] for row in accessible_channels_result.all()}
+
+        # Check if ALL requested channel_ids are accessible to the user
+        for channel_id in channel_ids:
+            if channel_id not in accessible_channel_ids:
+                raise HTTPException(status_code=404, detail="Channel not found")
+
     # Build base query with user isolation
     base_query = (
         select(Message)
@@ -321,10 +335,6 @@ async def get_trust_stats(
         select(func.count()).select_from(base_query.subquery())
     )
     total_messages = total_result.scalar() or 0
-
-    # If specific channel_ids were requested but user has no access to any of them, return 404
-    if channel_ids and total_messages == 0:
-        raise HTTPException(status_code=404, detail="Channel not found")
 
     primary_result = await db.execute(
         select(func.count())
