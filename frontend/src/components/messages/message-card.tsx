@@ -50,9 +50,9 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
   return (
     <Card className="animate-rise-in transition hover:border-primary/40">
       <CardContent className="flex flex-col gap-4 py-6">
-        <div className="flex flex-wrap items-center gap-3 text-xs">
+        <div className="flex flex-col gap-2 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           {/* Metadata Group */}
-          <div className="flex flex-wrap items-center gap-2 text-foreground/60">
+          <div className="flex flex-wrap items-center gap-1.5 text-foreground/60 md:gap-2">
             <span className="font-semibold text-foreground">{channelLabel}</span>
             {channelHandle ? <span className="text-foreground/50">{channelHandle}</span> : null}
             {telegramLink ? (
@@ -71,7 +71,7 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
           </div>
 
           {/* Status Badges Group */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 md:gap-2 lg:gap-2.5">
             {message.source_language ? <Badge variant="muted">{message.source_language}</Badge> : null}
             {message.needs_translation && !message.translated_text ? (
               <Badge variant="outline" className="animate-pulse">
