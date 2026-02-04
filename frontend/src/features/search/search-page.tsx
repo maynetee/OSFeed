@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +20,10 @@ export function SearchPage() {
   const dateRange = useFilterStore((state) => state.dateRange)
   const collectionIds = useFilterStore((state) => state.collectionIds)
   const mediaTypes = useFilterStore((state) => state.mediaTypes)
+  const setChannelIds = useFilterStore((state) => state.setChannelIds)
+  const setCollectionIds = useFilterStore((state) => state.setCollectionIds)
+  const filtersTouched = useFilterStore((state) => state.filtersTouched)
+  const resetFilters = useFilterStore((state) => state.resetFilters)
 
   const channelsQuery = useQuery({
     queryKey: ['channels'],
@@ -47,6 +51,24 @@ export function SearchPage() {
     )
     return Array.from(new Set(scopedIds))
   }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds])
+
+  useEffect(() => {
+    const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
+    const nextChannelIds = channelIds.filter((id) => availableChannelIds.has(id))
+    if (nextChannelIds.length !== channelIds.length) {
+      setChannelIds(nextChannelIds)
+    }
+
+    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const nextCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
+    if (nextCollectionIds.length !== collectionIds.length) {
+      setCollectionIds(nextCollectionIds)
+    }
+
+    if (!filtersTouched && (channelIds.length > 0 || collectionIds.length > 0)) {
+      resetFilters()
+    }
+  }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds, setCollectionIds])
 
   const keywordQuery = useQuery({
     queryKey: ['search', 'keyword', query, activeChannelIds, dateRange, mediaTypes],
@@ -80,6 +102,9 @@ export function SearchPage() {
     )
   }, [keywordQuery.data, query])
 
+  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0
+  const totalChannels = (channelsQuery.data ?? []).length
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -95,6 +120,17 @@ export function SearchPage() {
         />
         <Button variant="secondary">{t('search.launch')}</Button>
       </div>
+
+      {hasActiveFilters ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-2 text-xs text-foreground/70">
+          <span>
+            {t('filters.active', { count: activeChannelIds.length, total: totalChannels })}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
+            {t('filters.clear')}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_3fr]">
         <MessageFilters
