@@ -123,7 +123,7 @@ async def test_add_channel_success(monkeypatch):
     user = await _create_user("add_single@example.com", "password123")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     job_id = uuid4()
     mock_job = FetchJob(
@@ -135,7 +135,7 @@ async def test_add_channel_success(monkeypatch):
         created_at=datetime.now(timezone.utc),
     )
     mock_enqueue = AsyncMock(return_value=mock_job)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -167,10 +167,10 @@ async def test_add_channel_with_url_prefix(monkeypatch):
     user = await _create_user("add_url@example.com", "password123")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -198,10 +198,10 @@ async def test_add_channel_with_at_symbol(monkeypatch):
     user = await _create_user("add_at@example.com", "password123")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -285,10 +285,10 @@ async def test_add_channel_links_existing_channel(monkeypatch):
     user2 = await _create_user("user2_link@example.com", "password123")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user2
@@ -319,7 +319,7 @@ async def test_add_channel_telegram_error(monkeypatch):
 
     mock_client = _mock_telegram_client()
     mock_client.resolve_channel.side_effect = ValueError("Channel not found or is private")
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     async def _override_user():
         return user
@@ -348,10 +348,10 @@ async def test_bulk_add_channels_success(monkeypatch):
     user = await _create_user("bulk_success@example.com", "password123")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -386,10 +386,10 @@ async def test_bulk_add_channels_partial_success(monkeypatch):
     await _create_channel_for_user(user.id, "alreadyexists")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -450,10 +450,10 @@ async def test_bulk_add_channels_invalid_format(monkeypatch):
     user = await _create_user("bulk_invalid@example.com", "password123")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -493,10 +493,10 @@ async def test_bulk_add_channels_with_url_prefixes(monkeypatch):
     user = await _create_user("bulk_urls@example.com", "password123")
 
     mock_client = _mock_telegram_client()
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -550,10 +550,10 @@ async def test_bulk_add_channels_telegram_error(monkeypatch):
         }
 
     mock_client.resolve_channel = conditional_resolve
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     mock_enqueue = AsyncMock(return_value=None)
-    monkeypatch.setattr("app.api.channels.enqueue_fetch_job", mock_enqueue)
+    monkeypatch.setattr("app.services.fetch_queue.enqueue_fetch_job", mock_enqueue)
 
     async def _override_user():
         return user
@@ -589,10 +589,10 @@ async def test_add_channel_join_limit_reached(monkeypatch):
 
     mock_client = _mock_telegram_client()
     mock_client.can_join_channel.return_value = False
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     # Disable queue so we get immediate 429 error
-    monkeypatch.setattr("app.api.channels.settings.telegram_join_channel_queue_enabled", False)
+    monkeypatch.setattr("app.config.settings.telegram_join_channel_queue_enabled", False)
 
     async def _override_user():
         return user
