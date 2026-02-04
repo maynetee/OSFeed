@@ -63,7 +63,7 @@ def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
             published_at = published_at.replace(tzinfo=timezone.utc)
         message_id = UUID(message_id_raw)
         return published_at, message_id
-    except Exception as exc:
+    except (ValueError, UnicodeDecodeError) as exc:
         logger.warning(f"Failed to decode cursor: {type(exc).__name__}: {exc}")
         raise HTTPException(status_code=400, detail="Invalid cursor format")
 
@@ -202,7 +202,7 @@ async def search_messages(
     except (SQLAlchemyError, IntegrityError) as e:
         logger.error(f"Database error searching messages for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="MESSAGE_SEARCH_DATABASE_ERROR")
-    except Exception as e:
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"Unexpected error searching messages for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="MESSAGE_SEARCH_ERROR")
 
