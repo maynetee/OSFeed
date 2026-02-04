@@ -31,7 +31,7 @@ def build_search_query(q: str):
         search_term = f"%{q}%"
         search_filter = or_(
             Message.original_text.ilike(search_term),
-            func.coalesce(Message.translated_text, literal("")).ilike(search_term),
+            Message.translated_text.ilike(search_term),
         )
     else:
         # PostgreSQL: Use trigram similarity for better performance
