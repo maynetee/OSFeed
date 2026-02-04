@@ -9,21 +9,12 @@ import { KpiCard } from '@/components/stats/kpi-card'
 import { TrendChart } from '@/components/stats/trend-chart'
 import { ChannelRanking } from '@/components/stats/channel-ranking'
 import { EmptyState } from '@/components/common/empty-state'
-import { statsApi, channelsApi, collectionsApi } from '@/lib/api/client'
+import { statsApi, collectionsApi } from '@/lib/api/client'
 
 export function DashboardPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [selectedCollection, setSelectedCollection] = useState<string>('all')
-
-  const channelsQuery = useQuery({
-    queryKey: ['channels'],
-    queryFn: async () => (await channelsApi.list()).data,
-  })
-  const collectionsQuery = useQuery({
-    queryKey: ['collections'],
-    queryFn: async () => (await collectionsApi.list()).data,
-  })
 
   const dashboardQuery = useQuery({
     queryKey: ['stats-dashboard', selectedCollection],
@@ -31,9 +22,6 @@ export function DashboardPage() {
       const collectionId = selectedCollection === 'all' ? undefined : selectedCollection
       return (await statsApi.dashboard(collectionId)).data
     },
-    enabled: selectedCollection === 'all'
-      ? (channelsQuery.data?.length ?? 0) > 0
-      : selectedCollection !== '',
   })
 
   const collectionStatsQuery = useQuery({
@@ -42,16 +30,16 @@ export function DashboardPage() {
     enabled: selectedCollection !== 'all',
   })
 
-  const collectionOptions = useMemo(
-    () => collectionsQuery.data ?? [],
-    [collectionsQuery.data],
-  )
-
   // All hooks must be called before any early returns
-  const channels = channelsQuery.data ?? []
   const dashboardData = dashboardQuery.data
   const collectionStats = collectionStatsQuery.data
-  const hasNoChannels = channelsQuery.isSuccess && channels.length === 0
+  const channels = dashboardData?.channels ?? []
+  const collectionOptions = useMemo(
+    () => dashboardData?.collections ?? [],
+    [dashboardData?.collections],
+  )
+
+  const hasNoChannels = dashboardQuery.isSuccess && channels.length === 0
   const hasNoCollectionChannels = selectedCollection !== 'all'
     && collectionStatsQuery.isSuccess
     && (collectionStats?.channel_count ?? 0) === 0
