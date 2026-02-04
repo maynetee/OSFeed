@@ -623,12 +623,12 @@ class LLMTranslator:
             else:
                 # Already using Google as primary - no fallback needed
                 translated_text = await self._translate_with_google(text, source_lang, target_lang)
-        except (OpenAIError, httpx.HTTPError, Exception) as e:
+        except (OpenAIError, httpx.RequestError, httpx.HTTPStatusError, RuntimeError, ValueError) as e:
             # Primary provider failed - fall back to free Google Translate
             logger.error(f"LLM translation failed: {e}")
             try:
                 translated_text = await self._translate_with_google(text, source_lang, target_lang)
-            except Exception as fallback_error:
+            except (httpx.RequestError, httpx.HTTPStatusError, RuntimeError, ValueError, OSError) as fallback_error:
                 # All translation methods failed - return original text unchanged
                 # This ensures the application continues functioning even when translation fails
                 logger.error(f"Fallback translation failed (All methods): {fallback_error}")
@@ -840,7 +840,7 @@ class LLMTranslator:
 
                     success = True
 
-                except (OpenAIError, httpx.HTTPError, Exception) as e:
+                except (OpenAIError, httpx.RequestError, httpx.HTTPStatusError, RuntimeError, ValueError) as e:
                     # Batch translation failed - will fall back to individual translations
                     logger.warning(f"Batch translation failed ({provider}), falling back to parallel individual: {e}")
 
