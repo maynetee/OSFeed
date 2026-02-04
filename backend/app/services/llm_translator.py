@@ -65,6 +65,19 @@ SKIP_REGEXES = [
 
 class LLMTranslator:
     def __init__(self):
+        """Initialize the LLM translator with configured API keys and caching.
+
+        Sets up the translation engine with:
+        - Target language from settings.preferred_language
+        - API credentials for OpenAI and Google Gemini
+        - In-memory LRU cache (OrderedDict) for fast translation lookups
+        - Redis client for shared cross-instance caching
+        - Lazy-initialized OpenAI client (created on first use)
+
+        The translator supports multiple providers (OpenAI GPT, Google Gemini,
+        Google Translate) with automatic fallback and intelligent model selection
+        based on content priority and language complexity.
+        """
         self.target_language = settings.preferred_language
         self.api_key = settings.openai_api_key
         self.openai_model = settings.openai_model
