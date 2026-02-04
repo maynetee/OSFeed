@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -7,14 +7,23 @@ import { alertsApi } from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Timestamp } from '@/components/common/timestamp'
+import { useMessageStream } from '@/hooks/use-message-stream'
 
 export function NotificationCenter() {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const queryClient = useQueryClient()
 
   const triggersQuery = useQuery({
     queryKey: ['alerts', 'recent'],
     queryFn: async () => (await alertsApi.recentTriggers({ limit: 10 })).data,
+  })
+
+  useMessageStream({
+    enabled: true,
+    onAlert: () => {
+      queryClient.invalidateQueries({ queryKey: ['alerts', 'recent'] })
+    },
   })
 
   const triggers = triggersQuery.data ?? []
