@@ -102,6 +102,9 @@ export function SearchPage() {
     )
   }, [keywordQuery.data, query])
 
+  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0
+  const totalChannels = (channelsQuery.data ?? []).length
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -117,6 +120,17 @@ export function SearchPage() {
         />
         <Button variant="secondary">{t('search.launch')}</Button>
       </div>
+
+      {hasActiveFilters ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-2 text-xs text-foreground/70">
+          <span>
+            {t('filters.active', { count: activeChannelIds.length, total: totalChannels })}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
+            {t('filters.clear')}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_3fr]">
         <MessageFilters
