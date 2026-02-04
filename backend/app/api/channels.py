@@ -322,14 +322,23 @@ async def refresh_channel_info(
                 success=False,
                 error="Failed to refresh channel information due to database error."
             ))
-        except Exception as e:
-            logger.error(f"Failed to refresh info for {channel.username} (user {user.id}): {type(e).__name__}: {e}", exc_info=True)
+        except ValueError as e:
+            logger.debug(f"Channel error refreshing info for {channel.username} (user {user.id}): {e}")
             results.append(ChannelInfoUpdate(
                 channel_id=channel.id,
                 subscriber_count=channel.subscriber_count,
                 title=channel.title,
                 success=False,
-                error="Failed to refresh channel information."
+                error="Failed to refresh channel information. Channel may be invalid or private."
+            ))
+        except RuntimeError as e:
+            logger.error(f"Telegram client error refreshing info for {channel.username} (user {user.id}): {e}")
+            results.append(ChannelInfoUpdate(
+                channel_id=channel.id,
+                subscriber_count=channel.subscriber_count,
+                title=channel.title,
+                success=False,
+                error="Failed to refresh channel information due to connection error."
             ))
 
     await db.commit()
