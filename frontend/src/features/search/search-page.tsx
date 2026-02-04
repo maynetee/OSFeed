@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
@@ -51,6 +51,24 @@ export function SearchPage() {
     )
     return Array.from(new Set(scopedIds))
   }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds])
+
+  useEffect(() => {
+    const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
+    const nextChannelIds = channelIds.filter((id) => availableChannelIds.has(id))
+    if (nextChannelIds.length !== channelIds.length) {
+      setChannelIds(nextChannelIds)
+    }
+
+    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const nextCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
+    if (nextCollectionIds.length !== collectionIds.length) {
+      setCollectionIds(nextCollectionIds)
+    }
+
+    if (!filtersTouched && (channelIds.length > 0 || collectionIds.length > 0)) {
+      resetFilters()
+    }
+  }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds, setCollectionIds])
 
   const keywordQuery = useQuery({
     queryKey: ['search', 'keyword', query, activeChannelIds, dateRange, mediaTypes],
