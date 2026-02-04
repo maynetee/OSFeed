@@ -37,7 +37,7 @@ def build_search_query(q: str):
         # PostgreSQL: Use trigram similarity for better performance
         search_filter = or_(
             Message.original_text.op("%")(q),
-            func.coalesce(Message.translated_text, literal("")).op("%")(q),
+            Message.translated_text.op("%")(q),
         )
 
     return search_filter
