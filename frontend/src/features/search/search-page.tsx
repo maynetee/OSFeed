@@ -20,6 +20,10 @@ export function SearchPage() {
   const dateRange = useFilterStore((state) => state.dateRange)
   const collectionIds = useFilterStore((state) => state.collectionIds)
   const mediaTypes = useFilterStore((state) => state.mediaTypes)
+  const setChannelIds = useFilterStore((state) => state.setChannelIds)
+  const setCollectionIds = useFilterStore((state) => state.setCollectionIds)
+  const filtersTouched = useFilterStore((state) => state.filtersTouched)
+  const resetFilters = useFilterStore((state) => state.resetFilters)
 
   const channelsQuery = useQuery({
     queryKey: ['channels'],
