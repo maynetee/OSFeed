@@ -47,7 +47,7 @@ export const CollectionStats = memo(function CollectionStats({ stats, isLoading 
             </div>
           </div>
           <div className="rounded-xl border border-border/60 p-3">
-            <p className="text-xs font-semibold uppercase text-foreground/40">
+            <p className="text-xs font-semibold uppercase text-foreground/90">
               {t('collections.statsActivity')}
             </p>
             <TrendChart data={stats.activity_trend} />

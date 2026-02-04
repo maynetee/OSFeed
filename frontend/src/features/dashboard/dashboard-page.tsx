@@ -95,7 +95,7 @@ export function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">
       <fieldset>
-        <legend className="text-xs font-semibold uppercase text-foreground/40">
+        <legend className="text-xs font-semibold uppercase text-foreground/90">
           {t('collections.title')}
         </legend>
         <div className="flex flex-wrap items-center gap-2">

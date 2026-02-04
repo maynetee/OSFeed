@@ -114,7 +114,7 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </div>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/70">{t('filters.period')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.period')}</legend>
           <div className="flex flex-wrap gap-2">
             {[
               { value: '24h', label: '24h' },
@@ -139,7 +139,7 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </fieldset>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/70">{t('filters.mediaTypes')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.mediaTypes')}</legend>
           <div className="flex flex-wrap gap-2">
             <Button
               variant={mediaTypes.length === 0 ? 'default' : 'outline'}
@@ -182,7 +182,7 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </fieldset>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/70">{t('filters.channels')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.channels')}</legend>
           <div className="flex flex-wrap gap-2">
             {channelOptions.map((channel) => {
               const active = channelIds.includes(channel.id)
@@ -210,7 +210,7 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
 
         {collectionOptions.length ? (
           <fieldset>
-            <legend className="text-xs font-semibold uppercase text-foreground/70">
+            <legend className="text-xs font-semibold uppercase text-foreground/90">
               {t('filters.collections')}
             </legend>
             <div className="flex flex-wrap gap-2">

@@ -74,7 +74,7 @@ export function ChannelCollectionPicker({ channelId, collections }: ChannelColle
         </DialogHeader>
         <div className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-2">
-            <Label className="text-xs font-semibold uppercase text-foreground/40">
+            <Label className="text-xs font-semibold uppercase text-foreground/90">
               {t('collections.create')}
             </Label>
             <div className="flex gap-2">
@@ -95,7 +95,7 @@ export function ChannelCollectionPicker({ channelId, collections }: ChannelColle
             </div>
           </div>
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-xs font-semibold uppercase text-foreground/40">
+            <legend className="text-xs font-semibold uppercase text-foreground/90">
               {t('collections.title')}
             </legend>
             <div className="flex flex-wrap gap-2">
