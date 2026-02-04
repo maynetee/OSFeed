@@ -235,6 +235,36 @@ class EmailService:
             text=text,
         )
 
+    async def send_alert_triggered(self, email: str, alert_name: str, summary: str, message_count: int) -> bool:
+        """Send alert triggered notification email."""
+        settings = get_settings()
+        if not settings.email_enabled:
+            logger.info(f"Email disabled - would send alert notification to {_redact_email(email)}")
+            return False
+
+        provider = self._get_provider()
+        if not provider:
+            logger.warning("No email provider configured")
+            return False
+
+        context = {
+            "user_email": email,
+            "alert_name": alert_name,
+            "summary": summary,
+            "message_count": message_count,
+            "app_name": "OSFeed",
+        }
+
+        html = template_renderer.render("alert_triggered.html", **context)
+        text = template_renderer.render("alert_triggered.txt", **context)
+
+        return await provider.send(
+            to=email,
+            subject=f"Alert Triggered: {alert_name}",
+            html=html,
+            text=text,
+        )
+
 
 # Singleton
 email_service = EmailService()
