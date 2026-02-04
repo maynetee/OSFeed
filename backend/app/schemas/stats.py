@@ -1,6 +1,8 @@
 from pydantic import BaseModel, ConfigDict
 from typing import List
 from uuid import UUID
+from app.schemas.channel import ChannelResponse
+from app.schemas.collection import CollectionResponse
 
 
 class StatsOverview(BaseModel):
@@ -69,5 +71,7 @@ class DashboardResponse(BaseModel):
     trust_stats: TrustStats
     api_usage: ApiUsageStats
     translation_metrics: TranslationMetrics
+    channels: List[ChannelResponse]
+    collections: List[CollectionResponse]
 
     model_config = ConfigDict(from_attributes=True)
