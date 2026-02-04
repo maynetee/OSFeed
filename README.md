@@ -116,6 +116,7 @@ docker compose exec backend python scripts/migrate_sqlite_to_postgres.py
 For detailed technical documentation:
 - [Architecture Overview](docs/ARCHITECTURE.md) - System components, deployment, and infrastructure
 - [Data Flow Guide](docs/DATA_FLOW.md) - Message processing pipeline and data flows
+- [Contributing Guide](CONTRIBUTING.md) - Development workflow, coding standards, and how to contribute
 
 ## Requirements
 

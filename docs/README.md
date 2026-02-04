@@ -6,9 +6,16 @@ This directory contains architecture documentation for the OSFeed platform.
 
 OSFeed is a Telegram-first OSINT platform for collection, translation, deduplication, and daily digests. The system is built on a modern microservices architecture running entirely in Docker containers.
 
+## Documentation
+
+For detailed technical documentation:
+- [Architecture Overview](./ARCHITECTURE.md) - System components, deployment, infrastructure, and key design decisions
+- [Data Flow Guide](./DATA_FLOW.md) - Message processing pipeline and end-to-end data flows through all layers
+
 ## Architecture Diagrams
 
 - [System Overview](./diagrams/system-overview.mmd) - High-level architecture showing all components and their interactions
+- [Message Pipeline](./diagrams/message-pipeline.mmd) - Detailed message flow from collection to delivery
 
 ## Key Components
 
