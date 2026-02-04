@@ -545,9 +545,60 @@ class LLMTranslator:
         db: Optional[Session] = None,
         message_id: Optional[UUID] = None,
     ) -> tuple[str, str, str]:
-        """
-        Translate text to target language (async).
-        Returns (translated_text, source_language, priority).
+        """Translate text using multi-provider LLM with three-tier caching and fallback chain.
+
+        This is the main translation entry point for OSFeed. It implements an optimized
+        translation pipeline with aggressive caching and graceful degradation.
+
+        Translation Algorithm:
+        1. Validate input text (skip empty, trivial, or same-language content)
+        2. Detect source language if not provided (using langdetect)
+        3. Calculate translation priority based on content age and characteristics
+        4. Check three-tier cache (Database -> Redis -> In-memory)
+        5. On cache miss: Select appropriate model based on priority and language
+        6. Execute translation via provider fallback chain
+        7. Cache result with adaptive TTL based on popularity
+        8. Return translated text with metadata
+
+        Three-Tier Caching Strategy:
+        - Tier 1 (Database): Persistent, shared across instances, slowest
+          - Checks MessageTranslation table for previously translated messages
+          - Most reliable but requires DB query
+        - Tier 2 (Redis): Fast, shared across instances, volatile
+          - Content-based keys (hash of text + language pair)
+          - Adaptive TTL increases with cache hit count
+        - Tier 3 (In-memory): Fastest, instance-local, limited by RAM
+          - LRU-evicted OrderedDict cache
+          - Zero latency for frequently accessed translations
+
+        Provider Fallback Chain:
+        1. Primary provider (selected by priority + language):
+           - High priority or complex languages -> OpenAI GPT or Google Gemini
+           - Normal/low priority -> Cheaper models or Google Translate
+        2. Fallback on failure -> Google Translate (free, no API key required)
+        3. Ultimate fallback -> Return original text unchanged (ensures availability)
+
+        Args:
+            text: Text to translate. Empty, whitespace-only, or trivial text (URLs,
+                  hashtags, numbers) will be skipped without translation.
+            source_lang: Source language code (ISO 639-1, e.g., 'en', 'es', 'fr').
+                        If None or "unknown", language will be auto-detected using langdetect.
+            target_lang: Target language code (ISO 639-1, e.g., 'en', 'es', 'fr').
+                        Defaults to settings.preferred_language if not specified.
+            published_at: Publication timestamp for priority calculation.
+                         Recent content gets higher priority (better/more expensive models).
+                         If None, defaults to "normal" priority.
+            db: Optional SQLAlchemy Session for database cache lookup.
+                If provided with message_id, checks MessageTranslation table first.
+            message_id: Optional UUID for database cache lookup.
+                       Only used if db session is also provided.
+
+        Returns:
+            Tuple of (translated_text, detected_source_language, priority):
+            - translated_text: Translated text, or original text if translation skipped/failed
+            - detected_source_language: Detected or provided source language code,
+              or "unknown" if detection failed
+            - priority: Translation priority level ("skip", "high", "normal", or "low")
         """
         if not text or len(text.strip()) == 0:
             return text, "unknown", "skip"
