@@ -4,6 +4,18 @@ import { useUserStore } from '@/stores/user-store'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
+/**
+ * Configured Axios instance for API requests.
+ * Includes automatic cookie-based authentication, JSON headers, and
+ * automatic token refresh on 401 errors via response interceptor.
+ *
+ * @example
+ * ```ts
+ * // Make authenticated API calls
+ * const response = await api.get('/api/users')
+ * await api.post('/api/messages', { text: 'Hello' })
+ * ```
+ */
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -19,6 +31,12 @@ let failedQueue: Array<{
   reject: (error: unknown) => void
 }> = []
 
+/**
+ * Process all queued requests after token refresh completes.
+ * Resolves or rejects queued promises based on refresh success/failure.
+ *
+ * @param error - Error from token refresh (null if successful)
+ */
 const processQueue = (error: unknown) => {
   failedQueue.forEach((promise) => {
     if (error) {
@@ -83,6 +101,24 @@ api.interceptors.response.use(
   }
 )
 
+/**
+ * Build URLSearchParams from an object, handling arrays and null values.
+ * Converts object parameters to URL query string format suitable for axios requests.
+ * Automatically handles array values by repeating the key for each item.
+ *
+ * @param params - Object containing query parameters
+ * @returns URLSearchParams instance ready for use in axios requests
+ *
+ * @example
+ * ```ts
+ * const params = buildParams({
+ *   channel_ids: ['123', '456'],
+ *   limit: 10,
+ *   offset: 0
+ * })
+ * // Results in: channel_ids=123&channel_ids=456&limit=10&offset=0
+ * ```
+ */
 export const buildParams = (params: Record<string, unknown>) => {
   const searchParams = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
