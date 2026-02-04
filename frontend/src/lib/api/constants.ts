@@ -1,4 +1,7 @@
-// Language options
+/**
+ * Supported languages for translation and content filtering.
+ * Each entry contains an ISO 639-1 language code and its native display name.
+ */
 export const LANGUAGES = [
   { code: 'en', name: 'English' },
   { code: 'fr', name: 'Français' },
