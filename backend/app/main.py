@@ -106,6 +106,9 @@ app = FastAPI(
     description="Intelligent Telegram Aggregator with AI-powered translation and summarization",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None if settings.app_env == "production" else "/docs",
+    redoc_url=None if settings.app_env == "production" else "/redoc",
+    openapi_url=None if settings.app_env == "production" else "/openapi.json",
 )
 
 # CORS middleware - allow both www and non-www versions
@@ -143,6 +146,8 @@ app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
 
 @app.get("/")
 async def root():
+    if settings.app_env == "production":
+        return {"status": "ok"}
     return {
         "message": "OSFeed API",
         "version": "0.1.0",

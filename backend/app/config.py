@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
 
     # Application
+    app_env: str = "development"
     preferred_language: str = "en"
     summary_time: str = "08:00"
     app_debug: bool = False
