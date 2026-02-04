@@ -347,10 +347,6 @@ async def create_collection(
         logger.error(f"Database error creating collection for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         await db.rollback()
         raise HTTPException(status_code=500, detail="COLLECTION_CREATE_DATABASE_ERROR")
-    except Exception as e:
-        logger.error(f"Unexpected error creating collection for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="COLLECTION_CREATE_ERROR")
 
 
 @router.get("/compare")

@@ -153,9 +153,6 @@ async def setup_telegram_session():
     except OSError as e:
         print(f"\nNetwork error: {e}")
         sys.exit(1)
-    except Exception as e:
-        print(f"\nUnexpected error: {e}")
-        sys.exit(1)
     finally:
         await client.disconnect()
 

@@ -147,7 +147,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 logger.info(f"Verification email task created for {_redact_email(user.email)}")
             except RuntimeError as e:
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)} (event loop error): {e}")
-            except Exception as e:
+            except (AttributeError, TypeError, ValueError) as e:
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)}: {e}")
         else:
             logger.warning(f"Email disabled - skipping verification email for {_redact_email(user.email)}")
@@ -175,7 +175,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 logger.info(f"Password reset email task created for {_redact_email(user.email)}")
             except RuntimeError as e:
                 logger.error(f"Failed to create password reset email task for {_redact_email(user.email)} (event loop error): {e}")
-            except Exception as e:
+            except (AttributeError, TypeError, ValueError) as e:
                 logger.error(f"Failed to create password reset email task for {_redact_email(user.email)}: {e}")
         else:
             logger.warning(f"Email disabled - skipping password reset email for {_redact_email(user.email)}")
@@ -198,7 +198,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 logger.info(f"Verification email task created for {_redact_email(user.email)}")
             except RuntimeError as e:
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)} (event loop error): {e}")
-            except Exception as e:
+            except (AttributeError, TypeError, ValueError) as e:
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)}: {e}")
         else:
             logger.warning(f"Email disabled - skipping verification email for {_redact_email(user.email)}")

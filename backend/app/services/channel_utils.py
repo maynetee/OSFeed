@@ -517,7 +517,7 @@ async def process_channel_add(
             "error_code": "DATABASE_ERROR",
             "job": None,
         }
-    except Exception as e:
+    except (RuntimeError, AttributeError, TypeError) as e:
         logger.error(f"Unexpected error adding channel '{username}' for user {user_id}: {type(e).__name__}: {e}", exc_info=True)
         error_msg = "Failed to add channel due to an internal error."
         if error_mode == "raise":
