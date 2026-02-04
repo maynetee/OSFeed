@@ -65,6 +65,19 @@ SKIP_REGEXES = [
 
 class LLMTranslator:
     def __init__(self):
+        """Initialize the LLM translator with configured API keys and caching.
+
+        Sets up the translation engine with:
+        - Target language from settings.preferred_language
+        - API credentials for OpenAI and Google Gemini
+        - In-memory LRU cache (OrderedDict) for fast translation lookups
+        - Redis client for shared cross-instance caching
+        - Lazy-initialized OpenAI client (created on first use)
+
+        The translator supports multiple providers (OpenAI GPT, Google Gemini,
+        Google Translate) with automatic fallback and intelligent model selection
+        based on content priority and language complexity.
+        """
         self.target_language = settings.preferred_language
         self.api_key = settings.openai_api_key
         self.openai_model = settings.openai_model
@@ -545,9 +558,60 @@ class LLMTranslator:
         db: Optional[Session] = None,
         message_id: Optional[UUID] = None,
     ) -> tuple[str, str, str]:
-        """
-        Translate text to target language (async).
-        Returns (translated_text, source_language, priority).
+        """Translate text using multi-provider LLM with three-tier caching and fallback chain.
+
+        This is the main translation entry point for OSFeed. It implements an optimized
+        translation pipeline with aggressive caching and graceful degradation.
+
+        Translation Algorithm:
+        1. Validate input text (skip empty, trivial, or same-language content)
+        2. Detect source language if not provided (using langdetect)
+        3. Calculate translation priority based on content age and characteristics
+        4. Check three-tier cache (Database -> Redis -> In-memory)
+        5. On cache miss: Select appropriate model based on priority and language
+        6. Execute translation via provider fallback chain
+        7. Cache result with adaptive TTL based on popularity
+        8. Return translated text with metadata
+
+        Three-Tier Caching Strategy:
+        - Tier 1 (Database): Persistent, shared across instances, slowest
+          - Checks MessageTranslation table for previously translated messages
+          - Most reliable but requires DB query
+        - Tier 2 (Redis): Fast, shared across instances, volatile
+          - Content-based keys (hash of text + language pair)
+          - Adaptive TTL increases with cache hit count
+        - Tier 3 (In-memory): Fastest, instance-local, limited by RAM
+          - LRU-evicted OrderedDict cache
+          - Zero latency for frequently accessed translations
+
+        Provider Fallback Chain:
+        1. Primary provider (selected by priority + language):
+           - High priority or complex languages -> OpenAI GPT or Google Gemini
+           - Normal/low priority -> Cheaper models or Google Translate
+        2. Fallback on failure -> Google Translate (free, no API key required)
+        3. Ultimate fallback -> Return original text unchanged (ensures availability)
+
+        Args:
+            text: Text to translate. Empty, whitespace-only, or trivial text (URLs,
+                  hashtags, numbers) will be skipped without translation.
+            source_lang: Source language code (ISO 639-1, e.g., 'en', 'es', 'fr').
+                        If None or "unknown", language will be auto-detected using langdetect.
+            target_lang: Target language code (ISO 639-1, e.g., 'en', 'es', 'fr').
+                        Defaults to settings.preferred_language if not specified.
+            published_at: Publication timestamp for priority calculation.
+                         Recent content gets higher priority (better/more expensive models).
+                         If None, defaults to "normal" priority.
+            db: Optional SQLAlchemy Session for database cache lookup.
+                If provided with message_id, checks MessageTranslation table first.
+            message_id: Optional UUID for database cache lookup.
+                       Only used if db session is also provided.
+
+        Returns:
+            Tuple of (translated_text, detected_source_language, priority):
+            - translated_text: Translated text, or original text if translation skipped/failed
+            - detected_source_language: Detected or provided source language code,
+              or "unknown" if detection failed
+            - priority: Translation priority level ("skip", "high", "normal", or "low")
         """
         if not text or len(text.strip()) == 0:
             return text, "unknown", "skip"
@@ -646,9 +710,62 @@ class LLMTranslator:
         db: Optional[Session] = None,
         message_ids: Optional[list[UUID]] = None,
     ) -> list[tuple[str, str, str]]:
-        """
-        Translate multiple texts in a single API call for efficiency.
-        Returns list of (translated_text, source_language, priority) tuples preserving input order.
+        """Translate multiple texts efficiently using batch API calls with three-tier caching.
+
+        This method implements a five-step translation pipeline optimized for batch processing:
+
+        1. **Categorize texts**: Filter out skippable content (URLs, hashtags, trivial text, same-language)
+           and prepare remaining texts for translation by detecting language and calculating priority
+           based on content age.
+
+        2. **Tier 1 Cache - Database**: Bulk lookup of cached translations from MessageTranslation table
+           using message IDs. Provides persistent cross-instance caching keyed by message_id + target_lang.
+
+        3. **Tier 2 & 3 Cache - Redis and In-memory**: Check Redis (shared, fast) and in-memory
+           (local, fastest) caches using content-based keys (hash of text + language pair). These tiers
+           cache translations even for ephemeral texts without persistent message records.
+
+        4. **Group by translation route**: Group uncached texts by (source_language, model) pairs to
+           enable efficient batching. Texts sharing the same source language and model can be translated
+           in a single API call, significantly reducing costs and latency.
+
+        5. **Execute batch translations**: Translate each route group respecting batch limits:
+           - MAX_BATCH_SIZE: 100 messages per batch
+           - MAX_BATCH_CHARS: 10,000 characters per batch
+
+           On failure, falls back to individual parallel translations using the single-text translate()
+           method which has its own provider fallback chain.
+
+        Caching Architecture:
+        - Database: Persistent, cross-instance, keyed by message_id (requires db session and message_ids)
+        - Redis: Shared across instances, fast, keyed by content hash (text + source_lang + target_lang)
+        - In-memory: Local instance only, fastest, LRU cache with same content-based keys as Redis
+
+        Args:
+            texts: List of texts to translate. Empty/whitespace texts are preserved in output but not translated.
+            source_lang: Source language code (e.g., 'en', 'es'). If None, language is auto-detected per text.
+                        If provided, the same source language is used for all texts (saves detection calls).
+            target_lang: Target language code. Defaults to settings.preferred_language if not provided.
+            published_at_list: Optional list of publication timestamps (same length as texts).
+                              Used to calculate translation priority (recent content gets better models).
+                              If shorter than texts list, missing items default to "normal" priority.
+            db: Optional SQLAlchemy session for database cache lookups. If None, database cache tier is skipped.
+            message_ids: Optional list of message UUIDs (same length as texts) for database cache lookups.
+                        If length mismatch with texts, message_ids are ignored with a warning.
+
+        Returns:
+            List of (translated_text, detected_source_language, priority) tuples, preserving input order:
+            - translated_text: Translated text, or original text if translation was skipped/failed
+            - detected_source_language: ISO 639-1 language code detected or provided
+            - priority: "high", "normal", "low", or "skip" based on content age and characteristics
+
+        Edge Cases:
+        - Empty/whitespace texts: Preserved in output as ("", "unknown", "skip")
+        - Trivial content (URLs, hashtags, numbers): Returned unchanged with "skip" priority
+        - Same-language content: Returned unchanged if translation_skip_same_language is enabled
+        - Database lookup failures: Non-fatal, continues to next cache tier
+        - Batch translation failures: Falls back to individual parallel translations
+        - Individual translation failures: Returns original text as last resort
         """
         if not texts:
             return []
