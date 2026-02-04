@@ -44,7 +44,7 @@ graph TB
     %% Fetch flow
     ACTIVE_JOBS -->|LPOP job| FETCH_WORKERS
     FETCH_WORKERS -->|Acquire tokens| RATE_LIMITER
-    FETCH_WORKERS -->|get_messages()| TG_CLIENT
+    FETCH_WORKERS -->|get messages| TG_CLIENT
     TG_CLIENT -->|API calls<br/>FloodWait retry| TG_CHANNELS
     TG_CLIENT -->|Batches of 100| FETCH_WORKERS
 
