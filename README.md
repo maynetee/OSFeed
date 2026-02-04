@@ -60,25 +60,185 @@ docker compose logs -f backend
 docker compose logs -f frontend
 ```
 
-## Environment
+## Environment Variables Reference
 
-The first run copies `.env.example` to `.env` if missing. Update `.env` with:
-- **SECRET_KEY** (required) - Application secret key for JWT tokens and session signing
-- PostgreSQL credentials
-- OpenAI / Qdrant settings
-- Telegram API credentials
-- Redis settings (optional but recommended for translation cache)
-- **Cookie-based Authentication Settings:**
-  - `COOKIE_SECURE` (default `false`) - Set to `true` in production with HTTPS to prevent cookie transmission over insecure connections
-  - `COOKIE_SAMESITE` (default `lax`) - CSRF protection; options: `lax`, `strict`, or `none`
-  - `COOKIE_DOMAIN` (optional) - Specific domain for cookies; leave empty for default behavior
-- Optional settings:
-  - `SCHEDULER_ENABLED` (default `true`)
-  - `AUDIT_LOG_RETENTION_DAYS` (default `365`)
-  - `AUDIT_LOG_PURGE_TIME` (default `02:30`)
-  - `API_USAGE_TRACKING_ENABLED` (default `true`)
-  - `LLM_COST_INPUT_PER_1K` (default `0.0`)
-  - `LLM_COST_OUTPUT_PER_1K` (default `0.0`)
+The first run copies `.env.example` to `.env` if missing. All environment variables are read from `.env` with case-insensitive matching.
+
+### Authentication
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SECRET_KEY` | **Yes** | - | Application secret key for JWT tokens and session signing. Generate with: `openssl rand -hex 32` |
+| `ALGORITHM` | No | `HS256` | JWT signing algorithm |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | `60` | Access token lifetime (1 hour) |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | No | `7` | Refresh token lifetime (7 days) |
+| `COOKIE_ACCESS_TOKEN_NAME` | No | `access_token` | Name of the access token cookie |
+| `COOKIE_REFRESH_TOKEN_NAME` | No | `refresh_token` | Name of the refresh token cookie |
+| `COOKIE_SECURE` | No | `false` | **Set to `true` in production with HTTPS** to prevent cookie transmission over insecure connections |
+| `COOKIE_SAMESITE` | No | `lax` | CSRF protection; options: `lax`, `strict`, or `none` |
+| `COOKIE_DOMAIN` | No | - | Specific domain for cookies; leave empty for default behavior |
+
+### Database (PostgreSQL)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `POSTGRES_HOST` | No | `localhost` | PostgreSQL server hostname |
+| `POSTGRES_PORT` | No | `5432` | PostgreSQL server port |
+| `POSTGRES_DB` | No | `osfeed_db` | Database name |
+| `POSTGRES_USER` | No | `osfeed_user` | Database username |
+| `POSTGRES_PASSWORD` | **Yes** | - | Database password |
+| `USE_SQLITE` | No | `false` | Set to `true` for local dev without PostgreSQL |
+| `SQLITE_URL` | No | `sqlite+aiosqlite:///./data/osfeed.db` | SQLite database path (fallback) |
+| `DB_POOL_SIZE` | No | `20` | PostgreSQL connection pool size |
+| `DB_MAX_OVERFLOW` | No | `10` | Max overflow connections beyond pool size |
+| `DB_POOL_RECYCLE` | No | `1800` | Seconds before connection recycling (30 minutes) |
+
+### API Server
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `API_HOST` | No | `0.0.0.0` | Backend API bind address |
+| `API_PORT` | No | `8000` | Backend API port |
+| `FRONTEND_URL` | No | `http://localhost:5173` | Frontend URL for CORS configuration |
+
+### OpenAI API
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENAI_API_KEY` | Recommended | - | OpenAI API key for translations and embeddings |
+| `OPENAI_MODEL` | No | `gpt-4o-mini` | OpenAI model for translations |
+
+### Gemini API
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GEMINI_API_KEY` | Recommended | - | Google Gemini API key for cost-effective translations |
+| `GEMINI_MODEL` | No | `gemini-2.0-flash` | Gemini model for translations |
+
+### OpenRouter API
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENROUTER_API_KEY` | No | - | OpenRouter API key (optional fallback for free LLM access) |
+| `OPENROUTER_MODEL` | No | `meta-llama/llama-3.1-8b-instruct:free` | OpenRouter model selection |
+
+### Telegram API
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `TELEGRAM_API_ID` | **Yes** | `0` | Telegram API ID from https://my.telegram.org |
+| `TELEGRAM_API_HASH` | **Yes** | - | Telegram API hash from https://my.telegram.org |
+| `TELEGRAM_PHONE` | **Yes** | - | Phone number with country code (e.g., `+33612345678`) |
+| `TELEGRAM_SESSION_PATH` | No | `/app/data/telegram.session` | File path for Telegram session storage |
+| `TELEGRAM_SESSION_STRING` | Recommended | - | StringSession for cloud deployments (takes priority over file) |
+| `TELEGRAM_REQUESTS_PER_MINUTE` | No | `30` | Rate limit for Telegram API requests |
+| `TELEGRAM_FLOOD_WAIT_MULTIPLIER` | No | `1.5` | Multiplier for flood wait backoff |
+| `TELEGRAM_MAX_RETRIES` | No | `3` | Max retry attempts for failed requests |
+| `TELEGRAM_JOIN_CHANNEL_DAILY_LIMIT` | No | `20` | Daily limit for joining channels (Telegram enforces ~20/day) |
+| `TELEGRAM_JOIN_CHANNEL_QUEUE_ENABLED` | No | `true` | Enable queue for channel join requests |
+| `TELEGRAM_FETCH_WORKERS` | No | `3` | Number of parallel fetch workers |
+| `TELEGRAM_BATCH_SIZE` | No | `100` | Batch size for message fetching |
+| `TELEGRAM_SYNC_INTERVAL_SECONDS` | No | `300` | Sync interval in seconds (5 minutes) |
+
+### Redis Cache
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `REDIS_URL` | Recommended | - | Redis connection URL (e.g., `redis://redis:6379/0`) |
+| `REDIS_CACHE_TTL_SECONDS` | No | `86400` | Default cache TTL (24 hours) |
+| `ENABLE_RESPONSE_CACHE` | No | `true` | Enable response caching |
+| `RESPONSE_CACHE_TTL` | No | `30` | Response cache TTL in seconds |
+
+### Email Configuration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `EMAIL_ENABLED` | No | `false` | Enable email functionality (app works without email) |
+| `EMAIL_PROVIDER` | No | `smtp` | Email provider: `smtp` or `resend` |
+| `EMAIL_FROM_ADDRESS` | No | `noreply@osfeed.app` | Sender email address |
+| `EMAIL_FROM_NAME` | No | `OSFeed` | Sender display name |
+| `SMTP_HOST` | No | - | SMTP server hostname (required if EMAIL_PROVIDER=smtp) |
+| `SMTP_PORT` | No | `587` | SMTP server port |
+| `SMTP_USER` | No | - | SMTP username |
+| `SMTP_PASSWORD` | No | - | SMTP password |
+| `SMTP_USE_TLS` | No | `true` | Use TLS for SMTP connection |
+| `RESEND_API_KEY` | No | - | Resend API key (required if EMAIL_PROVIDER=resend) |
+| `PASSWORD_RESET_TOKEN_EXPIRE_MINUTES` | No | `30` | Password reset token lifetime |
+| `EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS` | No | `24` | Email verification token lifetime |
+
+### Security Headers
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SECURITY_HEADERS_ENABLED` | No | `true` | Enable security headers middleware |
+| `SECURITY_CSP_ENABLED` | No | `true` | Enable Content-Security-Policy header |
+| `SECURITY_CSP_DIRECTIVES` | No | See config.py | Content-Security-Policy directives |
+| `SECURITY_HSTS_ENABLED` | No | `true` | Enable Strict-Transport-Security header |
+| `SECURITY_HSTS_MAX_AGE` | No | `31536000` | HSTS max-age in seconds (1 year) |
+| `SECURITY_HSTS_INCLUDE_SUBDOMAINS` | No | `true` | Include subdomains in HSTS |
+| `SECURITY_X_FRAME_OPTIONS` | No | `DENY` | X-Frame-Options value: `DENY` or `SAMEORIGIN` |
+| `SECURITY_X_CONTENT_TYPE_OPTIONS` | No | `true` | Enable X-Content-Type-Options: nosniff |
+| `SECURITY_REFERRER_POLICY` | No | `strict-origin-when-cross-origin` | Referrer-Policy header value |
+| `SECURITY_PERMISSIONS_POLICY` | No | See config.py | Permissions-Policy header (restricts browser features) |
+
+### Translation Settings
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `TRANSLATION_CONCURRENCY` | No | `20` | Number of concurrent translation requests |
+| `TRANSLATION_DEFAULT_MODEL` | No | `gemini-flash` | Default model: `gemini-flash`, `gpt-4o-mini`, or `google` |
+| `TRANSLATION_HIGH_PRIORITY_MODEL` | No | `gpt-4o-mini` | Model for high-priority messages (<24h old) |
+| `TRANSLATION_SKIP_SAME_LANGUAGE` | No | `true` | Skip translation if source == target language |
+| `TRANSLATION_SKIP_TRIVIAL` | No | `true` | Skip URLs-only, emojis-only, etc. |
+| `TRANSLATION_SKIP_SHORT_WORDS` | No | See config.py | List of short words to skip (ok, yes, no, etc.) |
+| `TRANSLATION_SKIP_SHORT_MAX_CHARS` | No | `2` | Max characters for short-word skipping |
+| `TRANSLATION_HIGH_PRIORITY_HOURS` | No | `24` | Messages younger than this are high-priority |
+| `TRANSLATION_NORMAL_PRIORITY_DAYS` | No | `7` | Messages 1-7 days old are normal priority |
+| `TRANSLATION_HIGH_QUALITY_LANGUAGES` | No | See config.py | Languages requiring higher quality models |
+| `TRANSLATION_CACHE_BASE_TTL` | No | `604800` | Base cache TTL (7 days) |
+| `TRANSLATION_CACHE_MAX_TTL` | No | `2592000` | Max cache TTL (30 days) |
+| `TRANSLATION_CACHE_HIT_MULTIPLIER` | No | `1.5` | TTL multiplier per cache hit |
+| `TRANSLATION_MEMORY_CACHE_MAX_SIZE` | No | `1000` | Max entries in LRU translation memory cache |
+
+### Application Settings
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `PREFERRED_LANGUAGE` | No | `en` | Default application language |
+| `SUMMARY_TIME` | No | `08:00` | Daily digest generation time (HH:MM format) |
+| `APP_DEBUG` | No | `false` | Enable debug mode (verbose logging) |
+| `SCHEDULER_ENABLED` | No | `true` | Enable background scheduler (digests, cleanup) |
+| `FETCH_WORKERS` | No | `10` | Number of parallel message fetch workers |
+
+### Audit Logs
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `AUDIT_LOG_RETENTION_DAYS` | No | `365` | Days to retain audit logs (GDPR compliance) |
+| `AUDIT_LOG_PURGE_TIME` | No | `02:30` | Daily purge time for old audit logs (HH:MM format) |
+
+### API Usage Tracking
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `API_USAGE_TRACKING_ENABLED` | No | `true` | Enable API usage tracking for LLM cost monitoring |
+| `LLM_COST_INPUT_PER_1K` | No | `0.0` | Cost per 1K input tokens (for cost tracking) |
+| `LLM_COST_OUTPUT_PER_1K` | No | `0.0` | Cost per 1K output tokens (for cost tracking) |
+
+### Quick Setup Checklist
+
+**Minimum required variables for first run:**
+1. `SECRET_KEY` - Generate with `openssl rand -hex 32`
+2. `POSTGRES_PASSWORD` - Set a secure password
+3. At least one LLM provider (`OPENAI_API_KEY` or `GEMINI_API_KEY`)
+4. Telegram credentials (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_PHONE`, `TELEGRAM_SESSION_STRING`)
+
+**Production hardening:**
+- Set `COOKIE_SECURE=true` (requires HTTPS)
+- Configure `REDIS_URL` for persistent translation caching
+- Set `EMAIL_ENABLED=true` and configure SMTP/Resend
+- Enable security headers (enabled by default)
+- Set appropriate `SECURITY_CSP_DIRECTIVES` for your domain
 
 ## PostgreSQL setup
 
