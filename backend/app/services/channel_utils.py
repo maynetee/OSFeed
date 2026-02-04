@@ -4,11 +4,11 @@ Shared helper functions for channel handling across API endpoints and services.
 """
 
 import re
-from typing import Optional
+from typing import Optional, Literal, TypedDict
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, insert
 
 from app.models.channel import Channel, user_channels
 
@@ -274,3 +274,259 @@ async def auto_assign_to_collections(db: AsyncSession, user_id: UUID, channel: C
         if collection.auto_assign_tags and channel.tags:
             if any(tag in (collection.auto_assign_tags or []) for tag in channel.tags):
                 collection.channels.append(channel)
+
+
+class ProcessChannelAddResult(TypedDict):
+    """Result of processing a channel add operation.
+
+    Attributes:
+        success: True if channel was added/linked successfully
+        channel: Channel object if successful, None otherwise
+        is_new: True if channel was newly created, False if existing
+        error: Error message if unsuccessful
+        error_code: Specific error code for programmatic handling
+        job: Fetch job info dictionary if created, None otherwise
+    """
+    success: bool
+    channel: Optional[Channel]
+    is_new: bool
+    error: Optional[str]
+    error_code: Optional[str]
+    job: Optional[dict]
+
+
+async def process_channel_add(
+    db: AsyncSession,
+    user_id: UUID,
+    username: str,
+    error_mode: Literal["raise", "return"] = "raise",
+) -> ProcessChannelAddResult:
+    """Process adding a channel for a user.
+
+    This is the shared logic used by both single and bulk channel add endpoints.
+    Handles channel existence checking, Telegram resolution, collection assignment,
+    audit logging, and fetch job creation.
+
+    The username must already be cleaned and validated before calling this function.
+
+    Args:
+        db: Active database session
+        user_id: UUID of the user adding the channel
+        username: Cleaned channel username (must already be cleaned and validated)
+        error_mode: How to handle errors:
+            - 'raise': Raise HTTPException (for single endpoint)
+            - 'return': Return result with error details (for bulk endpoint)
+
+    Returns:
+        ProcessChannelAddResult dictionary containing:
+        - success: True if channel was added/linked successfully
+        - channel: Channel object if successful, None otherwise
+        - is_new: True if channel was newly created, False if existing
+        - error: Error message if unsuccessful
+        - error_code: Specific error code for programmatic handling
+        - job: Fetch job info dict if created, None otherwise
+
+    Raises:
+        HTTPException: Only when error_mode='raise' and an error occurs
+
+    Notes:
+        - Caller is responsible for calling db.commit() or db.flush() after this function
+        - For single endpoint: call db.commit() after this function returns
+        - For bulk endpoint: call db.flush() after this function, then db.commit() after all channels
+        - The channel object returned needs db.refresh() if you've called flush/commit
+
+    Examples:
+        >>> # Single endpoint usage (error_mode='raise')
+        >>> result = await process_channel_add(db, user.id, "example_channel", error_mode="raise")
+        >>> await db.commit()
+        >>> await db.refresh(result['channel'])
+
+        >>> # Bulk endpoint usage (error_mode='return')
+        >>> result = await process_channel_add(db, user.id, "example_channel", error_mode="return")
+        >>> if result['success']:
+        ...     await db.flush()
+        ...     await db.refresh(result['channel'])
+        ...     # Add to succeeded list
+        >>> else:
+        ...     # Add to failed list with result['error']
+    """
+    from fastapi import HTTPException
+    from app.services.telegram_client import get_telegram_client
+    from app.services.audit import record_audit_event
+    from app.services.fetch_queue import enqueue_fetch_job
+    from app.services.channel_join_queue import queue_channel_join
+    from app.config import settings
+    from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Check if channel already exists
+        existing_channel = await get_existing_channel(db, username)
+
+        channel_to_use = None
+        is_new = False
+
+        if existing_channel:
+            # Check if user already has this channel
+            has_link = await check_user_channel_link(db, user_id, existing_channel.id)
+
+            if has_link:
+                # Link exists
+                if not existing_channel.is_active:
+                    # Reactivate the channel
+                    existing_channel.is_active = True
+                    channel_to_use = existing_channel
+                else:
+                    # Channel is active and linked - already in user's list
+                    error_msg = "Channel already exists in your list"
+                    if error_mode == "raise":
+                        raise HTTPException(status_code=400, detail=error_msg)
+                    return {
+                        "success": False,
+                        "channel": None,
+                        "is_new": False,
+                        "error": error_msg,
+                        "error_code": "ALREADY_EXISTS",
+                        "job": None,
+                    }
+            else:
+                # Channel exists but user doesn't have it linked yet
+                if not existing_channel.is_active:
+                    existing_channel.is_active = True
+
+                await db.execute(
+                    insert(user_channels).values(
+                        user_id=user_id,
+                        channel_id=existing_channel.id
+                    )
+                )
+                channel_to_use = existing_channel
+        else:
+            # Channel doesn't exist - create via Telegram
+            telegram_client = get_telegram_client()
+
+            # Check JoinChannel limit before proceeding
+            if not await telegram_client.can_join_channel():
+                if settings.telegram_join_channel_queue_enabled:
+                    # Queue for later processing
+                    await queue_channel_join(username, user_id)
+                    error_msg = "Daily channel join limit reached. Your request has been queued." if error_mode == "raise" else "Daily channel join limit reached. Request has been queued."
+                    if error_mode == "raise":
+                        raise HTTPException(status_code=202, detail="Daily channel join limit reached. Your request has been queued.")
+                    return {
+                        "success": False,
+                        "channel": None,
+                        "is_new": False,
+                        "error": "Daily channel join limit reached. Request has been queued.",
+                        "error_code": "RATE_LIMITED_QUEUED",
+                        "job": None,
+                    }
+                else:
+                    error_msg = "Daily channel join limit reached. Please try again tomorrow."
+                    if error_mode == "raise":
+                        raise HTTPException(status_code=429, detail=error_msg)
+                    return {
+                        "success": False,
+                        "channel": None,
+                        "is_new": False,
+                        "error": error_msg,
+                        "error_code": "RATE_LIMITED",
+                        "job": None,
+                    }
+
+            try:
+                # Resolve and join channel via Telegram
+                channel_info = await resolve_and_join_telegram_channel(telegram_client, username)
+
+                # Create new channel record
+                channel_to_use = Channel(
+                    username=username,
+                    telegram_id=channel_info['telegram_id'],
+                    title=channel_info['title'],
+                    description=channel_info.get('description'),
+                    subscriber_count=channel_info.get('subscribers', 0),
+                    is_active=True
+                )
+                db.add(channel_to_use)
+                is_new = True
+
+            except ValueError as e:
+                # Invalid username, private channel, etc.
+                logger.warning(f"Failed to resolve/join channel '{username}': {e}")
+                error_msg = "Unable to add channel. It may be private or invalid."
+                if error_mode == "raise":
+                    raise HTTPException(status_code=400, detail=error_msg)
+                return {
+                    "success": False,
+                    "channel": None,
+                    "is_new": False,
+                    "error": error_msg,
+                    "error_code": "TELEGRAM_ERROR",
+                    "job": None,
+                }
+
+        # Assign to collections (for both new and existing linked channels)
+        await auto_assign_to_collections(db, user_id, channel_to_use)
+
+        # Record audit event
+        record_audit_event(
+            db,
+            user_id=user_id,
+            action="channel.create" if is_new else "channel.link",
+            resource_type="channel",
+            resource_id=str(channel_to_use.id),
+            metadata={"username": username, "is_new": is_new},
+        )
+
+        # Note: Caller should handle commit/flush/refresh as appropriate
+        # For single endpoint: commit happens after this
+        # For bulk endpoint: flush happens after this, commit after all channels
+
+        # Enqueue fetch job (enqueue_fetch_job handles deduplication if already running)
+        job = await enqueue_fetch_job(channel_to_use.id, channel_to_use.username, days=7)
+
+        job_dict = None
+        if job:
+            from app.schemas.fetch_job import FetchJobStatus
+            job_dict = FetchJobStatus.model_validate(job).model_dump()
+
+        return {
+            "success": True,
+            "channel": channel_to_use,
+            "is_new": is_new,
+            "error": None,
+            "error_code": None,
+            "job": job_dict,
+        }
+
+    except HTTPException:
+        # Re-raise HTTPExceptions (for error_mode='raise')
+        raise
+    except (SQLAlchemyError, IntegrityError) as e:
+        logger.error(f"Database error adding channel '{username}' for user {user_id}: {type(e).__name__}: {e}", exc_info=True)
+        error_msg = "Failed to add channel due to a database error."
+        if error_mode == "raise":
+            raise HTTPException(status_code=500, detail="CHANNEL_ADD_DATABASE_ERROR")
+        return {
+            "success": False,
+            "channel": None,
+            "is_new": False,
+            "error": error_msg,
+            "error_code": "DATABASE_ERROR",
+            "job": None,
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error adding channel '{username}' for user {user_id}: {type(e).__name__}: {e}", exc_info=True)
+        error_msg = "Failed to add channel due to an internal error."
+        if error_mode == "raise":
+            raise HTTPException(status_code=500, detail="CHANNEL_ADD_ERROR")
+        return {
+            "success": False,
+            "channel": None,
+            "is_new": False,
+            "error": error_msg,
+            "error_code": "INTERNAL_ERROR",
+            "job": None,
+        }
