@@ -17,15 +17,96 @@ from app.database import get_db
 from app.models.message import Message, MessageTranslation
 from app.models.channel import Channel
 from app.models.collection import Collection, collection_channels
+from app.models.collection_share import CollectionShare
 from app.models.user import User
 from app.models.api_usage import ApiUsage
 from app.auth.users import current_active_user
 from app.config import get_settings
 from app.utils.response_cache import response_cache
 from app.schemas.stats import DashboardResponse
+from app.schemas.channel import ChannelResponse
+from app.schemas.collection import CollectionResponse
+from sqlalchemy.orm import selectinload
 
 router = APIRouter()
 settings = get_settings()
+
+
+async def get_user_channels(user: User, db: AsyncSession) -> List[ChannelResponse]:
+    """Fetch all active channels for the user."""
+    from app.models.channel import user_channels
+
+    result = await db.execute(
+        select(Channel)
+        .join(user_channels, Channel.id == user_channels.c.channel_id)
+        .where(
+            and_(
+                user_channels.c.user_id == user.id,
+                Channel.is_active == True
+            )
+        )
+    )
+    channels = result.scalars().all()
+    return [ChannelResponse.model_validate(channel) for channel in channels]
+
+
+async def get_user_collections(user: User, db: AsyncSession) -> List[CollectionResponse]:
+    """Fetch all collections owned by or shared with the user."""
+    # Step 1: Fetch user's collections with channels loaded for non-global collections
+    result = await db.execute(
+        select(Collection)
+        .options(selectinload(Collection.channels))
+        .outerjoin(
+            CollectionShare,
+            (CollectionShare.collection_id == Collection.id) & (CollectionShare.user_id == user.id),
+        )
+        .where(or_(Collection.user_id == user.id, CollectionShare.user_id == user.id))
+    )
+    collections = result.scalars().all()
+
+    if not collections:
+        return []
+
+    # Step 2: Identify global collections
+    has_global = any(c.is_global for c in collections)
+
+    # Step 3: Load all active channel IDs once if any global collections exist
+    all_active_channel_ids = []
+    if has_global:
+        all_active_channels_result = await db.execute(
+            select(Channel.id).where(Channel.is_active == True)
+        )
+        all_active_channel_ids = [row[0] for row in all_active_channels_result.all()]
+
+    # Step 4: Build responses using cached channel data
+    responses = []
+    for collection in collections:
+        if collection.is_global:
+            # Use cached all active channel IDs for global collections
+            channel_ids = all_active_channel_ids
+        else:
+            # Use already-loaded channels from selectinload
+            channel_ids = [channel.id for channel in collection.channels]
+
+        responses.append(CollectionResponse(
+            id=collection.id,
+            user_id=collection.user_id,
+            name=collection.name,
+            description=collection.description,
+            color=collection.color,
+            icon=collection.icon,
+            is_default=collection.is_default,
+            is_global=collection.is_global,
+            parent_id=collection.parent_id,
+            auto_assign_languages=collection.auto_assign_languages or [],
+            auto_assign_keywords=collection.auto_assign_keywords or [],
+            auto_assign_tags=collection.auto_assign_tags or [],
+            channel_ids=channel_ids,
+            created_at=collection.created_at,
+            updated_at=collection.updated_at,
+        ))
+
+    return responses
 
 
 @router.get("/overview")
@@ -93,13 +174,15 @@ async def get_dashboard_stats(
 ):
     """Get unified dashboard statistics with parallel queries for optimal performance."""
     # Fetch all stats in parallel using asyncio.gather
-    overview, messages_by_day, messages_by_channel, trust, api_usage, translation = await asyncio.gather(
+    overview, messages_by_day, messages_by_channel, trust, api_usage, translation, channels, collections = await asyncio.gather(
         get_overview_stats(user=user, db=db),
         get_messages_by_day(days=days, user=user, db=db),
         get_messages_by_channel(limit=channel_limit, user=user, db=db),
         get_trust_stats(channel_ids=None, user=user, db=db),
         get_api_usage_stats(days=days, user=user, db=db),
         get_translation_metrics(user=user, db=db),
+        get_user_channels(user=user, db=db),
+        get_user_collections(user=user, db=db),
     )
 
     return {
@@ -109,6 +192,8 @@ async def get_dashboard_stats(
         "trust_stats": trust,
         "api_usage": api_usage,
         "translation_metrics": translation,
+        "channels": channels,
+        "collections": collections,
     }
 
 

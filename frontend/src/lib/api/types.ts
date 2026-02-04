@@ -332,4 +332,8 @@ export interface DashboardData {
   api_usage: ApiUsageStats
   /** Translation cache performance metrics */
   translation_metrics: TranslationMetrics
+  /** Array of all channels in the system */
+  channels: Channel[]
+  /** Array of all collections for the current user */
+  collections: Collection[]
 }
