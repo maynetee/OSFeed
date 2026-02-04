@@ -1,467 +1,311 @@
 # Contributing to OSFeed
 
-Thank you for your interest in contributing to OSFeed! This guide will help you understand the architecture, navigate the codebase, and follow our development workflow.
+Thank you for your interest in contributing to OSFeed! This document provides guidelines and best practices for contributing to the project.
 
 ## Table of Contents
 
-- [Architecture Overview](#architecture-overview)
-- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
 - [Development Workflow](#development-workflow)
-- [How to Navigate the Codebase](#how-to-navigate-the-codebase)
-- [Coding Standards](#coding-standards)
-- [Testing Guidelines](#testing-guidelines)
-- [Submitting Changes](#submitting-changes)
+- [Code Style](#code-style)
+- [Testing](#testing)
+- [Pull Request Process](#pull-request-process)
+- [Architecture and Design](#architecture-and-design)
+- [Common Tasks](#common-tasks)
+- [Getting Help](#getting-help)
 
-## Architecture Overview
+## Getting Started
 
-OSFeed is a Telegram-first OSINT platform built with a modern, containerized architecture. The platform consists of:
+### Prerequisites
 
-- **Frontend**: React 18 with TypeScript, Vite, Tailwind CSS, Zustand, and React Query
-- **Backend**: FastAPI with async SQLAlchemy, Pydantic v2, and APScheduler
-- **Data Layer**: PostgreSQL (primary), Qdrant (vector search), Redis (caching)
-- **External Integrations**: Telegram API (user sessions), LLM APIs (translation)
+OSFeed runs entirely in Docker, so you only need:
+- **Docker** (version 20.10 or later)
+- **Docker Compose** (version 2.0 or later)
+- **Git** for version control
 
-### Key Architectural Patterns
+No local Python or Node.js installation is required!
 
-- **Service Layer Pattern**: Business logic isolated in service modules
-- **Repository Pattern**: Database access abstracted through SQLAlchemy models
-- **Event-Driven Processing**: Asynchronous message processing with queue-based orchestration
-- **API-First Design**: RESTful API with WebSocket support for real-time updates
+### Initial Setup
 
-For detailed architecture documentation, see:
-- [Architecture Overview](docs/ARCHITECTURE.md) - Comprehensive system design and components
-- [Data Flow Guide](docs/DATA_FLOW.md) - Message processing pipeline and data flows
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/osfeed.git
+   cd osfeed
+   ```
 
-## Project Structure
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
 
-OSFeed uses a monorepo structure with separate frontend and backend codebases:
+   Edit `.env` and configure at minimum:
+   - `SECRET_KEY` - Generate a secure random string for JWT tokens
+   - `POSTGRES_PASSWORD` - Set a strong database password
+   - Optional but recommended: OpenAI API key, Telegram credentials, Redis settings
 
-```
-OSFeed/
-├── backend/                    # FastAPI backend
-│   ├── app/
-│   │   ├── api/               # API endpoints (REST routes)
-│   │   ├── auth/              # Authentication & RBAC
-│   │   ├── cli/               # CLI tools (Telegram setup)
-│   │   ├── jobs/              # Background jobs (APScheduler)
-│   │   ├── middleware/        # ASGI middleware (security headers)
-│   │   ├── models/            # SQLAlchemy ORM models
-│   │   ├── schemas/           # Pydantic request/response models
-│   │   ├── services/          # Business logic layer
-│   │   ├── templates/         # Email templates (Jinja2)
-│   │   ├── utils/             # Utilities (export, cache, retry)
-│   │   ├── config.py          # Configuration management
-│   │   ├── database.py        # Database session factory
-│   │   └── main.py            # FastAPI app entry point
-│   ├── alembic/               # Database migrations
-│   ├── tests/                 # Backend tests (pytest)
-│   ├── Dockerfile             # Backend container image
-│   └── requirements.txt       # Python dependencies
-│
-├── frontend/                  # React frontend
-│   ├── src/
-│   │   ├── app/              # App configuration (router, providers)
-│   │   ├── components/       # Reusable UI components
-│   │   │   ├── ui/          # shadcn/ui base components
-│   │   │   ├── channels/    # Channel-specific components
-│   │   │   ├── collections/ # Collection management UI
-│   │   │   ├── common/      # Shared components (badges, timestamps)
-│   │   │   ├── exports/     # Export dialogs
-│   │   │   ├── layout/      # App shell, header, sidebar
-│   │   │   ├── messages/    # Message feed, cards, filters
-│   │   │   └── stats/       # Dashboard visualizations
-│   │   ├── features/         # Feature modules (pages)
-│   │   │   ├── auth/        # Login, register, password reset
-│   │   │   ├── channels/    # Channel management
-│   │   │   ├── collections/ # Collection views
-│   │   │   ├── dashboard/   # KPI dashboard
-│   │   │   ├── exports/     # Export history
-│   │   │   ├── feed/        # Message feed
-│   │   │   ├── landing/     # Landing page
-│   │   │   ├── search/      # Full-text & semantic search
-│   │   │   └── settings/    # User preferences
-│   │   ├── hooks/            # Custom React hooks
-│   │   ├── locales/          # i18n translations (FR/EN)
-│   │   ├── stores/           # Zustand state management
-│   │   ├── styles/           # Global CSS (Tailwind)
-│   │   ├── types/            # TypeScript type definitions
-│   │   └── main.tsx          # App entry point
-│   ├── public/               # Static assets
-│   ├── Dockerfile            # Frontend container image
-│   ├── package.json          # npm dependencies
-│   └── vite.config.ts        # Vite build configuration
-│
-├── docs/                      # Documentation
-│   ├── ARCHITECTURE.md        # System architecture
-│   ├── DATA_FLOW.md          # Data flow guide
-│   └── diagrams/             # Mermaid diagrams
-│
-├── data/                      # Persistent data (gitignored)
-│   ├── postgres/             # PostgreSQL data
-│   ├── qdrant/               # Qdrant vector storage
-│   └── redis/                # Redis persistence
-│
-├── .env.example              # Environment variables template
-├── docker-compose.yml        # Full-stack orchestration
-├── start.sh                  # Start script (migrations + services)
-└── stop.sh                   # Stop all services
-```
+3. **Start the development environment:**
+   ```bash
+   docker compose up -d
+   ```
+
+   This will:
+   - Start PostgreSQL, Redis, and Qdrant services
+   - Build and launch the backend (FastAPI)
+   - Build and launch the frontend (React + Vite)
+   - Apply database migrations automatically
+
+4. **Access the application:**
+   - Frontend: http://localhost:5173 (with hot-reload)
+   - Backend API: http://localhost:8000
+   - API Documentation: http://localhost:8000/docs (OpenAPI/Swagger)
+
+5. **View logs:**
+   ```bash
+   # All services
+   docker compose logs -f
+
+   # Specific service
+   docker compose logs -f backend
+   docker compose logs -f frontend
+   ```
+
+6. **Stop the environment:**
+   ```bash
+   docker compose down
+   ```
 
 ## Development Workflow
 
-### 1. Initial Setup
+### Hot-Reload Development
 
-Clone the repository and start the development environment:
+Both frontend and backend support hot-reloading via volume mounts:
 
+- **Frontend**: Vite dev server automatically reloads on file changes
+- **Backend**: Uvicorn reloads on Python file changes
+
+Simply edit files in your local `frontend/` or `backend/` directories and changes will be reflected immediately.
+
+### Database Migrations
+
+OSFeed uses Alembic for database schema migrations.
+
+**Creating a new migration:**
 ```bash
-git clone https://github.com/your-org/osfeed.git
-cd osfeed
+docker compose exec backend alembic revision --autogenerate -m "Description of changes"
 ```
 
-Copy the environment template and configure credentials:
-
+**Applying migrations:**
 ```bash
-cp .env.example .env
-# Edit .env with your API keys and secrets
-```
-
-**Required Environment Variables:**
-- `SECRET_KEY` - Application secret key (generate with `openssl rand -hex 32`)
-- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` - PostgreSQL credentials
-- `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` - Telegram API credentials (from my.telegram.org)
-- `OPENAI_API_KEY` - OpenAI API key for LLM translation
-- `REDIS_URL` - Redis connection string (optional, defaults to `redis://redis:6379`)
-
-### 2. Start Development Environment
-
-Start all services with hot-reloading enabled:
-
-```bash
-./start.sh
-```
-
-This script:
-1. Starts Docker services (PostgreSQL, Qdrant, Redis, Backend, Frontend)
-2. Waits for database readiness
-3. Runs database migrations (`alembic upgrade head`)
-4. Enables hot-reloading via volume mounts
-
-**Access Points:**
-- Frontend: http://localhost:5173 (Vite dev server with HMR)
-- Backend API: http://localhost:8000
-- API Documentation: http://localhost:8000/docs (OpenAPI/Swagger)
-
-### 3. Development Cycle
-
-#### Backend Development
-
-**Hot-reloading**: Uvicorn watches for file changes and automatically reloads.
-
-**Common Tasks:**
-
-```bash
-# View backend logs
-docker compose logs -f backend
-
-# Run database migrations
 docker compose exec backend alembic upgrade head
-
-# Create a new migration
-docker compose exec backend alembic revision --autogenerate -m "description"
-
-# Run tests
-docker compose exec backend pytest
-
-# Run specific test
-docker compose exec backend pytest tests/test_auth.py -v
-
-# Access Python shell with app context
-docker compose exec backend python
 ```
 
-#### Frontend Development
-
-**Hot-reloading**: Vite dev server provides instant HMR (Hot Module Replacement).
-
-**Common Tasks:**
-
+**Rolling back:**
 ```bash
-# View frontend logs
-docker compose logs -f frontend
-
-# Install new npm package
-docker compose exec frontend npm install <package-name>
-
-# Run type checking
-docker compose exec frontend npm run type-check
-
-# Build production bundle
-docker compose exec frontend npm run build
+docker compose exec backend alembic downgrade -1
 ```
 
-### 4. Stop Services
+### Branch Strategy
 
-```bash
-./stop.sh
+- `main` - Production-ready code, protected branch
+- `develop` - Integration branch for features (if used)
+- `feature/*` - Feature branches (e.g., `feature/add-user-notifications`)
+- `fix/*` - Bug fix branches (e.g., `fix/translation-cache-issue`)
+- `docs/*` - Documentation updates
+
+**Naming convention:**
+```
+feature/short-description
+fix/issue-number-description
+docs/what-you-updated
 ```
 
-## How to Navigate the Codebase
+### Commit Messages
 
-### Finding API Endpoints
-
-API routes are organized by resource in `backend/app/api/`:
+Follow conventional commit format:
 
 ```
-backend/app/api/
-├── auth.py          # Authentication (login, register, refresh)
-├── channels.py      # Channel CRUD, stats, fetch jobs
-├── collections.py   # Collection management, sharing, alerts
-├── messages.py      # Message feed, search, translation, exports
-├── alerts.py        # Alert configuration and history
-├── audit_logs.py    # Audit log retrieval
-└── stats.py         # Dashboard KPIs, API usage tracking
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
 ```
 
-**Example**: To find the message feed endpoint, check `backend/app/api/messages.py`.
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, no logic change)
+- `refactor`: Code refactoring (no feature change)
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks (dependencies, build config)
+- `perf`: Performance improvements
 
-### Finding Business Logic
-
-Service modules encapsulate business logic in `backend/app/services/`:
-
+**Examples:**
 ```
-backend/app/services/
-├── telegram_client.py              # Telegram API wrapper
-├── llm_translator.py               # LLM translation (model routing)
-├── translation_service.py          # Translation orchestration
-├── message_search_service.py       # Full-text + semantic search
-├── message_export_service.py       # CSV/PDF/HTML exports
-├── cache_service.py                # Redis cache management
-├── fetch_queue.py                  # Message collection queue
-├── channel_join_queue.py           # Daily channel join queue
-├── rate_limiter.py                 # Telegram API rate limiting
-└── audit.py                        # Audit log creation
-```
+feat(auth): add refresh token rotation
 
-**Example**: Translation logic is in `llm_translator.py` (model selection) and `translation_service.py` (orchestration).
+Implements automatic refresh token rotation on login and
+refresh endpoints for improved security.
 
-### Finding Database Models
-
-SQLAlchemy ORM models are in `backend/app/models/`:
-
-```
-backend/app/models/
-├── user.py              # User accounts, preferences
-├── channel.py           # Telegram channels
-├── message.py           # Messages + translations
-├── collection.py        # Channel collections
-├── collection_share.py  # Collection sharing permissions
-├── alert.py             # Collection alerts
-├── fetch_job.py         # Fetch job tracking
-├── audit_log.py         # Audit logs (RGPD)
-└── api_usage.py         # LLM API usage tracking
+Closes #123
 ```
 
-**Example**: To understand message storage, check `message.py` for the `Message` model.
-
-### Finding Request/Response Schemas
-
-Pydantic models for API validation are in `backend/app/schemas/`:
-
 ```
-backend/app/schemas/
-├── user.py              # UserCreate, UserResponse, UserUpdate
-├── channel.py           # ChannelCreate, ChannelResponse
-├── message.py           # MessageResponse, MessageFilters
-├── collection.py        # CollectionCreate, CollectionResponse
-└── stats.py             # KPIStats, APIUsageStats
+fix(translation): handle missing cache gracefully
+
+Fixes issue where translation service crashes when Redis
+is unavailable by adding fallback logic.
 ```
 
-**Example**: API request/response validation for channels is in `channel.py`.
-
-### Finding Background Jobs
-
-Scheduled jobs (APScheduler) are in `backend/app/jobs/`:
-
-```
-backend/app/jobs/
-├── collect_messages.py           # Fetch messages from channels
-├── translate_pending_messages.py # Batch translation job
-├── alerts.py                     # Collection alert monitoring
-└── purge_audit_logs.py           # RGPD audit log cleanup
-```
-
-**Example**: Message collection logic is in `collect_messages.py`.
-
-### Finding Frontend Components
-
-React components are organized by type in `frontend/src/components/`:
-
-```
-frontend/src/components/
-├── ui/               # Base shadcn/ui components (button, card, dialog)
-├── channels/         # Channel list, cards, dialogs
-├── collections/      # Collection manager, stats, sharing
-├── common/           # Shared utilities (badges, timestamps, error boundaries)
-├── exports/          # Export dialogs
-├── layout/           # App shell, header, sidebar, notifications
-├── messages/         # Message feed, cards, filters, duplicates
-└── stats/            # KPI cards, charts, rankings
-```
-
-**Example**: Message feed UI is in `components/messages/message-feed.tsx`.
-
-### Finding Frontend Pages
-
-Feature modules (pages) are in `frontend/src/features/`:
-
-```
-frontend/src/features/
-├── auth/            # Login, register, password reset
-├── channels/        # Channel management pages
-├── collections/     # Collection detail and list pages
-├── dashboard/       # KPI dashboard
-├── exports/         # Export history page
-├── feed/            # Main message feed
-├── landing/         # Landing page
-├── search/          # Full-text & semantic search
-└── settings/        # User settings
-```
-
-**Example**: The main feed page is `features/feed/feed-page.tsx`.
-
-### Finding State Management
-
-Zustand stores are in `frontend/src/stores/`:
-
-```
-frontend/src/stores/
-├── auth-store.ts          # User session, login state
-├── collection-store.ts    # Active collection filter
-├── notification-store.ts  # In-app notifications
-└── settings-store.ts      # User preferences (language, theme)
-```
-
-**Example**: Authentication state is managed in `auth-store.ts`.
-
-### Finding Database Migrations
-
-Alembic migrations are versioned in `backend/alembic/versions/`:
-
-- **Naming convention**: `<hash>_<description>.py`
-- **Upgrade**: Apply schema changes
-- **Downgrade**: Revert schema changes
-
-**Example**: To see the initial schema, check `be3f078b6cf1_initial_schema_with_users_channels_.py`.
-
-## Coding Standards
+## Code Style
 
 ### Backend (Python)
 
-- **Style**: Follow PEP 8 (use `black` for formatting)
-- **Type Hints**: Use type annotations for function signatures
-- **Async/Await**: Use async for I/O-bound operations (database, HTTP)
-- **Dependency Injection**: Use FastAPI's dependency system for database sessions, auth
-- **Error Handling**: Use custom exceptions, return appropriate HTTP status codes
-- **Logging**: Use Python's `logging` module (not `print`)
+**Formatting and Linting:**
+- **Formatter**: Black (line length: 100)
+- **Linter**: Ruff (replaces flake8, isort, and more)
 
-**Example Service Function:**
+**Running formatters:**
+```bash
+# Format all Python files
+docker compose exec backend black app/ tests/
 
+# Lint with Ruff
+docker compose exec backend ruff check app/ tests/
+
+# Auto-fix Ruff issues
+docker compose exec backend ruff check --fix app/ tests/
+```
+
+**Style Guidelines:**
+- Use type hints for all function parameters and return values
+- Prefer async/await for I/O operations
+- Use Pydantic models for data validation
+- Keep functions focused (single responsibility principle)
+- Use descriptive variable names (no single-letter variables except loop counters)
+
+**Example:**
 ```python
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.message import Message
 from app.schemas.message import MessageResponse
 
-async def get_message_by_id(
+async def get_messages(
     db: AsyncSession,
-    message_id: int,
-    user_id: int
-) -> MessageResponse:
-    """Retrieve a single message by ID with access control."""
-    result = await db.execute(
-        select(Message).where(
-            Message.id == message_id,
-            Message.channel.has(Channel.user_id == user_id)
-        )
-    )
-    message = result.scalar_one_or_none()
-    if not message:
-        raise HTTPException(status_code=404, detail="Message not found")
-    return MessageResponse.from_orm(message)
+    channel_id: int,
+    limit: int = 50,
+    offset: int = 0,
+) -> List[MessageResponse]:
+    """
+    Retrieve messages for a specific channel with pagination.
+
+    Args:
+        db: Database session
+        channel_id: ID of the channel to fetch messages from
+        limit: Maximum number of messages to return
+        offset: Number of messages to skip
+
+    Returns:
+        List of message response objects
+    """
+    # Implementation here
+    pass
 ```
 
 ### Frontend (TypeScript/React)
 
-- **Style**: Follow Airbnb style guide (use ESLint + Prettier)
-- **Components**: Use functional components with hooks
-- **TypeScript**: Strict mode enabled, no `any` types
-- **State Management**: Use Zustand for global state, React Query for server state
-- **Styling**: Use Tailwind utility classes (avoid custom CSS)
-- **Accessibility**: Use semantic HTML, ARIA labels where needed
+**Linting:**
+- **Linter**: ESLint with TypeScript and React Hooks plugins
+- **Style**: Follows React best practices and TypeScript strict mode
 
-**Example Component:**
+**Running linter:**
+```bash
+# Lint frontend code (from frontend directory)
+docker compose exec frontend npm run lint
 
-```tsx
-import { useQuery } from '@tanstack/react-query'
-import { MessageCard } from '@/components/messages/message-card'
-import { Message } from '@/types/message'
-
-interface MessageFeedProps {
-  channelId?: number
-  collectionId?: number
-}
-
-export function MessageFeed({ channelId, collectionId }: MessageFeedProps) {
-  const { data: messages, isLoading, error } = useQuery({
-    queryKey: ['messages', { channelId, collectionId }],
-    queryFn: () => fetchMessages({ channelId, collectionId }),
-  })
-
-  if (isLoading) return <MessageSkeleton />
-  if (error) return <ErrorState error={error} />
-
-  return (
-    <div className="space-y-4">
-      {messages?.map((message: Message) => (
-        <MessageCard key={message.id} message={message} />
-      ))}
-    </div>
-  )
-}
+# Note: Frontend container runs in production mode by default
+# For development with linting, you may need to run:
+cd frontend && npm run dev
 ```
 
-## Testing Guidelines
+**Style Guidelines:**
+- Use functional components with hooks (no class components)
+- Prefer TypeScript interfaces for props and state
+- Use meaningful component and variable names
+- Extract reusable logic into custom hooks
+- Keep components small and focused
+- Use Zustand for global state management
+- Use React Query for server state
+- Follow React Hooks rules (use ESLint plugin)
+
+**Component Structure:**
+```typescript
+import React from 'react';
+
+interface MessageCardProps {
+  messageId: string;
+  content: string;
+  timestamp: Date;
+  onDelete?: (id: string) => void;
+}
+
+export const MessageCard: React.FC<MessageCardProps> = ({
+  messageId,
+  content,
+  timestamp,
+  onDelete,
+}) => {
+  // Component logic here
+  return (
+    <div className="message-card">
+      {/* JSX here */}
+    </div>
+  );
+};
+```
+
+**Styling:**
+- Use Tailwind CSS utility classes
+- Follow mobile-first responsive design
+- Maintain consistent spacing and color schemes
+
+### General Guidelines
+
+- **No console.log or print statements**: Remove debugging statements before committing
+- **Error handling**: Always handle errors gracefully with try/catch and user-friendly messages
+- **Comments**: Write self-documenting code; add comments only for complex logic
+- **File organization**: Keep files focused on a single responsibility
+- **Naming conventions**:
+  - Python: `snake_case` for functions/variables, `PascalCase` for classes
+  - TypeScript: `camelCase` for functions/variables, `PascalCase` for components/interfaces
+
+## Testing
 
 ### Backend Tests
 
-Tests use pytest with async support (pytest-asyncio):
-
+**Running all tests:**
 ```bash
-# Run all tests
 docker compose exec backend pytest
+```
 
-# Run with coverage
+**Running specific tests:**
+```bash
+docker compose exec backend pytest tests/test_auth_login.py
+docker compose exec backend pytest tests/test_auth_login.py::test_login_success
+```
+
+**Running with coverage:**
+```bash
 docker compose exec backend pytest --cov=app --cov-report=html
-
-# Run specific test file
-docker compose exec backend pytest tests/test_auth.py -v
-
-# Run tests matching pattern
-docker compose exec backend pytest -k "test_login" -v
 ```
 
 **Test Structure:**
+- Tests are located in `backend/tests/`
+- Use `pytest` with `pytest-asyncio` for async tests
+- Use fixtures from `conftest.py` for common setup
+- Mock external services (Telegram, OpenAI) in tests
 
-```
-backend/tests/
-├── conftest.py              # Pytest fixtures (db session, test client)
-├── test_auth.py            # Authentication tests
-├── test_channels.py        # Channel CRUD tests
-├── test_messages.py        # Message API tests
-└── test_translation.py     # Translation service tests
-```
-
-**Example Test:**
-
+**Writing Tests:**
 ```python
 import pytest
 from httpx import AsyncClient
@@ -471,108 +315,295 @@ from app.main import app
 async def test_create_channel(async_client: AsyncClient, auth_headers: dict):
     """Test channel creation endpoint."""
     response = await async_client.post(
-        "/api/channels/",
+        "/api/channels",
         json={"name": "Test Channel", "url": "https://t.me/testchannel"},
-        headers=auth_headers
+        headers=auth_headers,
     )
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Test Channel"
-    assert data["id"] is not None
 ```
 
 ### Frontend Tests
 
-Tests use Vitest with React Testing Library:
-
+**Running E2E tests:**
 ```bash
-# Run all tests
-docker compose exec frontend npm test
-
-# Run in watch mode
-docker compose exec frontend npm test -- --watch
-
-# Run with coverage
-docker compose exec frontend npm run test:coverage
+cd frontend
+npm run test:e2e
 ```
 
 **Test Structure:**
+- E2E tests use Playwright
+- Tests are located in `frontend/tests/` (if present)
 
-```
-frontend/src/__tests__/
-├── auth.test.tsx           # Authentication flow tests
-├── message-feed.test.tsx   # Message feed tests
-└── collection-manager.test.tsx  # Collection management tests
-```
+### Manual Testing
 
-## Submitting Changes
+Refer to the following guides for manual testing procedures:
+- `MANUAL_TESTING_GUIDE.md` - Comprehensive testing procedures
+- `TESTING_README.md` - Testing strategy overview
+- `SECURITY_VERIFICATION_GUIDE.md` - Security-focused testing
 
-### 1. Create a Feature Branch
+### Continuous Integration
 
-```bash
-git checkout -b feature/your-feature-name
-```
+All pull requests automatically run:
+- Backend unit tests with pytest
+- Frontend build validation
+- Code quality checks (see `.github/workflows/ci.yml`)
 
-### 2. Make Your Changes
+Ensure all CI checks pass before requesting review.
 
-- Follow coding standards
-- Add tests for new functionality
-- Update documentation if needed
+## Pull Request Process
 
-### 3. Run Tests
+### Before Submitting
 
-```bash
-# Backend tests
-docker compose exec backend pytest
+1. **Update your branch:**
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout your-feature-branch
+   git rebase main
+   ```
 
-# Frontend tests
-docker compose exec frontend npm test
-```
+2. **Run all tests:**
+   ```bash
+   docker compose exec backend pytest
+   ```
 
-### 4. Commit Your Changes
+3. **Check code style:**
+   ```bash
+   docker compose exec backend black --check app/ tests/
+   docker compose exec backend ruff check app/ tests/
+   ```
 
-Use conventional commit messages:
+4. **Update documentation:** If your changes affect:
+   - API endpoints → Update `docs/ARCHITECTURE.md` or API docs
+   - Data flow → Update `docs/DATA_FLOW.md`
+   - User features → Update `README.md`
 
-```bash
-git add .
-git commit -m "feat: add collection export to CSV"
-git commit -m "fix: resolve duplicate message bug"
-git commit -m "docs: update architecture diagram"
-```
+5. **Add tests:** New features and bug fixes should include tests
 
-**Commit Types:**
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation changes
-- `style:` - Code style changes (formatting)
-- `refactor:` - Code refactoring
-- `test:` - Test additions or updates
-- `chore:` - Build process or tooling changes
+### Submitting a Pull Request
 
-### 5. Push and Create Pull Request
+1. **Push your branch:**
+   ```bash
+   git push origin your-feature-branch
+   ```
 
-```bash
-git push origin feature/your-feature-name
-```
+2. **Create a Pull Request** on GitHub with:
+   - **Title**: Clear, concise description (e.g., "Add email notification system")
+   - **Description**:
+     ```markdown
+     ## Summary
+     Brief description of changes
 
-Create a pull request on GitHub with:
-- **Title**: Clear, descriptive summary
-- **Description**: What changed, why, and how to test
-- **Screenshots**: For UI changes
-- **Checklist**: Tests pass, documentation updated, no breaking changes
+     ## Changes
+     - Bullet point list of specific changes
+     - Reference any related issues (#123)
 
-### 6. Code Review
+     ## Testing
+     - Describe how you tested the changes
+     - List any manual testing steps required
 
-- Address review feedback
-- Keep commits clean (squash if needed)
-- Ensure CI/CD passes
+     ## Screenshots (if applicable)
+     Include screenshots for UI changes
+     ```
 
----
+3. **Link related issues:** Use keywords like "Closes #123" or "Fixes #456"
+
+4. **Request review:** Assign reviewers and add appropriate labels
+
+### Review Process
+
+1. **Automated checks:** Ensure CI passes (tests, build)
+2. **Code review:** Address reviewer feedback promptly
+3. **Update as needed:** Push additional commits to your branch
+4. **Approval:** At least one approval required for merge
+5. **Merge:** Maintainers will merge once approved
+
+### After Merge
+
+- **Delete your branch:**
+  ```bash
+  git branch -d your-feature-branch
+  git push origin --delete your-feature-branch
+  ```
+
+- **Update your local main:**
+  ```bash
+  git checkout main
+  git pull origin main
+  ```
+
+## Architecture and Design
+
+Before making significant changes, familiarize yourself with the project architecture:
+
+### Key Documentation
+
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - System components, services, and infrastructure
+- **[Data Flow Guide](docs/DATA_FLOW.md)** - Message processing pipeline and data flows
+
+### Architectural Principles
+
+- **Service Layer Pattern**: Business logic in service modules (`app/services/`)
+- **Repository Pattern**: Database access via SQLAlchemy models (`app/models/`)
+- **Dependency Injection**: FastAPI's DI for sessions, auth, services
+- **Async-First**: Use async/await for all I/O operations
+- **API-First Design**: RESTful endpoints with clear contracts
+
+### Key Services
+
+- **Translation Service** (`app/services/llm_translator.py`) - LLM-based translation with caching
+- **Telegram Client** (`app/services/telegram_client.py`) - Telegram API integration with rate limiting
+- **Cache Service** (`app/services/cache_service.py`) - Redis-backed caching with adaptive TTL
+- **Message Processing** (`app/jobs/collect_messages.py`) - Background message collection
+
+## Common Tasks
+
+### Adding a New API Endpoint
+
+1. **Define Pydantic schemas** in `backend/app/schemas/`:
+   ```python
+   # app/schemas/your_model.py
+   from pydantic import BaseModel
+
+   class YourModelCreate(BaseModel):
+       name: str
+       description: str
+
+   class YourModelResponse(BaseModel):
+       id: int
+       name: str
+       description: str
+   ```
+
+2. **Create SQLAlchemy model** in `backend/app/models/`:
+   ```python
+   # app/models/your_model.py
+   from sqlalchemy import Column, Integer, String
+   from app.database import Base
+
+   class YourModel(Base):
+       __tablename__ = "your_models"
+
+       id = Column(Integer, primary_key=True, index=True)
+       name = Column(String, nullable=False)
+       description = Column(String)
+   ```
+
+3. **Create API endpoint** in `backend/app/api/`:
+   ```python
+   # app/api/your_resource.py
+   from fastapi import APIRouter, Depends
+   from sqlalchemy.ext.asyncio import AsyncSession
+   from app.database import get_async_db
+   from app.schemas.your_model import YourModelCreate, YourModelResponse
+
+   router = APIRouter(prefix="/api/your-resource", tags=["Your Resource"])
+
+   @router.post("/", response_model=YourModelResponse)
+   async def create_your_model(
+       data: YourModelCreate,
+       db: AsyncSession = Depends(get_async_db),
+   ):
+       # Implementation
+       pass
+   ```
+
+4. **Register router** in `backend/app/main.py`:
+   ```python
+   from app.api import your_resource
+   app.include_router(your_resource.router)
+   ```
+
+5. **Create database migration:**
+   ```bash
+   docker compose exec backend alembic revision --autogenerate -m "Add your_models table"
+   docker compose exec backend alembic upgrade head
+   ```
+
+6. **Add tests** in `backend/tests/test_your_resource.py`
+
+### Adding a New Background Job
+
+1. **Create job file** in `backend/app/jobs/your_job.py`:
+   ```python
+   import logging
+   from app.database import AsyncSessionLocal
+
+   logger = logging.getLogger(__name__)
+
+   async def your_scheduled_job():
+       """Your job description."""
+       async with AsyncSessionLocal() as db:
+           # Job implementation
+           logger.info("Job completed successfully")
+   ```
+
+2. **Register in scheduler** (`backend/app/main.py`):
+   ```python
+   from app.jobs.your_job import your_scheduled_job
+
+   scheduler.add_job(
+       your_scheduled_job,
+       "cron",
+       hour=2,
+       minute=0,
+       id="your_job_id",
+   )
+   ```
+
+### Adding a Frontend Component
+
+1. **Create component** in `frontend/src/components/`:
+   ```typescript
+   // src/components/YourComponent.tsx
+   import React from 'react';
+
+   interface YourComponentProps {
+     title: string;
+   }
+
+   export const YourComponent: React.FC<YourComponentProps> = ({ title }) => {
+     return (
+       <div className="p-4">
+         <h2 className="text-xl font-bold">{title}</h2>
+       </div>
+     );
+   };
+   ```
+
+2. **Add to routing** (if needed) in `frontend/src/App.tsx`
+
+3. **Create API hook** with React Query:
+   ```typescript
+   // src/hooks/useYourData.ts
+   import { useQuery } from '@tanstack/react-query';
+   import axios from 'axios';
+
+   export const useYourData = () => {
+     return useQuery({
+       queryKey: ['your-data'],
+       queryFn: async () => {
+         const { data } = await axios.get('/api/your-endpoint');
+         return data;
+       },
+     });
+   };
+   ```
 
 ## Getting Help
 
-- **Questions**: Open a GitHub Discussion
-- **Bugs**: Open a GitHub Issue with reproduction steps
-- **Security**: Email security@osfeed.example.com (do not open public issues)
+- **Issues**: Search existing issues or create a new one on GitHub
+- **Documentation**: Check `docs/` directory for detailed guides
+- **Architecture Questions**: Refer to [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Security Concerns**: See [SECURITY_VERIFICATION_GUIDE.md](SECURITY_VERIFICATION_GUIDE.md)
 
-Thank you for contributing to OSFeed! 🚀
+### Maintainers
+
+For questions or clarifications, tag maintainers in your issue or PR:
+- @yourusername - Project lead
+
+---
+
+**Thank you for contributing to OSFeed!** Your efforts help build a better OSINT platform for everyone.
