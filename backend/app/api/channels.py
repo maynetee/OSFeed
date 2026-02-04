@@ -78,9 +78,26 @@ async def add_channel(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a new Telegram channel to follow.
+    """Add a new Telegram channel to the authenticated user's follow list.
 
-    Requires authentication.
+    Validates the Telegram username format (5-32 characters, must start with a letter),
+    creates or retrieves the channel record, links it to the user, and enqueues a background
+    fetch job to retrieve recent messages.
+
+    Requires authentication. Users can only add channels to their own follow list.
+
+    Args:
+        channel_data: Channel creation data containing the Telegram username to follow.
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        ChannelResponse containing the channel details and initial fetch job status.
+
+    Raises:
+        HTTPException(400): If the username format is invalid.
+        HTTPException(409): If the user already follows this channel.
+        HTTPException(500): If a database or Telegram API error occurs.
     """
     # Clean and validate username
     username = channel_utils.clean_channel_username(channel_data.username)
@@ -113,12 +130,29 @@ async def add_channels_bulk(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Add multiple Telegram channels at once.
+    """Add multiple Telegram channels to the user's follow list in a single request.
 
-    Processes channels sequentially to respect Telegram rate limits.
-    Returns partial results - some channels may succeed while others fail.
+    Processes channels sequentially to respect Telegram API rate limits. Each channel
+    is validated, created or retrieved, and linked to the user. Invalid usernames or
+    duplicate channels are reported in the failed array without stopping the operation.
 
-    Requires authentication.
+    Returns partial results - some channels may succeed while others fail. All successful
+    additions are committed together at the end.
+
+    Requires authentication. Users can only add channels to their own follow list.
+
+    Args:
+        bulk_data: Bulk creation data containing a list of Telegram usernames to follow.
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        BulkChannelResponse with:
+        - succeeded: List of successfully added channels with their details and fetch jobs.
+        - failed: List of failed additions with username and error message.
+        - total: Total number of channels attempted.
+        - success_count: Number of successfully added channels.
+        - failure_count: Number of failed channel additions.
     """
     succeeded: List[ChannelResponse] = []
     failed: List[BulkChannelFailure] = []
@@ -196,9 +230,25 @@ async def list_channels(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all followed channels.
+    """List all active Telegram channels followed by the authenticated user.
 
-    Requires authentication.
+    Returns channels the user has added to their follow list, including details about
+    each channel (title, description, subscriber count, etc.) and the status of the
+    most recent fetch job for each channel.
+
+    Results are cached for 60 seconds per user to improve performance.
+
+    Requires authentication. Users can only see their own followed channels.
+
+    Args:
+        request: The FastAPI request object (used for cache key generation).
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        List of ChannelResponse objects, each containing:
+        - Channel details (id, username, title, description, subscriber_count, etc.)
+        - fetch_job: Status of the most recent fetch job (or None if no jobs exist).
     """
     # Filter by user linkage
     result = await db.execute(
@@ -229,7 +279,24 @@ async def refresh_channels(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Trigger fetch jobs for active channels the user follows."""
+    """Trigger background fetch jobs to retrieve recent messages from followed channels.
+
+    Enqueues fetch jobs for the specified channels (or all user's channels if none specified).
+    Each job retrieves messages from the last 7 days. Jobs are processed asynchronously by
+    background workers.
+
+    Requires authentication. Users can only trigger fetch jobs for channels they follow.
+
+    Args:
+        payload: Request payload optionally containing a list of channel IDs to refresh.
+                If channel_ids is empty or None, all user's active channels are refreshed.
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        RefreshChannelsResponse containing:
+        - job_ids: List of UUIDs for the created fetch jobs that can be used to poll status.
+    """
     channel_ids = payload.channel_ids or []
     query = (
         select(Channel)
@@ -278,7 +345,31 @@ async def refresh_channel_info(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Refresh channel info (subscriber count, title) from Telegram without fetching messages."""
+    """Update channel metadata from Telegram without fetching historical messages.
+
+    Queries Telegram API for updated channel information (title, description, subscriber count)
+    and updates the local database. This is a lightweight operation compared to a full message
+    fetch, useful for keeping channel metadata current.
+
+    Processes channels synchronously and reports individual success/failure for each channel.
+
+    Requires authentication. Users can only refresh info for channels they follow.
+
+    Args:
+        payload: Request payload optionally containing a list of channel IDs to refresh.
+                If channel_ids is empty or None, all user's active channels are updated.
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        RefreshInfoResponse containing:
+        - results: List of ChannelInfoUpdate objects for each processed channel, including:
+          - channel_id: UUID of the channel.
+          - subscriber_count: Updated subscriber count.
+          - title: Updated channel title.
+          - success: Whether the update succeeded.
+          - error: Error message if the update failed (None on success).
+    """
     channel_ids = payload.channel_ids or []
     query = (
         select(Channel)
@@ -342,7 +433,29 @@ async def fetch_jobs_status(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return statuses for requested fetch jobs owned by the user."""
+    """Retrieve the current status of background fetch jobs for the user's channels.
+
+    Polls the status of one or more fetch jobs by their IDs. Useful for tracking progress
+    after triggering a channel refresh. Only returns jobs for channels the user follows
+    to prevent information leakage.
+
+    Requires authentication. Users can only query fetch jobs for their own channels.
+
+    Args:
+        payload: Request payload containing a list of fetch job IDs to query.
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        FetchJobsStatusResponse containing:
+        - jobs: List of FetchJobStatus objects with details about each job:
+          - id: Job UUID.
+          - status: Current status (pending, running, completed, failed).
+          - created_at: When the job was created.
+          - started_at: When the job started processing (None if not started).
+          - completed_at: When the job completed (None if not completed).
+          - error_message: Error details if the job failed (None on success).
+    """
     if not payload.job_ids:
         return FetchJobsStatusResponse(jobs=[])
 
@@ -369,9 +482,28 @@ async def get_channel(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a single channel by ID.
+    """Retrieve detailed information about a specific channel by its ID.
 
-    Requires authentication.
+    Returns comprehensive channel details including metadata (title, description,
+    subscriber count) and the status of the most recent fetch job.
+
+    Results are cached for 60 seconds per user to improve performance.
+
+    Requires authentication. Users can only retrieve details for channels they follow.
+
+    Args:
+        request: The FastAPI request object (used for cache key generation).
+        channel_id: UUID of the channel to retrieve.
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        ChannelResponse containing:
+        - Channel details (id, username, title, description, subscriber_count, etc.)
+        - fetch_job: Status of the most recent fetch job (or None if no jobs exist).
+
+    Raises:
+        HTTPException(404): If the channel is not found or user doesn't follow it.
     """
     result = await db.execute(
         select(Channel)
@@ -402,9 +534,24 @@ async def delete_channel(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove a channel.
+    """Unfollow a channel by removing it from the user's follow list.
 
-    Requires authentication.
+    Removes the association between the user and the channel. The channel record itself
+    is preserved in the database for other users who may still follow it. An audit event
+    is recorded for this action.
+
+    Requires authentication. Users can only unfollow channels from their own follow list.
+
+    Args:
+        channel_id: UUID of the channel to unfollow.
+        user: The authenticated user (injected via dependency).
+        db: Database session (injected via dependency).
+
+    Returns:
+        JSON response with a success message.
+
+    Raises:
+        HTTPException(404): If the channel is not found or user doesn't follow it.
     """
     # Verify channel exists and user has access (single query to prevent enumeration)
     result = await db.execute(
