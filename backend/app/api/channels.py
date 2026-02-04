@@ -431,6 +431,15 @@ async def refresh_channel_info(
                 success=False,
                 error="Failed to refresh channel information due to connection error."
             ))
+        except Exception as e:
+            logger.error(f"Unexpected error refreshing info for {channel.username} (user {user.id}): {type(e).__name__}: {e}", exc_info=True)
+            results.append(ChannelInfoUpdate(
+                channel_id=channel.id,
+                subscriber_count=channel.subscriber_count,
+                title=channel.title,
+                success=False,
+                error="Failed to refresh channel information."
+            ))
 
     await db.commit()
     return RefreshInfoResponse(results=results)

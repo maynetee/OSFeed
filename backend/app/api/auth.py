@@ -82,6 +82,12 @@ async def register(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="REGISTER_DATABASE_ERROR",
         )
+    except Exception as e:
+        logger.error(f"Unexpected error during registration for {_redact_email(user_create.email)}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="REGISTER_UNEXPECTED_ERROR",
+        )
 
 router.include_router(
     fastapi_users.get_reset_password_router(),

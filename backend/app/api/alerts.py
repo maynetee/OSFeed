@@ -121,6 +121,10 @@ async def create_alert(
         logger.error(f"Database error creating alert for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         await db.rollback()
         raise HTTPException(status_code=500, detail="ALERT_CREATE_DATABASE_ERROR")
+    except Exception as e:
+        logger.error(f"Unexpected error creating alert for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="ALERT_CREATE_ERROR")
 
 
 @router.get("/triggers/recent", response_model=List[AlertTriggerResponse])

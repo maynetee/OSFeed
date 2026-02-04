@@ -58,6 +58,12 @@ class AuthRateLimiter:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Rate limiter unavailable",
             )
+        except Exception as e:
+            logger.error(f"Unexpected error in rate limiter: {type(e).__name__}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Rate limiter unavailable",
+            )
 
         return True
 

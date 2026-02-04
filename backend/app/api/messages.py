@@ -205,6 +205,9 @@ async def search_messages(
     except (ValueError, TypeError, AttributeError, KeyError) as e:
         logger.error(f"Unexpected error searching messages for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="MESSAGE_SEARCH_ERROR")
+    except Exception as e:
+        logger.error(f"Unhandled error searching messages for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="MESSAGE_SEARCH_ERROR")
 
 
 @router.post("/fetch-historical/{channel_id}")
