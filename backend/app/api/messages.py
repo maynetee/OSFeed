@@ -11,6 +11,7 @@ import json
 from app.database import get_db, AsyncSessionLocal
 from app.models.message import Message, MessageTranslation
 from app.utils.response_cache import response_cache
+from app.utils.pagination import encode_cursor, decode_cursor
 from app.models.channel import Channel
 from app.models.user import User
 from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
@@ -39,7 +40,6 @@ from app.services.events import publish_message_translated
 from app.services.audit import record_audit_event
 from datetime import datetime, timezone
 from typing import Optional
-import base64
 import logging
 from io import BytesIO
 
@@ -47,25 +47,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 settings = get_settings()
-
-
-def _encode_cursor(published_at: datetime, message_id: UUID) -> str:
-    cursor_value = f"{published_at.isoformat()}|{message_id}"
-    return base64.urlsafe_b64encode(cursor_value.encode("utf-8")).decode("utf-8")
-
-
-def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
-    try:
-        decoded = base64.urlsafe_b64decode(cursor.encode("utf-8")).decode("utf-8")
-        published_at_raw, message_id_raw = decoded.split("|", 1)
-        published_at = datetime.fromisoformat(published_at_raw)
-        if published_at.tzinfo is None:
-            published_at = published_at.replace(tzinfo=timezone.utc)
-        message_id = UUID(message_id_raw)
-        return published_at, message_id
-    except Exception as exc:
-        logger.warning(f"Failed to decode cursor: {type(exc).__name__}: {exc}")
-        raise HTTPException(status_code=400, detail="Invalid cursor format")
 
 
 @router.get("", response_model=MessageListResponse)
@@ -92,7 +73,7 @@ async def list_messages(
 
     query = query.order_by(desc(Message.published_at), desc(Message.id))
     if cursor:
-        cursor_published_at, cursor_id = _decode_cursor(cursor)
+        cursor_published_at, cursor_id = decode_cursor(cursor)
         query = query.where(tuple_(Message.published_at, Message.id) < (cursor_published_at, cursor_id))
     else:
         query = query.offset(offset)
@@ -103,7 +84,7 @@ async def list_messages(
     next_cursor = None
     if messages:
         last_message = messages[-1]
-        next_cursor = _encode_cursor(last_message.published_at, last_message.id)
+        next_cursor = encode_cursor(last_message.published_at, last_message.id)
 
     return MessageListResponse(
         messages=[message_to_response(message) for message in messages],
@@ -177,7 +158,7 @@ async def search_messages(
 
         query = query.order_by(desc(Message.published_at), desc(Message.id))
         if cursor:
-            cursor_published_at, cursor_id = _decode_cursor(cursor)
+            cursor_published_at, cursor_id = decode_cursor(cursor)
             query = query.where(tuple_(Message.published_at, Message.id) < (cursor_published_at, cursor_id))
         else:
             query = query.offset(offset)
@@ -188,7 +169,7 @@ async def search_messages(
         next_cursor = None
         if messages:
             last_message = messages[-1]
-            next_cursor = _encode_cursor(last_message.published_at, last_message.id)
+            next_cursor = encode_cursor(last_message.published_at, last_message.id)
 
         return MessageListResponse(
             messages=[message_to_response(message) for message in messages],
