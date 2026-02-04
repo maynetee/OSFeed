@@ -59,7 +59,11 @@ async def list_alerts(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all alerts for the current user, optionally filtered by collection."""
+    """List all alerts for the current user with optional collection filtering.
+
+    Alerts monitor collections for items matching specified keywords and entities,
+    triggering notifications through configured channels (in-app, email, webhook).
+    """
     query = select(Alert).where(Alert.user_id == user.id)
     if collection_id:
         query = query.where(Alert.collection_id == collection_id)
@@ -73,7 +77,12 @@ async def create_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new alert for a collection with specified keywords and entities."""
+    """Create a new alert to monitor a collection for matching content.
+
+    Alerts track items containing specified keywords or named entities, sending
+    notifications through selected channels (in-app, email, webhook) when matches
+    exceed the minimum threshold. Requires edit permission on the collection.
+    """
     try:
         collection, permission = await _get_collection_for_user(db, payload.collection_id, user.id)
         _assert_permission(collection, user, permission, "edit")
@@ -125,7 +134,11 @@ async def list_recent_triggers(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List recent alert triggers across all of the user's alerts."""
+    """List recent alert triggers across all of the user's active alerts.
+
+    Returns trigger events when items match alert criteria (keywords/entities),
+    showing which items triggered which alerts and when. Results are cached for 60 seconds.
+    """
     result = await db.execute(
         select(AlertTrigger)
         .join(Alert, AlertTrigger.alert_id == Alert.id)
@@ -142,7 +155,11 @@ async def get_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a specific alert by ID."""
+    """Retrieve a specific alert by ID with full configuration details.
+
+    Returns the alert's keywords, entities, notification channels, threshold settings,
+    and monitoring frequency. User must own the alert to access it.
+    """
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -159,7 +176,11 @@ async def update_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update an existing alert's configuration."""
+    """Update an existing alert's configuration including keywords, entities, and notification settings.
+
+    Allows modification of monitored keywords/entities, notification channels, threshold,
+    frequency, and active status. Collection changes require edit permission on the new collection.
+    """
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -196,7 +217,11 @@ async def delete_alert(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete an alert permanently."""
+    """Delete an alert permanently and stop all monitoring for the specified configuration.
+
+    Removes the alert and all associated trigger history. This action cannot be undone.
+    User must own the alert to delete it.
+    """
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
@@ -225,7 +250,11 @@ async def list_alert_triggers(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all triggers for a specific alert."""
+    """List all trigger events for a specific alert showing when and how it matched content.
+
+    Returns the history of items that matched the alert's keywords or entities,
+    including the matched terms and trigger timestamp. Useful for reviewing alert effectiveness.
+    """
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:

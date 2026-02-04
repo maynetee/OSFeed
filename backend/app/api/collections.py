@@ -111,7 +111,16 @@ async def list_collections(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all collections owned by or shared with the current user."""
+    """Get all collections owned by or shared with the current user.
+
+    Returns a list of collections including both personal and shared collections.
+    For global collections, automatically includes all active channels. For regular
+    collections, includes only assigned channels. Efficiently loads channel data
+    using eager loading for optimal performance.
+
+    Returns:
+        List[CollectionResponse]: List of collections with their channels and settings.
+    """
     # Step 1: Fetch user's collections with channels loaded for non-global collections
     result = await db.execute(
         select(Collection)
@@ -159,7 +168,17 @@ async def get_collections_overview(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a summary overview of all collections with message counts and channel counts."""
+    """Get a summary overview of all collections with message counts and channel counts.
+
+    Provides a lightweight overview for dashboard displays and collection lists.
+    Returns message counts from the last 7 days and total channel counts for each
+    collection. Uses optimized queries to minimize database load and includes
+    60-second response caching for improved performance.
+
+    Returns:
+        dict: Overview with collections array containing id, name, message_count_7d,
+              channel_count, and created_at for each collection.
+    """
     # Step 1: Fetch user's collections (without loading full channel objects)
     result = await db.execute(
         select(Collection)
@@ -270,7 +289,23 @@ async def create_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new collection with specified channels and settings."""
+    """Create a new collection with specified channels and settings.
+
+    Allows users to create custom collections for organizing RSS feed channels.
+    Supports global collections (all active channels), default collection flag,
+    parent-child relationships, and auto-assignment rules based on languages,
+    keywords, or tags. Records audit trail for creation event.
+
+    Args:
+        payload: Collection creation data including name, channels, and settings.
+
+    Returns:
+        CollectionResponse: The newly created collection with all properties.
+
+    Raises:
+        HTTPException: 400 if channels not found, 404 if parent not found,
+                      500 for database or unexpected errors.
+    """
     try:
         channels = await _load_channels(db, payload.channel_ids or [])
         if payload.is_global:
@@ -325,7 +360,24 @@ async def compare_collections(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Compare message counts and duplicate rates across multiple collections."""
+    """Compare message counts and duplicate rates across multiple collections.
+
+    Performs side-by-side comparison of multiple collections to help users analyze
+    collection performance and content overlap. Returns metrics from the last 7 days
+    including total message counts, channel counts, and duplicate detection rates.
+    Uses batch queries for optimal performance with 60-second response caching.
+
+    Args:
+        collection_ids: List of collection UUIDs to compare.
+
+    Returns:
+        dict: Comparisons array with collection_id, name, message_count_7d,
+              channel_count, and duplicate_rate for each collection.
+
+    Raises:
+        HTTPException: 403 if not authorized to access a collection,
+                      404 if any collection not found.
+    """
     # Batch-load all requested collections with channels in a single query
     result = await db.execute(
         select(Collection, CollectionShare.permission)
@@ -417,7 +469,21 @@ async def get_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a specific collection by ID."""
+    """Get a specific collection by ID with full details.
+
+    Retrieves complete collection information including name, description, settings,
+    and associated channels. Verifies user has access either as owner or through
+    shared permissions. For global collections, automatically includes all active channels.
+
+    Args:
+        collection_id: UUID of the collection to retrieve.
+
+    Returns:
+        CollectionResponse: Complete collection details with channels and settings.
+
+    Raises:
+        HTTPException: 403 if not authorized, 404 if collection not found.
+    """
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     await db.refresh(collection, attribute_names=["channels"])
     channel_ids = await _collection_channel_ids(db, collection)
@@ -431,7 +497,25 @@ async def update_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update a collection's name, channels, settings, or other properties."""
+    """Update a collection's name, channels, settings, or other properties.
+
+    Allows modification of collection properties including name, description, visual
+    settings (color, icon), channel assignments, and automation rules. Enforces
+    permission-based restrictions: owners can modify all fields, while editor/admin
+    shared users can only update name, description, channels, color, and icon.
+    Records audit trail for updates.
+
+    Args:
+        collection_id: UUID of the collection to update.
+        payload: Collection update data with optional fields.
+
+    Returns:
+        CollectionResponse: Updated collection with all current properties.
+
+    Raises:
+        HTTPException: 403 if not authorized or attempting to change restricted fields,
+                      404 if collection or parent not found, 400 if channels not found.
+    """
     collection, permission = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id and permission not in {"editor", "admin"}:
         raise HTTPException(status_code=403, detail="Not authorized to update this collection")
@@ -496,7 +580,22 @@ async def delete_collection(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a collection permanently."""
+    """Delete a collection permanently and remove all sharing permissions.
+
+    Permanently removes a collection from the database. Only collection owners or
+    users with admin shared permission can delete collections. This operation also
+    cascades to remove all associated sharing permissions. Records audit trail
+    for deletion event.
+
+    Args:
+        collection_id: UUID of the collection to delete.
+
+    Returns:
+        dict: Success message confirming deletion.
+
+    Raises:
+        HTTPException: 403 if not authorized to delete, 404 if collection not found.
+    """
     collection, permission = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id and permission != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to delete this collection")
@@ -521,7 +620,25 @@ async def get_collection_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get detailed statistics for a collection including message counts, activity trends, and top channels."""
+    """Get detailed statistics for a collection including message counts, activity trends, and top channels.
+
+    Provides comprehensive analytics for collection monitoring and analysis. Returns
+    all-time and time-bounded metrics (24h, 7d), daily activity trends, language
+    distribution, duplicate detection rates, and top 5 most active channels.
+    Uses optimized queries with efficient indexing and includes 60-second response
+    caching for improved performance.
+
+    Args:
+        collection_id: UUID of the collection to analyze.
+
+    Returns:
+        CollectionStatsResponse: Complete statistics including message_count,
+                                message_count_24h, message_count_7d, channel_count,
+                                top_channels, activity_trend, duplicate_rate, and languages.
+
+    Raises:
+        HTTPException: 403 if not authorized, 404 if collection not found.
+    """
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     await db.refresh(collection, attribute_names=["channels"])
     channel_ids = await _collection_channel_ids(db, collection)
@@ -633,7 +750,27 @@ async def export_collection_messages(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export collection messages in CSV, HTML, or PDF format."""
+    """Export collection messages in CSV, HTML, or PDF format with optional date filtering.
+
+    Generates downloadable exports of collection messages for archival, reporting,
+    or external analysis. Supports three formats: CSV for data analysis, HTML for
+    readable web viewing, and PDF for professional reports. Allows filtering by
+    date range and includes configurable message limits (1-1000, default 200 for PDF).
+
+    Args:
+        collection_id: UUID of the collection to export.
+        format: Export format - "csv", "html", or "pdf" (default: "csv").
+        start_date: Optional start date for filtering messages.
+        end_date: Optional end date for filtering messages.
+        limit: Maximum number of messages to include (default: 200, max: 1000).
+
+    Returns:
+        StreamingResponse: File download with appropriate content-type and filename.
+
+    Raises:
+        HTTPException: 400 if collection has no channels or format unsupported,
+                      403 if not authorized, 404 if collection not found.
+    """
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     await db.refresh(collection, attribute_names=["channels"])
     channel_ids = await _collection_channel_ids(db, collection)
@@ -692,7 +829,21 @@ async def list_collection_shares(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get all sharing permissions for a collection."""
+    """Get all sharing permissions for a collection.
+
+    Retrieves the list of users who have been granted access to a collection
+    along with their permission levels (viewer, editor, or admin). Only the
+    collection owner can view the sharing list to maintain privacy and security.
+
+    Args:
+        collection_id: UUID of the collection to query.
+
+    Returns:
+        List[CollectionShareResponse]: List of sharing permissions with user_id and permission level.
+
+    Raises:
+        HTTPException: 403 if not the collection owner, 404 if collection not found.
+    """
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view shares")
@@ -707,7 +858,23 @@ async def add_collection_share(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Share a collection with another user or update their permission level."""
+    """Share a collection with another user or update their permission level.
+
+    Grants access to a collection for collaborative viewing, editing, or administration.
+    Permission levels include: viewer (read-only), editor (can modify content and
+    channels), and admin (can delete and manage sharing). If the user already has
+    access, updates their permission level. Only the collection owner can manage shares.
+
+    Args:
+        collection_id: UUID of the collection to share.
+        payload: Sharing data including user_id and permission level.
+
+    Returns:
+        CollectionShareResponse: The created or updated sharing permission.
+
+    Raises:
+        HTTPException: 403 if not the collection owner, 404 if collection not found.
+    """
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to share this collection")
@@ -738,7 +905,22 @@ async def delete_collection_share(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Remove a user's access to a shared collection."""
+    """Remove a user's access to a shared collection.
+
+    Revokes all access permissions for a specific user, removing their ability to
+    view or interact with the collection. This operation cannot be undone - the user
+    must be re-invited to regain access. Only the collection owner can remove shares.
+
+    Args:
+        collection_id: UUID of the collection.
+        share_user_id: UUID of the user whose access should be removed.
+
+    Returns:
+        dict: Success message confirming share removal.
+
+    Raises:
+        HTTPException: 403 if not the collection owner, 404 if collection or share not found.
+    """
     collection, _ = await _get_collection_for_user(db, collection_id, user.id)
     if collection.user_id != user.id:
         raise HTTPException(status_code=403, detail="Not authorized to remove shares")

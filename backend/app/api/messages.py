@@ -82,7 +82,11 @@ async def list_messages(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get paginated message feed with optional filters."""
+    """Retrieve paginated message feed with flexible filtering and cursor-based pagination.
+
+    Supports filtering by channel(s), date range, and media types. Uses cursor-based
+    pagination for efficient scrolling through large datasets. Results are cached for 60 seconds.
+    """
     query = select(Message).options(selectinload(Message.channel))
     query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
 
@@ -126,7 +130,11 @@ async def stream_messages(
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
-    """Stream messages via SSE. Uses Redis Pub/Sub for realtime updates."""
+    """Stream messages via Server-Sent Events (SSE) with optional real-time updates.
+
+    Returns messages in configurable batches. When realtime=true, uses Redis Pub/Sub
+    to push new messages as they arrive. Ideal for live feed implementations.
+    """
     return StreamingResponse(
         create_message_stream(
             user_id=user.id,
@@ -161,7 +169,11 @@ async def search_messages(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Search messages via full-text match on original/translated text."""
+    """Search messages using case-insensitive full-text matching across original and translated text.
+
+    Searches both original_text and translated_text fields. Supports filtering by channels,
+    date ranges, and media types. Results are paginated and cached for 60 seconds.
+    """
     try:
         search_term = f"%{q}%"
         search_filter = or_(
@@ -213,7 +225,11 @@ async def fetch_historical_messages(
     days: int = Query(7, ge=0, le=3650),
     user: User = Depends(current_active_user),
 ):
-    """Fetch historical messages for a channel."""
+    """Enqueue a background job to fetch historical messages from Telegram for a specific channel.
+
+    Queues an asynchronous fetch operation for the specified number of days (0 = all history).
+    Requires user authorization for the channel. Returns a job_id for tracking progress.
+    """
     async with AsyncSessionLocal() as db:
         channel = await get_authorized_channel(db, channel_id, user.id)
 
@@ -233,7 +249,11 @@ async def translate_messages(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Re-translate messages to a new target language."""
+    """Batch re-translate messages to a new target language with audit logging.
+
+    Translates all messages (or messages from a specific channel if channel_id provided)
+    to the specified target language. Creates an audit trail and returns translation statistics.
+    """
     # Record audit event
     record_audit_event(
         db=db,
@@ -266,7 +286,11 @@ async def export_messages_csv(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export filtered messages to CSV format."""
+    """Export filtered messages to CSV format with audit logging.
+
+    Generates a streaming CSV download of messages matching the specified filters.
+    Includes channel information, timestamps, and both original and translated text.
+    """
     record_audit_event(
         db=db,
         user_id=user.id,
@@ -309,7 +333,11 @@ async def export_messages_html(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export filtered messages to HTML format."""
+    """Export filtered messages to formatted HTML with audit logging.
+
+    Generates a styled HTML document of messages matching the specified filters.
+    Includes embedded media references and preserves message formatting. Limited to 5000 messages.
+    """
     record_audit_event(
         db=db,
         user_id=user.id,
@@ -356,7 +384,11 @@ async def export_messages_pdf(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export filtered messages to PDF format."""
+    """Export filtered messages to professional PDF format with audit logging.
+
+    Generates a formatted PDF document of messages matching the specified filters.
+    Suitable for archiving and sharing. Limited to 1000 messages per export.
+    """
     record_audit_event(
         db=db,
         user_id=user.id,
@@ -397,9 +429,10 @@ async def get_message_media(
     message_id: UUID,
     user: User = Depends(current_active_user),
 ):
-    """Proxy media from Telegram without storing it on the server.
+    """Stream message media directly from Telegram without server-side storage.
 
-    Streams the media bytes directly from Telegram to the client.
+    Proxies media bytes from Telegram's servers directly to the client, avoiding
+    local storage requirements. Includes 24-hour browser caching for performance.
     """
     media_bytes, content_type = await get_media_stream(message_id, user.id)
 
@@ -419,7 +452,11 @@ async def get_message(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a single message by ID."""
+    """Retrieve a single message by its unique identifier with authorization check.
+
+    Returns the complete message details including channel info, translations, and metadata.
+    Verifies the user has access to the message's channel before returning data.
+    """
     message = await get_single_message(message_id, user.id, db)
 
     if not message:
@@ -435,7 +472,11 @@ async def get_similar_messages(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get similar messages based on duplicate_group_id."""
+    """Find similar or duplicate messages grouped by duplicate_group_id.
+
+    Returns all messages sharing the same duplicate_group_id as the specified message.
+    Useful for identifying cross-posted content. Results are cached for 5 minutes.
+    """
     messages, duplicate_group_id = await get_similar_messages_service(
         message_id=message_id,
         user_id=user.id,
@@ -467,7 +508,11 @@ async def translate_message_on_demand(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Translate a message on demand."""
+    """Translate a single message on-demand to the user's preferred language with real-time updates.
+
+    Triggers immediate translation of the specified message and publishes the result via
+    Redis Pub/Sub for real-time client updates. Creates an audit trail of the translation request.
+    """
     # Verify user has access to this message
     message = await get_single_message(message_id, user.id, db)
 
