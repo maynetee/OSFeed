@@ -116,8 +116,20 @@ async def test_security_headers_on_api_endpoints():
 
 
 @pytest.mark.asyncio
-async def test_security_headers_on_docs_endpoint():
+async def test_security_headers_on_docs_endpoint(monkeypatch):
     """Verify security headers are present on the docs endpoint."""
+    import importlib
+    monkeypatch.setenv("APP_ENV", "development")
+
+    # Clear settings cache and reload modules to pick up new env vars
+    from app.config import get_settings
+    get_settings.cache_clear()
+
+    import app.main
+    importlib.reload(app.main)
+
+    from app.main import app
+    from app.database import init_db
     await init_db()
 
     transport = ASGITransport(app=app)
