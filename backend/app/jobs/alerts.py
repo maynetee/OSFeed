@@ -7,8 +7,10 @@ from app.models.alert import Alert, AlertTrigger
 from app.models.collection import Collection
 from app.models.channel import Channel
 from app.models.message import Message
+from app.models.user import User
 from app.models.collection import collection_channels
 from app.services.events import publish_alert_triggered
+from app.services.email_service import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,29 @@ async def evaluate_alerts_job():
                 logger.debug(f"Published alert:triggered event for alert {alert.name}")
             except RedisError as e:
                 logger.error(f"Failed to publish alert:triggered event for alert {alert.name}: {e}")
+
+            # Send email notification if email channel is enabled
+            if alert.notification_channels and 'email' in alert.notification_channels:
+                try:
+                    user_result = await session.execute(
+                        select(User).where(User.id == alert.user_id)
+                    )
+                    user = user_result.scalar_one_or_none()
+                    if user and user.email:
+                        success = await email_service.send_alert_triggered(
+                            email=user.email,
+                            alert_name=alert.name,
+                            summary=summary,
+                            message_count=count
+                        )
+                        if success:
+                            logger.debug(f"Sent email notification for alert {alert.name} to {user.email}")
+                        else:
+                            logger.warning(f"Failed to send email notification for alert {alert.name}")
+                    else:
+                        logger.warning(f"User not found or no email address for alert {alert.name} (user_id: {alert.user_id})")
+                except Exception as e:
+                    logger.error(f"Failed to send email notification for alert {alert.name}: {e}")
 
         await session.commit()
 
