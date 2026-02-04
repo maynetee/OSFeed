@@ -12,6 +12,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
+from telethon.errors import RPCError
 
 from app.database import AsyncSessionLocal
 from app.models.message import Message
@@ -97,6 +98,6 @@ async def get_media_stream(message_id: UUID, user_id: UUID) -> Tuple[BytesIO, st
 
     except HTTPException:
         raise
-    except Exception as e:
+    except RPCError as e:
         logger.exception(f"Failed to fetch media for message {message_id}: {e}")
         raise HTTPException(status_code=502, detail="Failed to fetch media from Telegram")
