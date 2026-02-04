@@ -146,6 +146,8 @@ app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
 
 @app.get("/")
 async def root():
+    if settings.app_env == "production":
+        return {"status": "ok"}
     return {
         "message": "OSFeed API",
         "version": "0.1.0",
