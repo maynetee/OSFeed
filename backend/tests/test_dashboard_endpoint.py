@@ -32,7 +32,9 @@ async def test_dashboard_endpoint_structure(mock_user):
          patch("app.api.stats.get_messages_by_channel", new_callable=AsyncMock) as mock_by_channel, \
          patch("app.api.stats.get_trust_stats", new_callable=AsyncMock) as mock_trust, \
          patch("app.api.stats.get_api_usage_stats", new_callable=AsyncMock) as mock_api_usage, \
-         patch("app.api.stats.get_translation_metrics", new_callable=AsyncMock) as mock_translation:
+         patch("app.api.stats.get_translation_metrics", new_callable=AsyncMock) as mock_translation, \
+         patch("app.api.stats.get_user_channels", new_callable=AsyncMock) as mock_channels, \
+         patch("app.api.stats.get_user_collections", new_callable=AsyncMock) as mock_collections:
 
         # Set up mock return values
         mock_overview.return_value = {
@@ -63,6 +65,50 @@ async def test_dashboard_endpoint_structure(mock_user):
             "tokens_saved": 500,
         }
 
+        # Mock channels and collections
+        from datetime import datetime, timezone
+        channel_id = uuid4()
+        collection_id = uuid4()
+
+        mock_channels.return_value = [
+            {
+                "id": str(channel_id),
+                "username": "test_channel",
+                "title": "Test Channel",
+                "telegram_id": 123,
+                "description": "Test description",
+                "detected_language": "en",
+                "subscriber_count": 1000,
+                "is_active": True,
+                "tags": ["news"],
+                "fetch_config": {},
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": None,
+                "last_fetched_at": None,
+                "fetch_job": None,
+            }
+        ]
+
+        mock_collections.return_value = [
+            {
+                "id": str(collection_id),
+                "user_id": "test-user-id",
+                "name": "Test Collection",
+                "description": "Test collection description",
+                "color": "#FF0000",
+                "icon": "📰",
+                "is_default": False,
+                "is_global": False,
+                "parent_id": None,
+                "auto_assign_languages": [],
+                "auto_assign_keywords": [],
+                "auto_assign_tags": [],
+                "channel_ids": [str(channel_id)],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": None,
+            }
+        ]
+
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/stats/dashboard")
@@ -78,6 +124,8 @@ async def test_dashboard_endpoint_structure(mock_user):
             assert "trust_stats" in data
             assert "api_usage" in data
             assert "translation_metrics" in data
+            assert "channels" in data
+            assert "collections" in data
 
             # Verify the data matches our mocks
             assert data["overview"]["total_messages"] == 100
@@ -87,6 +135,18 @@ async def test_dashboard_endpoint_structure(mock_user):
             assert data["trust_stats"]["primary_sources_rate"] == 80.0
             assert data["api_usage"]["total_tokens"] == 1000
             assert data["translation_metrics"]["cache_hit_rate"] == 80.0
+
+            # Verify channels structure
+            assert len(data["channels"]) == 1
+            assert data["channels"][0]["username"] == "test_channel"
+            assert data["channels"][0]["title"] == "Test Channel"
+            assert data["channels"][0]["is_active"] is True
+
+            # Verify collections structure
+            assert len(data["collections"]) == 1
+            assert data["collections"][0]["name"] == "Test Collection"
+            assert data["collections"][0]["user_id"] == "test-user-id"
+            assert len(data["collections"][0]["channel_ids"]) == 1
 
     # Clean up
     app.dependency_overrides.pop(current_active_user, None)
@@ -106,7 +166,9 @@ async def test_dashboard_endpoint_uses_asyncio_gather(mock_user):
          patch("app.api.stats.get_messages_by_channel", new_callable=AsyncMock) as mock_by_channel, \
          patch("app.api.stats.get_trust_stats", new_callable=AsyncMock) as mock_trust, \
          patch("app.api.stats.get_api_usage_stats", new_callable=AsyncMock) as mock_api_usage, \
-         patch("app.api.stats.get_translation_metrics", new_callable=AsyncMock) as mock_translation:
+         patch("app.api.stats.get_translation_metrics", new_callable=AsyncMock) as mock_translation, \
+         patch("app.api.stats.get_user_channels", new_callable=AsyncMock) as mock_channels, \
+         patch("app.api.stats.get_user_collections", new_callable=AsyncMock) as mock_collections:
 
         # Set up mock return values with required fields
         mock_overview.return_value = {
@@ -136,6 +198,8 @@ async def test_dashboard_endpoint_uses_asyncio_gather(mock_user):
             "cache_hit_rate": 0.0,
             "tokens_saved": 0,
         }
+        mock_channels.return_value = []
+        mock_collections.return_value = []
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -151,6 +215,8 @@ async def test_dashboard_endpoint_uses_asyncio_gather(mock_user):
             mock_trust.assert_called_once()
             mock_api_usage.assert_called_once()
             mock_translation.assert_called_once()
+            mock_channels.assert_called_once()
+            mock_collections.assert_called_once()
 
     # Clean up
     app.dependency_overrides.pop(current_active_user, None)
