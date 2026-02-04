@@ -167,8 +167,8 @@ async def health():
             status_code=503,
             content={"status": "unhealthy", "database": "disconnected"}
         )
-    except Exception as e:
-        logger.warning(f"Health check failed with unexpected error: {type(e).__name__}: {e}")
+    except (OSError, ConnectionError, TimeoutError) as e:
+        logger.warning(f"Health check failed with connection error: {type(e).__name__}: {e}")
         return JSONResponse(
             status_code=503,
             content={"status": "unhealthy", "database": "disconnected"}
