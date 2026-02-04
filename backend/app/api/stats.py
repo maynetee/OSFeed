@@ -115,7 +115,13 @@ async def get_overview_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get overview statistics including total messages, active channels, and recent activity."""
+    """
+    Get overview statistics for the authenticated user's channels.
+
+    Returns key metrics including total message count across all time, number of active channels,
+    message count from the last 24 hours, and duplicate message count from the last 24 hours.
+    All statistics are filtered to only include channels the user has access to.
+    """
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(days=1)
 
@@ -172,7 +178,14 @@ async def get_dashboard_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get unified dashboard statistics with parallel queries for optimal performance."""
+    """
+    Get comprehensive dashboard statistics aggregating multiple metrics for the authenticated user.
+
+    Returns a unified response containing overview statistics, messages grouped by day over the specified
+    time period (default 7 days, max 90 days), top channels by message count (default 10, max 50),
+    trust metrics, API usage statistics, translation cache metrics, user's channels, and collections.
+    All statistics are fetched in parallel using asyncio.gather for optimal performance.
+    """
     # Fetch all stats in parallel using asyncio.gather
     overview, messages_by_day, messages_by_channel, trust, api_usage, translation, channels, collections = await asyncio.gather(
         get_overview_stats(user=user, db=db),
@@ -204,7 +217,14 @@ async def get_messages_by_day(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get message counts grouped by day for a specified time period."""
+    """
+    Get daily message counts for the user's channels over a specified time period.
+
+    Returns message counts grouped by day from the specified number of days ago until now
+    (default 7 days, minimum 1 day, maximum 90 days). Each entry includes the date and
+    total message count for that day, filtered to only include channels the user has access to.
+    Results are ordered chronologically.
+    """
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
     date_bucket = func.date(Message.published_at)
 
@@ -229,7 +249,14 @@ async def get_messages_by_channel(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get message counts grouped by channel, sorted by most active."""
+    """
+    Get message counts aggregated by channel, sorted by activity level.
+
+    Returns the top channels by total message count (default 10 channels, minimum 1, maximum 50).
+    Each entry includes the channel ID, channel title, and total message count across all time.
+    Only includes channels the user has access to, sorted in descending order by message count
+    to show the most active channels first.
+    """
     from app.models.channel import user_channels
 
     result = await db.execute(
@@ -250,7 +277,14 @@ async def export_stats_csv(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export statistics to CSV format including overview and daily message counts."""
+    """
+    Export statistics to CSV format for external analysis or reporting.
+
+    Returns a downloadable CSV file containing overview statistics (total messages, active channels,
+    messages in last 24h, duplicates in last 24h) followed by daily message counts over the specified
+    time period (default 7 days, minimum 1 day, maximum 90 days). All statistics are filtered to
+    only include channels the user has access to. The file is named 'osfeed-stats.csv'.
+    """
     overview = await get_overview_stats(user=user, db=db)
     by_day = await get_messages_by_day(days=days, user=user, db=db)
 
@@ -279,7 +313,14 @@ async def export_stats_json(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Export statistics to JSON format including overview and daily message counts."""
+    """
+    Export statistics to JSON format for programmatic consumption.
+
+    Returns a JSON response containing overview statistics (total messages, active channels,
+    messages in last 24h, duplicates in last 24h) and daily message counts over the specified
+    time period (default 7 days, minimum 1 day, maximum 90 days). All statistics are filtered
+    to only include channels the user has access to.
+    """
     overview = await get_overview_stats(user=user, db=db)
     by_day = await get_messages_by_day(days=days, user=user, db=db)
 
@@ -296,7 +337,15 @@ async def get_trust_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get trust metrics including primary sources rate, propaganda rate, and verified channels."""
+    """
+    Get trust and content quality metrics for messages from the last 24 hours.
+
+    Returns trust indicators including primary sources rate (percentage of non-duplicate messages
+    with high originality score >= 90), propaganda rate (percentage of duplicate messages with
+    low originality score <= 20), number of verified channels with activity, and total message
+    count in the 24-hour window. Optionally filters by specific channel IDs. All statistics are
+    filtered to only include channels the user has access to.
+    """
     now = datetime.now(timezone.utc)
     day_ago = now - timedelta(days=1)
 
@@ -373,7 +422,14 @@ async def get_api_usage_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get API usage statistics including token consumption and estimated costs by provider and model."""
+    """
+    Get API usage statistics and cost tracking over a specified time period.
+
+    Returns total token consumption and estimated costs in USD over the specified number of days
+    (default 7 days, minimum 1 day, maximum 365 days), along with a detailed breakdown by provider,
+    model, and purpose. The breakdown is sorted by cost in descending order to highlight the most
+    expensive API operations. Useful for monitoring and optimizing API expenses.
+    """
     start_date = datetime.now(timezone.utc) - timedelta(days=days)
 
     totals_result = await db.execute(
@@ -422,7 +478,14 @@ async def get_translation_metrics(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get translation cache metrics including hit rate and tokens saved."""
+    """
+    Get translation cache performance metrics and efficiency statistics.
+
+    Returns metrics about the translation caching system including total number of cached translations,
+    cache hit count, cache miss count, calculated cache hit rate percentage, and total tokens saved
+    by reusing cached translations instead of making new API calls. These metrics help monitor the
+    effectiveness of translation caching in reducing API costs and improving response times.
+    """
     # Total translations in cache
     total_result = await db.execute(select(func.count()).select_from(MessageTranslation))
     total_cached = total_result.scalar() or 0
@@ -457,7 +520,15 @@ async def get_batch_stats(
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Return stats for multiple collections in a single response using batch queries."""
+    """
+    Get statistics for multiple collections efficiently in a single batch request.
+
+    Accepts a list of collection IDs (maximum 50) and returns aggregated statistics for each collection
+    including channel count, total message count across all time, message count from the last 24 hours,
+    and message count from the last 7 days. Only returns data for collections the user owns or has
+    access to via sharing. Uses optimized batch queries to minimize database round-trips and improve
+    performance when fetching stats for multiple collections simultaneously.
+    """
     collection_ids = body.collection_ids
 
     if not collection_ids:
