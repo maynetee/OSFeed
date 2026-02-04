@@ -154,8 +154,9 @@ async def test_channel_add_value_error_returns_generic_message(monkeypatch):
 
     # Mock telegram client to raise ValueError
     mock_client = AsyncMock()
+    mock_client.can_join_channel.return_value = True
     mock_client.resolve_channel.side_effect = ValueError("Internal telegram client error: invalid channel format @@@")
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
     async def _override_user():
         return user
@@ -345,11 +346,14 @@ async def test_errors_are_logged_internally(monkeypatch):
     mock_client.can_join_channel.return_value = True
     test_error = ValueError("Detailed internal error: database connection failed at host db.internal.example.com:5432")
     mock_client.resolve_channel.side_effect = test_error
-    monkeypatch.setattr("app.api.channels.get_telegram_client", lambda: mock_client)
+    monkeypatch.setattr("app.services.telegram_client.get_telegram_client", lambda: mock_client)
 
-    # Mock the logger to capture log calls
+    # Mock the logger to capture log calls (process_channel_add uses logging.getLogger(__name__))
+    import logging
+    channel_utils_logger = logging.getLogger("app.services.channel_utils")
     mock_logger = MagicMock()
-    monkeypatch.setattr("app.api.channels.logger", mock_logger)
+    monkeypatch.setattr(channel_utils_logger, "warning", mock_logger.warning)
+    monkeypatch.setattr(channel_utils_logger, "error", mock_logger.error)
 
     async def _override_user():
         return user
