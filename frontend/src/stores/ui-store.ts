@@ -30,6 +30,11 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: 'osfeed-ui',
+      partialize: (state) => ({
+        theme: state.theme,
+        sidebarCollapsed: state.sidebarCollapsed,
+        mobileDrawerOpen: state.mobileDrawerOpen,
+      }),
     },
   ),
 )
