@@ -108,9 +108,9 @@ export function LoginPage() {
                   borderColor: '#30363D',
                   color: '#FFFFFF',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
-                onBlur={(e) => { e.target.style.borderColor = '#30363D' }}
                 {...form.register('email')}
+                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
+                onBlur={(e) => { e.target.style.borderColor = '#30363D'; form.register('email').onBlur(e) }}
               />
               {form.formState.errors.email && (
                 <span className="text-xs font-medium" style={{ color: '#F85149' }}>
@@ -143,9 +143,9 @@ export function LoginPage() {
                   borderColor: '#30363D',
                   color: '#FFFFFF',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
-                onBlur={(e) => { e.target.style.borderColor = '#30363D' }}
                 {...form.register('password')}
+                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
+                onBlur={(e) => { e.target.style.borderColor = '#30363D'; form.register('password').onBlur(e) }}
               />
               {form.formState.errors.password && (
                 <span className="text-xs font-medium" style={{ color: '#F85149' }}>
