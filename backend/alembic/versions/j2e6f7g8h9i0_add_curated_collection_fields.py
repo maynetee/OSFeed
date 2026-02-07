@@ -1,7 +1,7 @@
 """add curated collection fields
 
 Revision ID: j2e6f7g8h9i0
-Revises: i1d5e6f7g8h9
+Revises: h0c4d5e6f7g8
 Create Date: 2026-02-07 19:00:00.000000
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'j2e6f7g8h9i0'
-down_revision: Union[str, None] = 'i1d5e6f7g8h9'
+down_revision: Union[str, None] = 'h0c4d5e6f7g8'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
