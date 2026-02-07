@@ -10,12 +10,15 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api import alerts, audit_logs, auth, channels, collections, contact_sales, digests, insights, messages, newsletter, notifications, stats, stripe, summaries
+from app.api import alerts, analysis, audit_logs, auth, channels, collections, contact_sales, digests, insights, messages, newsletter, notifications, stats, stripe, summaries
 from app.config import get_settings
 from app.database import get_engine, init_db
 from app.jobs.alerts import evaluate_alerts_job
 from app.jobs.collect_messages import collect_messages_job
+from app.jobs.detect_patterns import detect_patterns_job
 from app.jobs.purge_audit_logs import purge_audit_logs_job
+from app.jobs.correlate_sources import correlate_sources_job
+from app.jobs.score_escalation import score_escalation_job
 from app.jobs.score_relevance import score_relevance_job
 from app.jobs.send_daily_digests import send_daily_digests_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
@@ -89,16 +92,22 @@ async def lifespan(app: FastAPI):
         scheduler.add_job(
             translate_pending_messages_job,
             'interval',
-            minutes=5,
+            minutes=1,
             id='translate_pending_messages',
         )
 
         scheduler.add_job(score_relevance_job, 'interval', minutes=5, id='score_relevance')
 
+        scheduler.add_job(score_escalation_job, 'interval', minutes=5, id='score_escalation')
+
+        scheduler.add_job(correlate_sources_job, 'interval', minutes=10, id='correlate_sources')
+
+        scheduler.add_job(detect_patterns_job, 'interval', minutes=15, id='detect_patterns')
+
         scheduler.add_job(send_daily_digests_job, 'cron', minute=5, id='send_daily_digests')
 
         scheduler.start()
-        logger.info("Background jobs scheduled (collecting every 5 minutes)")
+        logger.info("Background jobs scheduled (collecting every 5 minutes, translating every 1 minute)")
 
     yield
 
@@ -163,6 +172,7 @@ app.include_router(newsletter.router, prefix="/api", tags=["newsletter"])
 app.include_router(summaries.router, prefix="/api/summaries", tags=["summaries"])
 app.include_router(digests.router, prefix="/api/digests", tags=["digests"])
 app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
+app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 
 
 @app.get("/")

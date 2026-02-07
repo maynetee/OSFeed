@@ -28,6 +28,12 @@ class MessageResponse(BaseModel):
     fetched_at: datetime
     translated_at: Optional[datetime] = None
     similarity_score: Optional[float] = None
+    duplicate_count: Optional[int] = None
+    escalation_score: Optional[float] = None
+    escalation_level: Optional[str] = None
+    escalation_factors: Optional[List[str]] = None
+    has_correlation: bool = False
+    pattern_ids: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -43,3 +43,10 @@ export { insightsApi } from './insights'
 export type { InsightsDashboardData, SignalsProcessed, IntelligenceTip, TrendingTopic, ActivitySpike } from './insights'
 export { summariesApi } from './summaries'
 export type { SummaryResponse, SummaryListResponse, SummaryGenerateRequest } from './summaries'
+export { analysisApi } from './analysis'
+export type {
+  EscalationTrendPoint, EscalationTrendResponse,
+  CorrelationResponse, CorrelationListResponse,
+  DetectedPatternResponse, PatternListResponse,
+  TimelineEvent, TimelineResponse, TimelineListResponse, TimelineGenerateRequest,
+} from './analysis'

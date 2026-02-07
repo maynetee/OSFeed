@@ -11,24 +11,30 @@ from sqlalchemy import and_, or_, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.analysis import EscalationScore
 from app.models.message import Message
 from app.models.channel import Channel, user_channels
 from app.schemas.message import MessageResponse
 
 
-def message_to_response(message: Message) -> MessageResponse:
+def message_to_response(message: Message, escalation: EscalationScore | None = None) -> MessageResponse:
     """Convert Message model to MessageResponse schema.
 
     Args:
         message: Message model instance with optional channel relationship
+        escalation: Optional preloaded EscalationScore for this message
 
     Returns:
-        MessageResponse schema with channel details if available
+        MessageResponse schema with channel details and escalation data if available
     """
     data = MessageResponse.model_validate(message).model_dump()
     if message.channel:
         data["channel_title"] = message.channel.title
         data["channel_username"] = message.channel.username
+    if escalation:
+        data["escalation_score"] = escalation.score
+        data["escalation_level"] = escalation.level
+        data["escalation_factors"] = escalation.factors or []
     return MessageResponse(**data)
 
 

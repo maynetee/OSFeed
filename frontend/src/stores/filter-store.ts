@@ -8,6 +8,8 @@ interface FilterState {
   region: string
   topic: string
   filtersTouched: boolean
+  uniqueOnly: boolean
+  highEscalationOnly: boolean
   setChannelIds: (ids: string[]) => void
   setCollectionIds: (ids: string[]) => void
   setMediaTypes: (types: string[]) => void
@@ -15,6 +17,8 @@ interface FilterState {
   setRegion: (region: string) => void
   setTopic: (topic: string) => void
   setFiltersTouched: (touched: boolean) => void
+  setUniqueOnly: (unique: boolean) => void
+  setHighEscalationOnly: (high: boolean) => void
   resetFilters: () => void
 }
 
@@ -26,6 +30,8 @@ export const useFilterStore = create<FilterState>((set) => ({
   region: '',
   topic: '',
   filtersTouched: false,
+  uniqueOnly: false,
+  highEscalationOnly: false,
   setChannelIds: (ids) => set({ channelIds: ids }),
   setCollectionIds: (ids) => set({ collectionIds: ids }),
   setMediaTypes: (types) => set({ mediaTypes: types }),
@@ -33,5 +39,7 @@ export const useFilterStore = create<FilterState>((set) => ({
   setRegion: (region) => set({ region }),
   setTopic: (topic) => set({ topic }),
   setFiltersTouched: (touched) => set({ filtersTouched: touched }),
-  resetFilters: () => set({ channelIds: [], collectionIds: [], mediaTypes: [], region: '', topic: '', filtersTouched: false, dateRange: 'all' }),
+  setUniqueOnly: (unique) => set({ uniqueOnly: unique }),
+  setHighEscalationOnly: (high) => set({ highEscalationOnly: high }),
+  resetFilters: () => set({ channelIds: [], collectionIds: [], mediaTypes: [], region: '', topic: '', filtersTouched: false, dateRange: 'all', uniqueOnly: false, highEscalationOnly: false }),
 }))

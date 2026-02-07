@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import { RefreshCw, Radio, Sparkles } from 'lucide-react'
+import { RefreshCw, Radio, Sparkles, AlertTriangle } from 'lucide-react'
 
 import { ExportDialog } from '@/components/exports/export-dialog'
 import { MessageFeed } from '@/components/messages/message-feed'
@@ -28,6 +28,10 @@ export function FeedPage() {
   const setCollectionIds = useFilterStore((state) => state.setCollectionIds)
   const filtersTouched = useFilterStore((state) => state.filtersTouched)
   const resetFilters = useFilterStore((state) => state.resetFilters)
+  const uniqueOnly = useFilterStore((state) => state.uniqueOnly)
+  const setUniqueOnly = useFilterStore((state) => state.setUniqueOnly)
+  const highEscalationOnly = useFilterStore((state) => state.highEscalationOnly)
+  const setHighEscalationOnly = useFilterStore((state) => state.setHighEscalationOnly)
   const [exportOpen, setExportOpen] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [sort, setSort] = useState<'latest' | 'relevance'>('latest')
@@ -81,7 +85,7 @@ export function FeedPage() {
   }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds, setCollectionIds])
 
   const messagesQuery = useInfiniteQuery({
-    queryKey: ['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic],
+    queryKey: ['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic, uniqueOnly, highEscalationOnly],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       return (
@@ -94,6 +98,8 @@ export function FeedPage() {
           sort,
           region: region || undefined,
           topics: topic ? [topic] : undefined,
+          unique_only: uniqueOnly || undefined,
+          min_escalation: highEscalationOnly ? 0.7 : undefined,
         })
       ).data
     },
@@ -105,7 +111,7 @@ export function FeedPage() {
 
   const handleTranslation = useCallback((update: TranslationUpdate) => {
     // Update the message in the query cache
-    queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic], (oldData) => {
+    queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic, uniqueOnly, highEscalationOnly], (oldData) => {
       if (!oldData?.pages) return oldData
 
       return {
@@ -126,14 +132,14 @@ export function FeedPage() {
         })),
       }
     })
-  }, [queryClient, activeChannelIds, dateRange, mediaTypes, sort, region, topic])
+  }, [queryClient, activeChannelIds, dateRange, mediaTypes, sort, region, topic, uniqueOnly, highEscalationOnly])
 
   const { isConnected } = useMessageStream({
     channelIds: activeChannelIds,
     onMessages: (newMessages, isRealtime) => {
       if (isRealtime && newMessages.length > 0) {
         setLastMessageTime(new Date())
-        queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic], (oldData) => {
+        queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic, uniqueOnly, highEscalationOnly], (oldData) => {
           if (!oldData) return oldData
           const newPages = [...oldData.pages]
           if (newPages.length > 0) {
@@ -249,6 +255,23 @@ export function FeedPage() {
           onClick={() => setSort('relevance')}
         >
           {t('feed.sortRelevance')}
+        </Button>
+        <div className="h-4 w-px bg-border mx-1" />
+        <Button variant={!uniqueOnly ? 'default' : 'outline'} size="sm" onClick={() => setUniqueOnly(false)}>
+          {t('feed.allMessages')}
+        </Button>
+        <Button variant={uniqueOnly ? 'default' : 'outline'} size="sm" onClick={() => setUniqueOnly(true)}>
+          {t('feed.uniqueStories')}
+        </Button>
+        <div className="h-4 w-px bg-border mx-1" />
+        <Button
+          variant={highEscalationOnly ? 'destructive' : 'outline'}
+          size="sm"
+          onClick={() => setHighEscalationOnly(!highEscalationOnly)}
+          className="gap-1.5"
+        >
+          <AlertTriangle className="h-3.5 w-3.5" />
+          {t('analysis.escalation.filterHigh')}
         </Button>
       </div>
 

@@ -102,6 +102,18 @@ export interface Message {
   translation_priority?: string | null
   /** Relevance score from 0.0 to 1.0 (higher = more relevant, null if not calculated) */
   relevance_score?: number | null
+  /** Number of sources reporting this same information */
+  duplicate_count?: number | null
+  /** Escalation score from 0.0 to 1.0 (null if not computed) */
+  escalation_score?: number | null
+  /** Escalation level: 'high', 'medium', 'low' (null if not computed) */
+  escalation_level?: string | null
+  /** Factors contributing to the escalation score */
+  escalation_factors?: string[] | null
+  /** Whether this message has cross-source correlation analysis */
+  has_correlation?: boolean
+  /** IDs of detected patterns this message is evidence for */
+  pattern_ids?: string[] | null
 }
 
 export interface TranslationUpdate {

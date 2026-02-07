@@ -1,6 +1,8 @@
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from 'react'
-import { ExternalLink, Image, MessageSquareText } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Image, MessageSquareText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,6 +11,7 @@ import { DuplicateBadge } from '@/components/messages/duplicate-badge'
 import { MediaPreview } from '@/components/messages/telegram-embed'
 import { Timestamp } from '@/components/common/timestamp'
 import type { Message } from '@/lib/api/client'
+import { messagesApi } from '@/lib/api/client'
 
 const SimilarMessagesDialog = lazy(() => import('./similar-messages-dialog').then((m) => ({ default: m.SimilarMessagesDialog })))
 
@@ -22,6 +25,13 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
   const { t } = useTranslation()
   const [showMedia, setShowMedia] = useState(false)
   const [showSimilar, setShowSimilar] = useState(false)
+  const queryClient = useQueryClient()
+  const translateMutation = useMutation({
+    mutationFn: () => messagesApi.translateById(message.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages'] })
+    },
+  })
 
   const duplicateScore = useMemo(() => {
     if (typeof message.originality_score !== 'number') return null
@@ -79,10 +89,47 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
               </Badge>
             ) : null}
             {message.translated_text ? <Badge variant="success">{t('messages.translated')}</Badge> : null}
-            <DuplicateBadge isDuplicate={message.is_duplicate} score={duplicateScore} />
+            {!message.translated_text && !message.needs_translation && message.original_text ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-2 text-xs"
+                onClick={() => translateMutation.mutate()}
+                disabled={translateMutation.isPending}
+              >
+                {translateMutation.isPending ? t('messages.translating') : t('messages.translate')}
+              </Button>
+            ) : null}
+            <DuplicateBadge
+              isDuplicate={message.is_duplicate}
+              score={duplicateScore}
+              duplicateCount={message.duplicate_count}
+              onClick={message.duplicate_group_id ? () => setShowSimilar(true) : undefined}
+            />
             {showPrimarySource ? <Badge variant="success">{t('messages.primarySource')}</Badge> : null}
             {showPropaganda ? <Badge variant="danger">{t('messages.propaganda')}</Badge> : null}
+            {message.has_correlation ? (
+              <Badge variant="outline" className="border-blue-500/50 text-blue-500">
+                {t('analysis.correlation.crossReferenced')}
+              </Badge>
+            ) : null}
             {message.media_type ? <Badge variant="outline">{message.media_type}</Badge> : null}
+            {message.escalation_level === 'high' ? (
+              <Badge variant="danger" className="gap-1" title={message.escalation_factors?.join(', ')}>
+                <AlertTriangle className="h-3 w-3" />
+                {t('analysis.escalation.high')}
+              </Badge>
+            ) : message.escalation_level === 'medium' ? (
+              <Badge variant="outline" className="gap-1 border-amber-500/50 text-amber-500" title={message.escalation_factors?.join(', ')}>
+                <AlertTriangle className="h-3 w-3" />
+                {t('analysis.escalation.medium')}
+              </Badge>
+            ) : null}
+            {message.pattern_ids && message.pattern_ids.length > 0 ? (
+              <Badge variant="outline" className="border-purple-500/50 text-purple-500">
+                {t('analysis.patterns.partOfPattern')}
+              </Badge>
+            ) : null}
           </div>
         </div>
 
@@ -100,6 +147,17 @@ export const MessageCard = memo(function MessageCard({ message, onCopy, onExport
             </div>
           ) : null}
         </div>
+
+        {message.escalation_level && message.escalation_level !== 'low' && message.escalation_factors && message.escalation_factors.length > 0 ? (
+          <div className={`rounded-lg border p-2 text-xs ${message.escalation_level === 'high' ? 'border-red-500/30 bg-red-500/5 text-red-400' : 'border-amber-500/30 bg-amber-500/5 text-amber-400'}`}>
+            <p className="font-medium mb-1">{t('analysis.escalation.factors')}:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              {message.escalation_factors.map((factor, i) => (
+                <li key={i}>{factor}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {showTelegramEmbed && !showMedia ? (
           <Button

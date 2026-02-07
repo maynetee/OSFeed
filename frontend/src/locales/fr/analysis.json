@@ -1,0 +1,53 @@
+{
+  "escalation": {
+    "title": "Détection d'escalade",
+    "high": "Escalade élevée",
+    "medium": "Escalade moyenne",
+    "low": "Escalade faible",
+    "factors": "Facteurs d'escalade",
+    "trend": "Tendance d'escalade",
+    "filterHigh": "Escalade élevée uniquement",
+    "score": "Score d'escalade",
+    "noData": "Aucune donnée d'escalade disponible"
+  },
+  "correlation": {
+    "title": "Analyse croisée des sources",
+    "consistentFacts": "Faits cohérents",
+    "uniqueDetails": "Détails spécifiques aux sources",
+    "contradictions": "Contradictions",
+    "sources": "{{count}} sources",
+    "crossReferenced": "Recoupé",
+    "latestTitle": "Dernières analyses croisées",
+    "noData": "Aucune analyse croisée disponible"
+  },
+  "patterns": {
+    "title": "Schémas détectés",
+    "volumeSpike": "Pic de volume",
+    "narrativeShift": "Changement de narratif",
+    "entityEmergence": "Émergence d'entité",
+    "confidence": "Confiance",
+    "evidence": "Preuves",
+    "partOfPattern": "Fait partie d'un schéma détecté",
+    "noData": "Aucun schéma détecté récemment"
+  },
+  "timeline": {
+    "title": "Reconstruction chronologique",
+    "generate": "Générer la chronologie",
+    "generating": "Génération de la chronologie...",
+    "topic": "Sujet ou mot-clé",
+    "dateRange": "Période",
+    "collection": "Collection",
+    "significance": "Importance",
+    "events": "{{count}} événements",
+    "sources": "Sources",
+    "noTimelines": "Aucune chronologie générée",
+    "deleteConfirm": "Supprimer cette chronologie ?",
+    "myTimelines": "Mes chronologies",
+    "newTimeline": "Nouvelle chronologie"
+  },
+  "dashboard": {
+    "escalationTrend": "Tendance d'escalade",
+    "detectedPatterns": "Schémas détectés",
+    "crossSourceAnalyses": "Analyses croisées"
+  }
+}

@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Bell,
+  Clock,
   Globe,
   Layers,
   Newspaper,
@@ -26,6 +27,7 @@ const navItems = [
   { key: 'collections', to: '/collections', icon: Layers },
   { key: 'browseCollections', to: '/collections/browse', icon: Globe },
   { key: 'alerts', to: '/alerts', icon: Bell },
+  { key: 'timeline', to: '/analysis/timeline', icon: Clock },
   { key: 'exports', to: '/exports', icon: Sparkles },
   { key: 'settings', to: '/settings', icon: Settings },
 ]

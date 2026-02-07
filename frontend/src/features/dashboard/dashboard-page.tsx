@@ -3,15 +3,33 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { KpiCard } from '@/components/stats/kpi-card'
 import { TrendChart } from '@/components/stats/trend-chart'
 import { ChannelRanking } from '@/components/stats/channel-ranking'
 import { EmptyState } from '@/components/common/empty-state'
+import { Timestamp } from '@/components/common/timestamp'
+import { Badge } from '@/components/ui/badge'
+import { PatternDetailModal } from '@/components/analysis/pattern-detail-modal'
 import { statsApi, collectionsApi } from '@/lib/api/client'
 import { insightsApi } from '@/lib/api/insights'
+import { analysisApi } from '@/lib/api/analysis'
+import type { DetectedPatternResponse } from '@/lib/api/analysis'
 import type { IntelligenceTip, TrendingTopic, ActivitySpike } from '@/lib/api/insights'
+
+const PATTERN_TYPE_BADGE: Record<string, string> = {
+  volume_spike: 'bg-amber-500/10 text-amber-400',
+  narrative_shift: 'bg-purple-500/10 text-purple-400',
+  entity_emergence: 'bg-blue-500/10 text-blue-400',
+}
+
+const PATTERN_TYPE_KEY: Record<string, string> = {
+  volume_spike: 'analysis.patterns.volumeSpike',
+  narrative_shift: 'analysis.patterns.narrativeShift',
+  entity_emergence: 'analysis.patterns.entityEmergence',
+}
 
 function useAnimatedCounter(target: number, duration = 1500) {
   const [count, setCount] = useState(0)
@@ -82,6 +100,29 @@ export function DashboardPage() {
     refetchInterval: 300000, // 5 minutes
   })
 
+  const correlationsQuery = useQuery({
+    queryKey: ['correlations-dashboard'],
+    queryFn: async () => (await analysisApi.listCorrelations(5)).data,
+    refetchInterval: 300000,
+  })
+
+  const patternsQuery = useQuery({
+    queryKey: ['patterns-dashboard'],
+    queryFn: async () => (await analysisApi.listPatterns({ period: '7d', limit: 5 })).data,
+    refetchInterval: 300000,
+  })
+
+  const [selectedPattern, setSelectedPattern] = useState<DetectedPatternResponse | null>(null)
+
+  const escalationQuery = useQuery({
+    queryKey: ['escalation-trend', selectedCollection],
+    queryFn: async () => {
+      const collectionId = selectedCollection === 'all' ? undefined : selectedCollection
+      return (await analysisApi.getEscalationTrend({ collection_id: collectionId, period: '7d' })).data
+    },
+    refetchInterval: 300000,
+  })
+
   // All hooks must be called before any early returns
   const dashboardData = dashboardQuery.data
   const collectionStats = collectionStatsQuery.data
@@ -138,6 +179,9 @@ export function DashboardPage() {
   const tips: IntelligenceTip[] = insights?.intelligence_tips ?? []
   const topics: TrendingTopic[] = insights?.trending_topics ?? []
   const spikes: ActivitySpike[] = insights?.activity_spikes ?? []
+  const correlations = correlationsQuery.data?.correlations ?? []
+  const detectedPatterns = patternsQuery.data?.patterns ?? []
+  const escalationTrend = escalationQuery.data
 
   return (
     <div className="flex flex-col gap-8">
@@ -262,6 +306,119 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Escalation Trend */}
+      <section>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t('analysis.dashboard.escalationTrend')}</CardTitle>
+            {escalationTrend && (
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {t('analysis.escalation.high')}: {escalationTrend.total_high}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  {t('analysis.escalation.medium')}: {escalationTrend.total_medium}
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-green-500" />
+                  {t('analysis.escalation.low')}: {escalationTrend.total_low}
+                </span>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            {!escalationTrend || escalationTrend.trend.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('analysis.escalation.noData')}</p>
+            ) : (
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={escalationTrend.trend} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} className="text-xs" />
+                    <YAxis tickLine={false} axisLine={false} className="text-xs" />
+                    <RechartsTooltip />
+                    <Area type="monotone" dataKey="high_count" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} name={t('analysis.escalation.high')} />
+                    <Area type="monotone" dataKey="medium_count" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} name={t('analysis.escalation.medium')} />
+                    <Area type="monotone" dataKey="low_count" stackId="1" stroke="#22c55e" fill="#22c55e" fillOpacity={0.1} name={t('analysis.escalation.low')} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Cross-Source Analyses */}
+      <section>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t('analysis.correlation.latestTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {correlations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('analysis.correlation.noData')}</p>
+            ) : (
+              correlations.map((c) => (
+                <div key={c.id} className="rounded-lg border p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      {t('analysis.correlation.sources', { count: c.source_count })}
+                    </span>
+                    <Timestamp value={c.created_at} />
+                  </div>
+                  {c.analysis_text && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{c.analysis_text}</p>
+                  )}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Detected Patterns */}
+      <section>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t('analysis.dashboard.detectedPatterns')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {detectedPatterns.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('analysis.patterns.noData')}</p>
+            ) : (
+              detectedPatterns.map((pattern) => (
+                <button
+                  key={pattern.id}
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-lg border border-border/60 p-3 text-left transition hover:border-primary/40 hover:bg-muted/30"
+                  onClick={() => setSelectedPattern(pattern)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge className={PATTERN_TYPE_BADGE[pattern.pattern_type] ?? 'bg-muted text-foreground/60'}>
+                      {t(PATTERN_TYPE_KEY[pattern.pattern_type] ?? pattern.pattern_type)}
+                    </Badge>
+                    <span className="text-sm truncate">{pattern.title}</span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-2">
+                    <span className="text-xs tabular-nums text-foreground/60">
+                      {Math.round(pattern.confidence * 100)}%
+                    </span>
+                    <Timestamp value={pattern.detected_at} />
+                  </div>
+                </button>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <PatternDetailModal
+        pattern={selectedPattern}
+        open={selectedPattern !== null}
+        onOpenChange={(open) => { if (!open) setSelectedPattern(null) }}
+      />
 
       <section className="grid gap-4 md:grid-cols-3">
         <KpiCard

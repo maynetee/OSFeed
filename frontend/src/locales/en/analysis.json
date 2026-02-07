@@ -1,0 +1,53 @@
+{
+  "escalation": {
+    "title": "Escalation Detection",
+    "high": "High Escalation",
+    "medium": "Medium Escalation",
+    "low": "Low Escalation",
+    "factors": "Escalation Factors",
+    "trend": "Escalation Trend",
+    "filterHigh": "High escalation only",
+    "score": "Escalation Score",
+    "noData": "No escalation data available"
+  },
+  "correlation": {
+    "title": "Cross-Source Analysis",
+    "consistentFacts": "Consistent Facts",
+    "uniqueDetails": "Source-Specific Details",
+    "contradictions": "Contradictions",
+    "sources": "{{count}} sources",
+    "crossReferenced": "Cross-referenced",
+    "latestTitle": "Latest Cross-Source Analyses",
+    "noData": "No cross-source analyses available yet"
+  },
+  "patterns": {
+    "title": "Detected Patterns",
+    "volumeSpike": "Volume Spike",
+    "narrativeShift": "Narrative Shift",
+    "entityEmergence": "Entity Emergence",
+    "confidence": "Confidence",
+    "evidence": "Evidence",
+    "partOfPattern": "Part of detected pattern",
+    "noData": "No patterns detected recently"
+  },
+  "timeline": {
+    "title": "Timeline Reconstruction",
+    "generate": "Generate Timeline",
+    "generating": "Generating timeline...",
+    "topic": "Topic or keyword",
+    "dateRange": "Date range",
+    "collection": "Collection",
+    "significance": "Significance",
+    "events": "{{count}} events",
+    "sources": "Sources",
+    "noTimelines": "No timelines generated yet",
+    "deleteConfirm": "Delete this timeline?",
+    "myTimelines": "My Timelines",
+    "newTimeline": "New Timeline"
+  },
+  "dashboard": {
+    "escalationTrend": "Escalation Trend",
+    "detectedPatterns": "Detected Patterns",
+    "crossSourceAnalyses": "Cross-Source Analyses"
+  }
+}

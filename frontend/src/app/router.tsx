@@ -32,6 +32,7 @@ const ForgotPasswordPage = lazy(() => import('@/features/auth/forgot-password-pa
 const ResetPasswordPage = lazy(() => import('@/features/auth/reset-password-page').then((m) => ({ default: m.ResetPasswordPage })))
 const VerifyEmailPage = lazy(() => import('@/features/auth/verify-email-page').then((m) => ({ default: m.VerifyEmailPage })))
 const SummariesPage = lazy(() => import('@/features/summaries/summaries-page').then((m) => ({ default: m.SummariesPage })))
+const TimelinePage = lazy(() => import('@/features/analysis/timeline-page').then((m) => ({ default: m.TimelinePage })))
 
 export function AppRouter() {
   const { t } = useTranslation()
@@ -68,6 +69,7 @@ export function AppRouter() {
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/alerts/:id" element={<AlertDetailPage />} />
             <Route path="/summaries" element={<SummariesPage />} />
+            <Route path="/analysis/timeline" element={<TimelinePage />} />
             <Route path="/exports" element={<ExportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
