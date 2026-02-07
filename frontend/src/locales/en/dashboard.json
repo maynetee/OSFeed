@@ -23,5 +23,20 @@
   "topChannels": "Top channels",
   "emptyTitle": "No sources configured",
   "emptyDescription": "Add Telegram channels to start collecting and analyzing intelligence signals.",
-  "emptyAction": "Add a channel"
+  "emptyAction": "Add a channel",
+  "insightsTitle": "Intelligence Insights",
+  "signalsProcessed": "Signals Processed",
+  "signalsToday": "Today",
+  "signalsThisWeek": "This week",
+  "signalsAllTime": "All time",
+  "intelligenceTips": "Intelligence Tips",
+  "trendingTopics": "Trending Topics",
+  "trendingLast24h": "Last 24 hours",
+  "activitySpikes": "Activity Spikes",
+  "activitySpikeRatio": "{{ratio}}x normal volume",
+  "todayMessages": "{{count}} today",
+  "avgMessages": "avg {{avg}}/day",
+  "noTips": "No intelligence tips available yet.",
+  "noTopics": "No trending topics detected.",
+  "noSpikes": "No unusual activity detected."
 }

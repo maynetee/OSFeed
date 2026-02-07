@@ -8,5 +8,20 @@
   "languageTitle": "Langue interface",
   "languageDescription": "Synchronise les traductions des messages.",
   "languageLabel": "Langue",
-  "translating": "Traduction en cours..."
+  "translating": "Traduction en cours...",
+  "digestTitle": "Digest quotidien",
+  "digestDescription": "Recevez un resume de vos collections par email.",
+  "digestLoading": "Chargement des preferences...",
+  "digestEnabled": "Activer le digest quotidien",
+  "digestFrequency": "Frequence",
+  "digestDaily": "Quotidien",
+  "digestWeekly": "Hebdomadaire (lundis)",
+  "digestSendHour": "Heure d'envoi (UTC)",
+  "digestMaxMessages": "Messages max par collection",
+  "digestCollections": "Collections a inclure",
+  "digestCollectionsHint": "Laissez vide pour inclure toutes vos collections.",
+  "digestSendPreview": "Envoyer un apercu",
+  "digestSending": "Envoi en cours...",
+  "digestPreviewSent": "Apercu du digest envoye a votre email.",
+  "digestPreviewError": "Echec de l'envoi. Veuillez reessayer."
 }

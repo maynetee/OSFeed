@@ -21,6 +21,7 @@ import enSettings from '../locales/en/settings.json'
 import enMessages from '../locales/en/messages.json'
 import enAlerts from '../locales/en/alerts.json'
 import enStats from '../locales/en/stats.json'
+import enSummaries from '../locales/en/summaries.json'
 import frNavigation from '../locales/fr/navigation.json'
 import frCommon from '../locales/fr/common.json'
 import frTheme from '../locales/fr/theme.json'
@@ -42,6 +43,7 @@ import frSettings from '../locales/fr/settings.json'
 import frMessages from '../locales/fr/messages.json'
 import frAlerts from '../locales/fr/alerts.json'
 import frStats from '../locales/fr/stats.json'
+import frSummaries from '../locales/fr/summaries.json'
 
 const storedLanguage = typeof window !== 'undefined' ? localStorage.getItem('osfeed_language') : null
 
@@ -70,6 +72,7 @@ i18n.use(initReactI18next).init({
         messages: enMessages,
         alerts: enAlerts,
         stats: enStats,
+        summaries: enSummaries,
       },
     },
     fr: {
@@ -95,6 +98,7 @@ i18n.use(initReactI18next).init({
         messages: frMessages,
         alerts: frAlerts,
         stats: frStats,
+        summaries: frSummaries,
       },
     },
   },

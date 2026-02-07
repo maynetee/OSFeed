@@ -8,5 +8,20 @@
   "languageTitle": "Interface language",
   "languageDescription": "Syncs message translations.",
   "languageLabel": "Language",
-  "translating": "Translating..."
+  "translating": "Translating...",
+  "digestTitle": "Daily Digest",
+  "digestDescription": "Receive a summary of your collections by email.",
+  "digestLoading": "Loading preferences...",
+  "digestEnabled": "Enable daily digest",
+  "digestFrequency": "Frequency",
+  "digestDaily": "Daily",
+  "digestWeekly": "Weekly (Mondays)",
+  "digestSendHour": "Send time (UTC)",
+  "digestMaxMessages": "Max messages per collection",
+  "digestCollections": "Collections to include",
+  "digestCollectionsHint": "Leave empty to include all your collections.",
+  "digestSendPreview": "Send Preview",
+  "digestSending": "Sending...",
+  "digestPreviewSent": "Preview digest sent to your email.",
+  "digestPreviewError": "Failed to send preview. Please try again."
 }

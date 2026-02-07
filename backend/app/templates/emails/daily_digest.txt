@@ -1,0 +1,22 @@
+{{ app_name }} - Your Daily Digest
+{{ period }}
+
+Here's a summary of the latest intelligence from your monitored collections.
+
+{% for collection in collections %}
+=== {{ collection.name }} ({{ collection.message_count }} new message{{ 's' if collection.message_count != 1 else '' }}) ===
+
+{{ collection.summary }}
+
+{% if collection.top_messages %}Top messages:
+{% for msg in collection.top_messages %}
+- {{ msg.text }}{% if msg.published_at %} ({{ msg.published_at }}){% endif %}
+
+{% endfor %}
+{% endif %}
+View: {{ frontend_url }}/collections/{{ collection.id }}
+
+{% endfor %}
+---
+You're receiving this because you enabled daily digests on {{ app_name }}.
+Manage settings: {{ frontend_url }}/settings

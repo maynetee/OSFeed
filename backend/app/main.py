@@ -10,13 +10,14 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api import alerts, audit_logs, auth, channels, collections, contact_sales, messages, newsletter, notifications, stats, stripe
+from app.api import alerts, audit_logs, auth, channels, collections, contact_sales, digests, insights, messages, newsletter, notifications, stats, stripe, summaries
 from app.config import get_settings
 from app.database import get_engine, init_db
 from app.jobs.alerts import evaluate_alerts_job
 from app.jobs.collect_messages import collect_messages_job
 from app.jobs.purge_audit_logs import purge_audit_logs_job
 from app.jobs.score_relevance import score_relevance_job
+from app.jobs.send_daily_digests import send_daily_digests_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.seeds.curated_collections import seed_curated_collections
@@ -94,6 +95,8 @@ async def lifespan(app: FastAPI):
 
         scheduler.add_job(score_relevance_job, 'interval', minutes=5, id='score_relevance')
 
+        scheduler.add_job(send_daily_digests_job, 'cron', minute=5, id='send_daily_digests')
+
         scheduler.start()
         logger.info("Background jobs scheduled (collecting every 5 minutes)")
 
@@ -157,6 +160,9 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["not
 app.include_router(contact_sales.router, prefix="/api", tags=["contact-sales"])
 app.include_router(stripe.router, prefix="/api", tags=["stripe"])
 app.include_router(newsletter.router, prefix="/api", tags=["newsletter"])
+app.include_router(summaries.router, prefix="/api/summaries", tags=["summaries"])
+app.include_router(digests.router, prefix="/api/digests", tags=["digests"])
+app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
 
 
 @app.get("/")

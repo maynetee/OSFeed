@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Sparkles } from 'lucide-react'
 
 import { collectionsApi, messagesApi } from '@/lib/api/client'
 import type { Collection } from '@/lib/api/client'
@@ -17,6 +17,7 @@ import { CollectionShares } from '@/components/collections/collection-shares'
 import { Timestamp } from '@/components/common/timestamp'
 import { cn } from '@/lib/cn'
 import { useMessagePolling } from '@/hooks/use-message-polling'
+import { SummaryGenerateModal } from '@/features/summaries/summary-generate-modal'
 
 export function CollectionDetailPage() {
   const { id } = useParams()
@@ -25,6 +26,7 @@ export function CollectionDetailPage() {
   const queryClient = useQueryClient()
   const [exportOpen, setExportOpen] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
 
   const collectionQuery = useQuery({
     queryKey: ['collections', id],
@@ -155,6 +157,10 @@ export function CollectionDetailPage() {
             <Button variant="outline" onClick={() => setExportOpen(true)}>
               {t('collections.export')}
             </Button>
+            <Button variant="outline" className="gap-1.5" onClick={() => setSummaryOpen(true)}>
+              <Sparkles className="h-4 w-4" />
+              {t('summaries.generate')}
+            </Button>
             <Button variant="outline" onClick={() => deleteCollection.mutate()}>
               {t('collections.delete')}
             </Button>
@@ -215,6 +221,11 @@ export function CollectionDetailPage() {
           await updateCollection.mutateAsync(payload)
           setEditing(false)
         }}
+      />
+      <SummaryGenerateModal
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+        collectionId={id}
       />
       <CollectionExportDialog
         open={exportOpen}

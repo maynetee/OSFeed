@@ -23,5 +23,20 @@
   "topChannels": "Top canaux",
   "emptyTitle": "Aucune source configuree",
   "emptyDescription": "Ajoutez des canaux Telegram pour commencer a collecter et analyser les signaux de renseignement.",
-  "emptyAction": "Ajouter un canal"
+  "emptyAction": "Ajouter un canal",
+  "insightsTitle": "Analyses de renseignement",
+  "signalsProcessed": "Signaux traites",
+  "signalsToday": "Aujourd'hui",
+  "signalsThisWeek": "Cette semaine",
+  "signalsAllTime": "Total",
+  "intelligenceTips": "Conseils de renseignement",
+  "trendingTopics": "Sujets tendance",
+  "trendingLast24h": "Dernieres 24 heures",
+  "activitySpikes": "Pics d'activite",
+  "activitySpikeRatio": "{{ratio}}x le volume normal",
+  "todayMessages": "{{count}} aujourd'hui",
+  "avgMessages": "moy. {{avg}}/jour",
+  "noTips": "Aucun conseil de renseignement disponible.",
+  "noTopics": "Aucun sujet tendance detecte.",
+  "noSpikes": "Aucune activite inhabituelle detectee."
 }

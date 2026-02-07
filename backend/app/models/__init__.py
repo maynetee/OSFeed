@@ -10,3 +10,5 @@ from app.models.fetch_job import FetchJob
 from app.models.contact_lead import ContactSalesLead
 from app.models.newsletter_subscriber import NewsletterSubscriber
 from app.models.notification import Notification
+from app.models.digest_preference import DigestPreference
+from app.models.summary import Summary

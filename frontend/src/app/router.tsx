@@ -31,6 +31,7 @@ const NotFoundPage = lazy(() => import('@/features/landing/not-found-page').then
 const ForgotPasswordPage = lazy(() => import('@/features/auth/forgot-password-page').then((m) => ({ default: m.ForgotPasswordPage })))
 const ResetPasswordPage = lazy(() => import('@/features/auth/reset-password-page').then((m) => ({ default: m.ResetPasswordPage })))
 const VerifyEmailPage = lazy(() => import('@/features/auth/verify-email-page').then((m) => ({ default: m.VerifyEmailPage })))
+const SummariesPage = lazy(() => import('@/features/summaries/summaries-page').then((m) => ({ default: m.SummariesPage })))
 
 export function AppRouter() {
   const { t } = useTranslation()
@@ -66,6 +67,7 @@ export function AppRouter() {
             <Route path="/collections/:id" element={<CollectionDetailPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/alerts/:id" element={<AlertDetailPage />} />
+            <Route path="/summaries" element={<SummariesPage />} />
             <Route path="/exports" element={<ExportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

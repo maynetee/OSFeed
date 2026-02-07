@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useInfiniteQuery, useQuery, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
-import { RefreshCw, Radio } from 'lucide-react'
+import { RefreshCw, Radio, Sparkles } from 'lucide-react'
 
 import { ExportDialog } from '@/components/exports/export-dialog'
 import { MessageFeed } from '@/components/messages/message-feed'
@@ -12,6 +12,7 @@ import { channelsApi, collectionsApi, messagesApi, MessageListResponse, Translat
 import { cn } from '@/lib/cn'
 import { useMessageStream } from '@/hooks/use-message-stream'
 import { useFilterStore } from '@/stores/filter-store'
+import { SummaryGenerateModal } from '@/features/summaries/summary-generate-modal'
 
 type FeedQueryData = InfiniteData<MessageListResponse>
 
@@ -28,6 +29,7 @@ export function FeedPage() {
   const filtersTouched = useFilterStore((state) => state.filtersTouched)
   const resetFilters = useFilterStore((state) => state.resetFilters)
   const [exportOpen, setExportOpen] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const [sort, setSort] = useState<'latest' | 'relevance'>('latest')
   const { t } = useTranslation()
   const [lastMessageTime, setLastMessageTime] = useState<Date | null>(null)
@@ -213,6 +215,10 @@ export function FeedPage() {
             <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
             <span className="hidden sm:inline">{t('feed.refresh')}</span>
           </Button>
+          <Button variant="outline" className="gap-1.5" onClick={() => setSummaryOpen(true)}>
+            <Sparkles className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('summaries.generate')}</span>
+          </Button>
           <Button variant="outline">{t('feed.filters')}</Button>
           <Button onClick={() => setExportOpen(true)}>{t('feed.export')}</Button>
         </div>
@@ -271,6 +277,11 @@ export function FeedPage() {
         </div>
       </div>
 
+      <SummaryGenerateModal
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+        channelIds={activeChannelIds}
+      />
       <ExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
