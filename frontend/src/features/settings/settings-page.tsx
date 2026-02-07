@@ -1,17 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { messagesApi, LANGUAGES } from '@/lib/api/client'
 
+const PREFS_KEY = 'osfeed_notification_prefs'
+
+function loadPrefs(): { email: boolean; in_app: boolean } {
+  try {
+    const stored = localStorage.getItem(PREFS_KEY)
+    if (stored) return JSON.parse(stored)
+  } catch { /* ignore */ }
+  return { email: false, in_app: true }
+}
+
+function savePrefs(prefs: { email: boolean; in_app: boolean }) {
+  localStorage.setItem(PREFS_KEY, JSON.stringify(prefs))
+}
+
 export function SettingsPage() {
   const { i18n, t } = useTranslation()
   const queryClient = useQueryClient()
   const [isTranslating, setIsTranslating] = useState(false)
+  const [prefs, setPrefs] = useState(loadPrefs)
+
+  useEffect(() => {
+    savePrefs(prefs)
+  }, [prefs])
 
   const handleLanguageChange = async (value: string) => {
     setIsTranslating(true)
@@ -38,9 +56,25 @@ export function SettingsPage() {
             <p className="text-sm font-semibold">{t('settings.notificationsTitle')}</p>
             <p className="text-xs text-foreground/60">{t('settings.notificationsDescription')}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline">{t('settings.notificationEmail')}</Button>
-            <Button variant="outline">{t('settings.notificationTelegram')}</Button>
+          <div className="flex flex-col gap-3">
+            <label className="flex items-center justify-between">
+              <span className="text-sm">{t('settings.notificationInApp')}</span>
+              <input
+                type="checkbox"
+                checked={prefs.in_app}
+                onChange={(e) => setPrefs((p) => ({ ...p, in_app: e.target.checked }))}
+                className="h-4 w-4 accent-primary"
+              />
+            </label>
+            <label className="flex items-center justify-between">
+              <span className="text-sm">{t('settings.notificationEmail')}</span>
+              <input
+                type="checkbox"
+                checked={prefs.email}
+                onChange={(e) => setPrefs((p) => ({ ...p, email: e.target.checked }))}
+                className="h-4 w-4 accent-primary"
+              />
+            </label>
           </div>
         </CardContent>
       </Card>

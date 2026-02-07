@@ -32,6 +32,7 @@ export const alertsApi = {
     collection_id: string
     keywords?: string[]
     entities?: string[]
+    match_mode?: string
     min_threshold?: number
     frequency?: string
     notification_channels?: string[]

@@ -16,6 +16,7 @@ import enDigestViewer from '../locales/en/digestViewer.json'
 import enExports from '../locales/en/exports.json'
 import enChannels from '../locales/en/channels.json'
 import enCollections from '../locales/en/collections.json'
+import enCuratedCollections from '../locales/en/curatedCollections.json'
 import enSettings from '../locales/en/settings.json'
 import enMessages from '../locales/en/messages.json'
 import enAlerts from '../locales/en/alerts.json'
@@ -36,6 +37,7 @@ import frDigestViewer from '../locales/fr/digestViewer.json'
 import frExports from '../locales/fr/exports.json'
 import frChannels from '../locales/fr/channels.json'
 import frCollections from '../locales/fr/collections.json'
+import frCuratedCollections from '../locales/fr/curatedCollections.json'
 import frSettings from '../locales/fr/settings.json'
 import frMessages from '../locales/fr/messages.json'
 import frAlerts from '../locales/fr/alerts.json'
@@ -63,6 +65,7 @@ i18n.use(initReactI18next).init({
         exports: enExports,
         channels: enChannels,
         collections: enCollections,
+        curatedCollections: enCuratedCollections,
         settings: enSettings,
         messages: enMessages,
         alerts: enAlerts,
@@ -87,6 +90,7 @@ i18n.use(initReactI18next).init({
         exports: frExports,
         channels: frChannels,
         collections: frCollections,
+        curatedCollections: frCuratedCollections,
         settings: frSettings,
         messages: frMessages,
         alerts: frAlerts,

@@ -9,6 +9,7 @@ class AlertBase(BaseModel):
     collection_id: UUID
     keywords: Optional[List[str]] = None
     entities: Optional[List[str]] = None
+    match_mode: str = "any"
     min_threshold: int = 1
     frequency: str = "daily"
     notification_channels: Optional[List[str]] = None
@@ -24,6 +25,7 @@ class AlertUpdate(BaseModel):
     collection_id: Optional[UUID] = None
     keywords: Optional[List[str]] = None
     entities: Optional[List[str]] = None
+    match_mode: Optional[str] = None
     min_threshold: Optional[int] = None
     frequency: Optional[str] = None
     notification_channels: Optional[List[str]] = None
@@ -34,6 +36,7 @@ class AlertResponse(AlertBase):
     id: UUID
     user_id: UUID
     last_triggered_at: Optional[datetime] = None
+    last_evaluated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -85,26 +85,18 @@ async def publish_alert_triggered(
     trigger_id: UUID,
     alert_name: str,
     summary: str,
-    message_count: int
+    message_count: int,
+    user_id: UUID | None = None,
 ) -> bool:
-    """Publish an alert triggered event to Redis.
-
-    Args:
-        alert_id: UUID of the triggered alert
-        trigger_id: UUID of the alert trigger record
-        alert_name: Name of the triggered alert
-        summary: Summary text of matched messages
-        message_count: Number of messages that matched the alert
-
-    Returns:
-        True if event was published successfully, False otherwise
-    """
+    """Publish an alert triggered event to Redis."""
     data = {
         "alert_id": str(alert_id),
         "trigger_id": str(trigger_id),
         "alert_name": alert_name,
         "summary": summary,
-        "message_count": message_count
+        "message_count": message_count,
     }
+    if user_id:
+        data["user_id"] = str(user_id)
 
     return await publish_event("alert:triggered", data)

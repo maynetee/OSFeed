@@ -18,10 +18,14 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
     dateRange,
     mediaTypes,
     collectionIds,
+    region,
+    topic,
     setChannelIds,
     setCollectionIds,
     setDateRange,
     setMediaTypes,
+    setRegion,
+    setTopic,
     setFiltersTouched,
     resetFilters,
   } = useFilterStore(
@@ -30,10 +34,14 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
       dateRange: state.dateRange,
       mediaTypes: state.mediaTypes,
       collectionIds: state.collectionIds,
+      region: state.region,
+      topic: state.topic,
       setChannelIds: state.setChannelIds,
       setCollectionIds: state.setCollectionIds,
       setDateRange: state.setDateRange,
       setMediaTypes: state.setMediaTypes,
+      setRegion: state.setRegion,
+      setTopic: state.setTopic,
       setFiltersTouched: state.setFiltersTouched,
       resetFilters: state.resetFilters,
     }))
@@ -49,9 +57,12 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
     [collections],
   )
 
+  const REGIONS = ['Europe', 'Middle East', 'Asia-Pacific', 'Americas', 'Africa', 'Global']
+  const TOPICS = ['Conflict', 'Trade', 'Politics', 'Cyber', 'Defense', 'Energy', 'Policy', 'Intelligence']
+
   const hasActiveFilters = useMemo(
-    () => channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0 || dateRange !== 'all',
-    [channelIds.length, collectionIds.length, mediaTypes.length, dateRange]
+    () => channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0 || dateRange !== 'all' || region !== '' || topic !== '',
+    [channelIds.length, collectionIds.length, mediaTypes.length, dateRange, region, topic]
   )
 
   const activeFilterSummary = useMemo(() => {
@@ -83,8 +94,16 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
       summary.push(t('filters.last') + ' ' + rangeLabel)
     }
 
+    if (region) {
+      summary.push(t(`filters.regions.${region}`, region))
+    }
+
+    if (topic) {
+      summary.push(t(`filters.topics.${topic}`, topic))
+    }
+
     return summary
-  }, [channelIds.length, collectionIds.length, mediaTypes, dateRange, t])
+  }, [channelIds.length, collectionIds.length, mediaTypes, dateRange, region, topic, t])
 
   return (
     <Card>
@@ -106,7 +125,7 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         )}
 
         <div className="flex justify-end">
-          {(channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0) ? (
+          {(channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0 || region !== '' || topic !== '') ? (
             <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
               {t('filters.clear')}
             </Button>
@@ -178,6 +197,68 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
                 </Button>
               )
             })}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.region')}</legend>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={region === '' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setFiltersTouched(true)
+                setRegion('')
+              }}
+              aria-pressed={region === ''}
+            >
+              {t('filters.allRegions')}
+            </Button>
+            {REGIONS.map((r) => (
+              <Button
+                key={r}
+                variant={region === r ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setFiltersTouched(true)
+                  setRegion(region === r ? '' : r)
+                }}
+                aria-pressed={region === r}
+              >
+                {t(`filters.regions.${r}`, r)}
+              </Button>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.topic')}</legend>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={topic === '' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setFiltersTouched(true)
+                setTopic('')
+              }}
+              aria-pressed={topic === ''}
+            >
+              {t('filters.allTopics')}
+            </Button>
+            {TOPICS.map((tp) => (
+              <Button
+                key={tp}
+                variant={topic === tp ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setFiltersTouched(true)
+                  setTopic(topic === tp ? '' : tp)
+                }}
+                aria-pressed={topic === tp}
+              >
+                {t(`filters.topics.${tp}`, tp)}
+              </Button>
+            ))}
           </div>
         </fieldset>
 

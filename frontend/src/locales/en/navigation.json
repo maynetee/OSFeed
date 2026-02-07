@@ -6,6 +6,8 @@
   "digests": "Digests",
   "channels": "Channels",
   "collections": "Collections",
+  "browseCollections": "Browse Collections",
   "exports": "Exports",
+  "alerts": "Alerts",
   "settings": "Settings"
 }

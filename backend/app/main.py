@@ -1,27 +1,30 @@
+import logging
+from contextlib import asynccontextmanager
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import logging
-from redis.asyncio import Redis
-from redis.exceptions import RedisError
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
+from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api import alerts, audit_logs, auth, channels, collections, contact_sales, messages, newsletter, notifications, stats, stripe
 from app.config import get_settings
-from app.database import init_db, get_engine
-from app.api import channels, messages, auth, collections, audit_logs, stats, alerts, contact_sales, stripe, newsletter
-from app.jobs.collect_messages import collect_messages_job
-from app.jobs.translate_pending_messages import translate_pending_messages_job
-from app.jobs.purge_audit_logs import purge_audit_logs_job
+from app.database import get_engine, init_db
 from app.jobs.alerts import evaluate_alerts_job
-from app.services.fetch_queue import start_fetch_worker, stop_fetch_worker
-from app.services.telegram_client import cleanup_telegram_client
-from app.services.rate_limiter import cleanup_rate_limiter
-from app.services.channel_join_queue import process_join_queue
-from app.services.telegram_updates import start_update_handler, stop_update_handler
+from app.jobs.collect_messages import collect_messages_job
+from app.jobs.purge_audit_logs import purge_audit_logs_job
+from app.jobs.score_relevance import score_relevance_job
+from app.jobs.translate_pending_messages import translate_pending_messages_job
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.seeds.curated_collections import seed_curated_collections
+from app.services.channel_join_queue import process_join_queue
+from app.services.fetch_queue import start_fetch_worker, stop_fetch_worker
+from app.services.rate_limiter import cleanup_rate_limiter
+from app.services.telegram_client import cleanup_telegram_client
+from app.services.telegram_updates import start_update_handler, stop_update_handler
 
 # Configure logging
 logging.basicConfig(
@@ -40,6 +43,12 @@ async def lifespan(app: FastAPI):
     # Startup: Initialize database
     await init_db()
     logger.info("Database initialized")
+
+    # Seed curated collections
+    from app.database import AsyncSessionLocal
+    async with AsyncSessionLocal() as session:
+        await seed_curated_collections(session)
+    logger.info("Curated collections seeded")
 
     await start_fetch_worker()
     await start_update_handler()
@@ -64,7 +73,7 @@ async def lifespan(app: FastAPI):
         purge_hour, purge_minute = map(int, settings.audit_log_purge_time.split(':'))
         scheduler.add_job(purge_audit_logs_job, 'cron', hour=purge_hour, minute=purge_minute, id='purge_audit_logs')
 
-        scheduler.add_job(evaluate_alerts_job, 'interval', minutes=10, id='alert_monitor')
+        scheduler.add_job(evaluate_alerts_job, 'interval', minutes=2, id='alert_monitor')
 
         # Process JoinChannel queue at midnight UTC
         scheduler.add_job(
@@ -82,6 +91,8 @@ async def lifespan(app: FastAPI):
             minutes=5,
             id='translate_pending_messages',
         )
+
+        scheduler.add_job(score_relevance_job, 'interval', minutes=5, id='score_relevance')
 
         scheduler.start()
         logger.info("Background jobs scheduled (collecting every 5 minutes)")
@@ -142,6 +153,7 @@ app.include_router(collections.router, prefix="/api/collections", tags=["collect
 app.include_router(audit_logs.router, prefix="/api/audit-logs", tags=["audit-logs"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
+app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(contact_sales.router, prefix="/api", tags=["contact-sales"])
 app.include_router(stripe.router, prefix="/api", tags=["stripe"])
 app.include_router(newsletter.router, prefix="/api", tags=["newsletter"])
@@ -161,8 +173,8 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint that verifies database connectivity."""
-    from sqlalchemy import text
     from fastapi.responses import JSONResponse
+    from sqlalchemy import text
 
     try:
         engine = get_engine()

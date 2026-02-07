@@ -1,5 +1,5 @@
 import { api, buildParams } from './axios-instance'
-import type { Collection, CollectionStats } from './types'
+import type { Collection, CollectionStats, CuratedCollection } from './types'
 
 export const collectionsApi = {
   /**
@@ -176,4 +176,15 @@ export const collectionsApi = {
    */
   removeShare: (id: string, userId: string) =>
     api.delete(`/api/collections/${id}/shares/${userId}`),
+}
+
+export const curatedCollectionsApi = {
+  list: (params?: { region?: string; topic?: string; search?: string }) =>
+    api.get<CuratedCollection[]>('/api/collections/curated', { params }),
+
+  get: (id: string) =>
+    api.get<CuratedCollection>(`/api/collections/curated/${id}`),
+
+  import: (id: string) =>
+    api.post<{ imported_count: number; already_existed: number }>(`/api/collections/curated/${id}/import`),
 }

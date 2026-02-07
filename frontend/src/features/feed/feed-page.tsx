@@ -21,11 +21,14 @@ export function FeedPage() {
   const dateRange = useFilterStore((state) => state.dateRange)
   const collectionIds = useFilterStore((state) => state.collectionIds)
   const mediaTypes = useFilterStore((state) => state.mediaTypes)
+  const region = useFilterStore((state) => state.region)
+  const topic = useFilterStore((state) => state.topic)
   const setChannelIds = useFilterStore((state) => state.setChannelIds)
   const setCollectionIds = useFilterStore((state) => state.setCollectionIds)
   const filtersTouched = useFilterStore((state) => state.filtersTouched)
   const resetFilters = useFilterStore((state) => state.resetFilters)
   const [exportOpen, setExportOpen] = useState(false)
+  const [sort, setSort] = useState<'latest' | 'relevance'>('latest')
   const { t } = useTranslation()
   const [lastMessageTime, setLastMessageTime] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -76,7 +79,7 @@ export function FeedPage() {
   }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds, setCollectionIds])
 
   const messagesQuery = useInfiniteQuery({
-    queryKey: ['messages', activeChannelIds, dateRange, mediaTypes],
+    queryKey: ['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic],
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       return (
@@ -86,6 +89,9 @@ export function FeedPage() {
           channel_ids: activeChannelIds.length ? activeChannelIds : undefined,
           start_date: rangeDays ? subDays(new Date(), rangeDays).toISOString() : undefined,
           media_types: mediaTypes.length ? mediaTypes : undefined,
+          sort,
+          region: region || undefined,
+          topics: topic ? [topic] : undefined,
         })
       ).data
     },
@@ -97,7 +103,7 @@ export function FeedPage() {
 
   const handleTranslation = useCallback((update: TranslationUpdate) => {
     // Update the message in the query cache
-    queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes], (oldData) => {
+    queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic], (oldData) => {
       if (!oldData?.pages) return oldData
 
       return {
@@ -118,14 +124,14 @@ export function FeedPage() {
         })),
       }
     })
-  }, [queryClient, activeChannelIds, dateRange, mediaTypes])
+  }, [queryClient, activeChannelIds, dateRange, mediaTypes, sort, region, topic])
 
   const { isConnected } = useMessageStream({
     channelIds: activeChannelIds,
     onMessages: (newMessages, isRealtime) => {
       if (isRealtime && newMessages.length > 0) {
         setLastMessageTime(new Date())
-        queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes], (oldData) => {
+        queryClient.setQueryData<FeedQueryData>(['messages', activeChannelIds, dateRange, mediaTypes, sort, region, topic], (oldData) => {
           if (!oldData) return oldData
           const newPages = [...oldData.pages]
           if (newPages.length > 0) {
@@ -166,7 +172,7 @@ export function FeedPage() {
     () => messagesQuery.data?.pages.flatMap((page) => page.messages) ?? [],
     [messagesQuery.data],
   )
-  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0
+  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0 || region !== '' || topic !== ''
   const totalChannels = (channelsQuery.data ?? []).length
 
   return (
@@ -222,6 +228,23 @@ export function FeedPage() {
           </Button>
         </div>
       ) : null}
+
+      <div className="flex items-center gap-2">
+        <Button
+          variant={sort === 'latest' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSort('latest')}
+        >
+          {t('feed.sortLatest')}
+        </Button>
+        <Button
+          variant={sort === 'relevance' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setSort('relevance')}
+        >
+          {t('feed.sortRelevance')}
+        </Button>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_3fr]">
         <MessageFilters

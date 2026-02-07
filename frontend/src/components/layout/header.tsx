@@ -55,6 +55,7 @@ export function Header() {
     if (location.pathname === '/channels') return t('navigation.channels')
     if (location.pathname === '/collections') return t('navigation.collections')
     if (location.pathname === '/exports') return t('navigation.exports')
+    if (location.pathname.startsWith('/alerts')) return t('navigation.alerts')
     if (location.pathname === '/settings') return t('navigation.settings')
     return 'OSFeed'
   }, [location.pathname, t])

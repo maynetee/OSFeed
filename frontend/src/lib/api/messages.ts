@@ -24,6 +24,9 @@ export const messagesApi = {
     start_date?: string
     end_date?: string
     media_types?: string[]
+    sort?: 'latest' | 'relevance'
+    region?: string
+    topics?: string[]
   }) =>
     api.get<MessageListResponse>('/api/messages', {
       params: params ? buildParams(params) : undefined,

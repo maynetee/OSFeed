@@ -1,0 +1,17 @@
+{
+  "title": "Browse Curated Collections",
+  "subtitle": "Explore intelligence collections organized by topic and region",
+  "filterRegion": "Region",
+  "filterTopic": "Topic",
+  "search": "Search collections...",
+  "allRegions": "All Regions",
+  "allTopics": "All Topics",
+  "channelCount": "{{count}} channels",
+  "curatedBy": "Curated by {{curator}}",
+  "importAll": "Import All Channels",
+  "importConfirm": "This will add {{count}} channels to your sources. Continue?",
+  "importSuccess": "Successfully imported {{count}} channels ({{existed}} already existed)",
+  "viewDetails": "View Details",
+  "channels": "Channels",
+  "lastUpdated": "Last updated"
+}

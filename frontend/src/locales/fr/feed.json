@@ -2,5 +2,8 @@
   "title": "Signaux prioritaires",
   "subtitle": "Flux temps reel",
   "filters": "Filtres",
-  "export": "Exporter"
+  "export": "Exporter",
+  "sortLatest": "Plus récents",
+  "sortRelevance": "Plus pertinents",
+  "relevanceScore": "Pertinence"
 }

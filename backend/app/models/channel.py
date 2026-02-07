@@ -1,12 +1,13 @@
-from sqlalchemy import Column, BigInteger, String, DateTime, Text, Boolean, Index, JSON, Table, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
-from fastapi_users_db_sqlalchemy.generics import GUID
-from sqlalchemy.orm import relationship
+import uuid
 from datetime import datetime, timezone
+
+from fastapi_users_db_sqlalchemy.generics import GUID
+from sqlalchemy import JSON, BigInteger, Boolean, Column, DateTime, ForeignKey, Index, String, Table, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+
 from app.database import Base
 from app.models.collection import collection_channels
-import uuid
-
 
 # Junction table for many-to-many user-channel relationship
 # Enables shared channel data: when user B adds a channel user A already added,
@@ -38,6 +39,8 @@ class Channel(Base):
     subscriber_count = Column(BigInteger, default=0)
     is_active = Column(Boolean, default=True, index=True)
     tags = Column(JSON, default=list, nullable=True)
+    region = Column(String(50), nullable=True, index=True)
+    topics = Column(JSON, default=list, nullable=True)
 
     # Fetch configuration (JSON - works with both SQLite and PostgreSQL)
     fetch_config = Column(

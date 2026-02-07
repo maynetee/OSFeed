@@ -9,3 +9,4 @@ from app.models.api_usage import ApiUsage
 from app.models.fetch_job import FetchJob
 from app.models.contact_lead import ContactSalesLead
 from app.models.newsletter_subscriber import NewsletterSubscriber
+from app.models.notification import Notification

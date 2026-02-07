@@ -1,0 +1,17 @@
+{
+  "title": "Parcourir les collections",
+  "subtitle": "Explorez les collections de renseignement organisées par thème et région",
+  "filterRegion": "Région",
+  "filterTopic": "Thème",
+  "search": "Rechercher des collections...",
+  "allRegions": "Toutes les régions",
+  "allTopics": "Tous les thèmes",
+  "channelCount": "{{count}} chaînes",
+  "curatedBy": "Sélectionné par {{curator}}",
+  "importAll": "Importer toutes les chaînes",
+  "importConfirm": "Cela ajoutera {{count}} chaînes à vos sources. Continuer ?",
+  "importSuccess": "{{count}} chaînes importées avec succès ({{existed}} existaient déjà)",
+  "viewDetails": "Voir les détails",
+  "channels": "Chaînes",
+  "lastUpdated": "Dernière mise à jour"
+}

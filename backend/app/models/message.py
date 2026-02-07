@@ -1,9 +1,25 @@
-from sqlalchemy import Column, BigInteger, String, DateTime, Text, Boolean, ForeignKey, Index, SmallInteger, JSON, Integer, UniqueConstraint
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+
 from app.database import Base
-import uuid
 
 
 class Message(Base):
@@ -34,6 +50,9 @@ class Message(Base):
     is_duplicate = Column(Boolean, default=False, index=True)
     originality_score = Column(SmallInteger, default=100)  # 0-100
     duplicate_group_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+
+    # Relevance scoring
+    relevance_score = Column(Float, nullable=True, index=True)
 
     # Timestamps with timezone
     published_at = Column(DateTime(timezone=True), index=True)

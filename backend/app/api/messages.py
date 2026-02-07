@@ -1,47 +1,49 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, update, or_, tuple_, insert, and_, literal
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.orm import selectinload
-from uuid import UUID
-import asyncio
-import json
-
-from app.database import get_db, AsyncSessionLocal
-from app.models.message import Message, MessageTranslation
-from app.utils.response_cache import response_cache
-from app.models.channel import Channel
-from app.models.user import User
-from app.schemas.message import MessageResponse, MessageListResponse, SimilarMessagesResponse
-from app.services.translation_pool import run_translation
-from app.services.translator import translator
-from app.services.message_utils import (
-    message_to_response,
-    apply_message_filters,
-    get_similar_messages as get_similar_messages_service,
-    get_single_message,
-)
-from app.services.message_streaming_service import create_message_stream
-from app.services.message_export_service import (
-    export_messages_csv as service_export_messages_csv,
-    export_messages_html as service_export_messages_html,
-    export_messages_pdf as service_export_messages_pdf,
-)
-from app.services.message_translation_bulk_service import translate_messages_batch, translate_single_message
-from app.services.message_media_service import get_media_stream
-from app.services.channel_utils import get_authorized_channel
-from app.config import get_settings
-from app.services.fetch_queue import enqueue_fetch_job
-from app.auth.users import current_active_user
-from app.services.cache import get_redis_client
-from app.services.events import publish_message_translated
-from app.services.audit import record_audit_event
-from datetime import datetime, timezone
-from typing import Optional
 import base64
 import logging
+from datetime import datetime, timezone
 from io import BytesIO
+from typing import List, Optional
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import desc, func, or_, select, tuple_
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.auth.users import current_active_user
+from app.config import get_settings
+from app.database import AsyncSessionLocal, get_db
+from app.models.channel import Channel
+from app.models.message import Message
+from app.models.user import User
+from app.schemas.message import MessageListResponse, MessageResponse, SimilarMessagesResponse
+from app.services.audit import record_audit_event
+from app.services.channel_utils import get_authorized_channel
+from app.services.events import publish_message_translated
+from app.services.fetch_queue import enqueue_fetch_job
+from app.services.message_export_service import (
+    export_messages_csv as service_export_messages_csv,
+)
+from app.services.message_export_service import (
+    export_messages_html as service_export_messages_html,
+)
+from app.services.message_export_service import (
+    export_messages_pdf as service_export_messages_pdf,
+)
+from app.services.message_media_service import get_media_stream
+from app.services.message_streaming_service import create_message_stream
+from app.services.message_translation_bulk_service import translate_messages_batch, translate_single_message
+from app.services.message_utils import (
+    apply_message_filters,
+    get_single_message,
+    message_to_response,
+)
+from app.services.message_utils import (
+    get_similar_messages as get_similar_messages_service,
+)
+from app.utils.response_cache import response_cache
 
 logger = logging.getLogger(__name__)
 
@@ -74,34 +76,58 @@ async def list_messages(
     channel_id: Optional[UUID] = None,
     channel_ids: Optional[list[UUID]] = Query(None),
     limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=10000),
     cursor: Optional[str] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     media_types: Optional[list[str]] = Query(None),
+    region: Optional[str] = Query(None, description="Filter by channel region"),
+    topics: Optional[List[str]] = Query(None, description="Filter by channel topics"),
+    sort: str = Query("latest", regex="^(latest|relevance)$"),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get paginated message feed with optional filters."""
+    # Pre-filter channel IDs by topics (cross-DB compatible: JSON handling differs between PG and SQLite)
+    if topics:
+        ch_result = await db.execute(select(Channel.id, Channel.topics).where(Channel.is_active.is_(True)))
+        topic_filtered_ids = [
+            ch_id for ch_id, ch_topics in ch_result.all()
+            if ch_topics and any(t in ch_topics for t in topics)
+        ]
+        if not topic_filtered_ids:
+            return MessageListResponse(messages=[], total=0, page=1, page_size=limit, next_cursor=None)
+        if channel_ids:
+            topic_filtered_ids = [cid for cid in topic_filtered_ids if cid in channel_ids]
+            if not topic_filtered_ids:
+                return MessageListResponse(messages=[], total=0, page=1, page_size=limit, next_cursor=None)
+        channel_ids = topic_filtered_ids
+        channel_id = None
+
     query = select(Message).options(selectinload(Message.channel))
-    query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types)
+    query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types, region=region)
 
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    query = query.order_by(desc(Message.published_at), desc(Message.id))
-    if cursor:
-        cursor_published_at, cursor_id = _decode_cursor(cursor)
-        query = query.where(tuple_(Message.published_at, Message.id) < (cursor_published_at, cursor_id))
-    else:
+    if sort == "relevance":
+        query = query.order_by(desc(Message.relevance_score).nullslast(), desc(Message.published_at), desc(Message.id))
         query = query.offset(offset)
+    else:
+        query = query.order_by(desc(Message.published_at), desc(Message.id))
+        if cursor:
+            cursor_published_at, cursor_id = _decode_cursor(cursor)
+            query = query.where(tuple_(Message.published_at, Message.id) < (cursor_published_at, cursor_id))
+        else:
+            query = query.offset(offset)
+
     query = query.limit(limit)
     result = await db.execute(query)
     messages = result.scalars().all()
 
     next_cursor = None
-    if messages:
+    if sort != "relevance" and messages:
         last_message = messages[-1]
         next_cursor = _encode_cursor(last_message.published_at, last_message.id)
 
@@ -155,7 +181,7 @@ async def search_messages(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=10000),
     cursor: Optional[str] = Query(None),
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),

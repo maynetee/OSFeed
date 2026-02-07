@@ -1,7 +1,8 @@
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 
 class CollectionBase(BaseModel):
@@ -37,10 +38,32 @@ class CollectionUpdate(BaseModel):
 
 class CollectionResponse(CollectionBase):
     id: UUID
-    user_id: UUID
+    user_id: Optional[UUID] = None
     channel_ids: List[UUID] = []
+    is_curated: bool = False
+    region: Optional[str] = None
+    topic: Optional[str] = None
+    curator: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    last_curated_at: Optional[datetime] = None
+    curated_channel_usernames: Optional[List[str]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CuratedCollectionResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    region: Optional[str] = None
+    topic: Optional[str] = None
+    curator: Optional[str] = None
+    channel_count: int = 0
+    curated_channel_usernames: List[str] = []
+    thumbnail_url: Optional[str] = None
+    last_curated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,32 +1,38 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, update, or_, case
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy.orm import selectinload
-from uuid import UUID
-from typing import List, Optional
+import logging
 from datetime import datetime, timedelta
 from io import BytesIO
+from typing import List, Optional
+from uuid import UUID
 
-import logging
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import case, desc, func, or_, select, update
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.auth.users import current_active_user
 from app.database import get_db
+from app.models.channel import Channel, user_channels
 from app.models.collection import Collection, collection_channels
 from app.models.collection_share import CollectionShare
-from app.models.channel import Channel
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.collection import CollectionCreate, CollectionResponse, CollectionUpdate, CollectionStatsResponse
+from app.schemas.collection import (
+    CollectionCreate,
+    CollectionResponse,
+    CollectionStatsResponse,
+    CollectionUpdate,
+    CuratedCollectionResponse,
+)
 from app.schemas.collection_share import CollectionShareCreate, CollectionShareResponse
-from app.auth.users import current_active_user
 from app.services.audit import record_audit_event
-from app.utils.response_cache import response_cache
 from app.services.message_export_service import (
     export_messages_csv,
     export_messages_html,
     export_messages_pdf,
 )
+from app.utils.response_cache import response_cache
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +80,13 @@ def _collection_response(collection: Collection, channel_ids: List[UUID]) -> Col
         icon=collection.icon,
         is_default=collection.is_default,
         is_global=collection.is_global,
+        is_curated=collection.is_curated,
+        region=collection.region,
+        topic=collection.topic,
+        curator=collection.curator,
+        thumbnail_url=collection.thumbnail_url,
+        last_curated_at=collection.last_curated_at,
+        curated_channel_usernames=collection.curated_channel_usernames,
         parent_id=collection.parent_id,
         auto_assign_languages=collection.auto_assign_languages or [],
         auto_assign_keywords=collection.auto_assign_keywords or [],
@@ -351,6 +364,132 @@ async def create_collection(
         logger.error(f"Unexpected error creating collection for user {user.id}: {type(e).__name__}: {e}", exc_info=True)
         await db.rollback()
         raise HTTPException(status_code=500, detail="COLLECTION_CREATE_ERROR")
+
+
+@router.get("/curated", response_model=List[CuratedCollectionResponse])
+async def list_curated_collections(
+    region: Optional[str] = None,
+    topic: Optional[str] = None,
+    search: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """List all curated collections. Public endpoint, no auth required."""
+    query = select(Collection).where(Collection.is_curated == True)
+    if region:
+        query = query.where(Collection.region == region)
+    if topic:
+        query = query.where(Collection.topic == topic)
+    if search:
+        query = query.where(
+            or_(
+                Collection.name.ilike(f"%{search}%"),
+                Collection.description.ilike(f"%{search}%"),
+            )
+        )
+    result = await db.execute(query.order_by(Collection.name))
+    collections = result.scalars().all()
+    return [
+        CuratedCollectionResponse(
+            id=c.id,
+            name=c.name,
+            description=c.description,
+            region=c.region,
+            topic=c.topic,
+            curator=c.curator,
+            channel_count=len(c.curated_channel_usernames or []),
+            curated_channel_usernames=c.curated_channel_usernames or [],
+            thumbnail_url=c.thumbnail_url,
+            last_curated_at=c.last_curated_at,
+        )
+        for c in collections
+    ]
+
+
+@router.get("/curated/{collection_id}", response_model=CuratedCollectionResponse)
+async def get_curated_collection(
+    collection_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a specific curated collection by ID. Public endpoint, no auth required."""
+    result = await db.execute(
+        select(Collection).where(Collection.id == collection_id, Collection.is_curated == True)
+    )
+    collection = result.scalar_one_or_none()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Curated collection not found")
+    return CuratedCollectionResponse(
+        id=collection.id,
+        name=collection.name,
+        description=collection.description,
+        region=collection.region,
+        topic=collection.topic,
+        curator=collection.curator,
+        channel_count=len(collection.curated_channel_usernames or []),
+        curated_channel_usernames=collection.curated_channel_usernames or [],
+        thumbnail_url=collection.thumbnail_url,
+        last_curated_at=collection.last_curated_at,
+    )
+
+
+@router.post("/curated/{collection_id}/import")
+async def import_curated_collection(
+    collection_id: UUID,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Import all channels from a curated collection to user's sources."""
+    result = await db.execute(
+        select(Collection).where(Collection.id == collection_id, Collection.is_curated == True)
+    )
+    collection = result.scalar_one_or_none()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Curated collection not found")
+
+    usernames = collection.curated_channel_usernames or []
+    if not usernames:
+        return {"imported_count": 0, "already_existed": 0}
+
+    imported_count = 0
+    already_existed = 0
+
+    for username in usernames:
+        # Check if channel exists by username
+        ch_result = await db.execute(
+            select(Channel).where(Channel.username == username)
+        )
+        channel = ch_result.scalar_one_or_none()
+
+        if not channel:
+            # Create a minimal Channel record
+            channel = Channel(
+                username=username,
+                title=username,
+                is_active=False,
+            )
+            db.add(channel)
+            await db.flush()
+
+        # Check if user already has this channel
+        link_result = await db.execute(
+            select(user_channels).where(
+                user_channels.c.user_id == user.id,
+                user_channels.c.channel_id == channel.id,
+            )
+        )
+        if link_result.first():
+            already_existed += 1
+            continue
+
+        # Add to user_channels junction table
+        await db.execute(
+            user_channels.insert().values(
+                user_id=user.id,
+                channel_id=channel.id,
+            )
+        )
+        imported_count += 1
+
+    return {"imported_count": imported_count, "already_existed": already_existed}
 
 
 @router.get("/compare")

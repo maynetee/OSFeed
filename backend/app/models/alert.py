@@ -18,8 +18,10 @@ class Alert(Base):
     min_threshold = Column(Integer, default=1)
     frequency = Column(String(20), default="daily")
     notification_channels = Column(JSON, default=lambda: ["in_app"], nullable=True)
+    match_mode = Column(String(10), default="any", nullable=False)
     is_active = Column(Boolean, default=True)
     last_triggered_at = Column(DateTime(timezone=True), nullable=True)
+    last_evaluated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc))
 

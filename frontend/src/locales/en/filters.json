@@ -14,5 +14,27 @@
   "clear": "Show all",
   "active": "Active",
   "last": "Last",
-  "all": "All time"
+  "all": "All time",
+  "region": "Region",
+  "allRegions": "All Regions",
+  "topic": "Topic",
+  "allTopics": "All Topics",
+  "regions": {
+    "Europe": "Europe",
+    "Middle East": "Middle East",
+    "Asia-Pacific": "Asia-Pacific",
+    "Americas": "Americas",
+    "Africa": "Africa",
+    "Global": "Global"
+  },
+  "topics": {
+    "Conflict": "Conflict",
+    "Trade": "Trade",
+    "Politics": "Politics",
+    "Cyber": "Cyber",
+    "Defense": "Defense",
+    "Energy": "Energy",
+    "Policy": "Policy",
+    "Intelligence": "Intelligence"
+  }
 }

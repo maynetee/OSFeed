@@ -9,7 +9,10 @@ const SearchPage = lazy(() => import('@/features/search/search-page').then((m) =
 const ChannelsPage = lazy(() => import('@/features/channels/channels-page').then((m) => ({ default: m.ChannelsPage })))
 const ChannelDetailPage = lazy(() => import('@/features/channels/channel-detail-page').then((m) => ({ default: m.ChannelDetailPage })))
 const CollectionsPage = lazy(() => import('@/features/collections/collections-page').then((m) => ({ default: m.CollectionsPage })))
+const CuratedCollectionsPage = lazy(() => import('@/features/collections/curated-collections-page').then((m) => ({ default: m.CuratedCollectionsPage })))
 const CollectionDetailPage = lazy(() => import('@/features/collections/collection-detail-page').then((m) => ({ default: m.CollectionDetailPage })))
+const AlertsPage = lazy(() => import('@/features/alerts/alerts-page').then((m) => ({ default: m.AlertsPage })))
+const AlertDetailPage = lazy(() => import('@/features/alerts/alert-detail-page').then((m) => ({ default: m.AlertDetailPage })))
 const ExportsPage = lazy(() => import('@/features/exports/exports-page').then((m) => ({ default: m.ExportsPage })))
 const SettingsPage = lazy(() => import('@/features/settings/settings-page').then((m) => ({ default: m.SettingsPage })))
 const LoginPage = lazy(() => import('@/features/auth/login-page').then((m) => ({ default: m.LoginPage })))
@@ -59,7 +62,10 @@ export function AppRouter() {
             <Route path="/channels" element={<ChannelsPage />} />
             <Route path="/channels/:id" element={<ChannelDetailPage />} />
             <Route path="/collections" element={<CollectionsPage />} />
+            <Route path="/collections/browse" element={<CuratedCollectionsPage />} />
             <Route path="/collections/:id" element={<CollectionDetailPage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/alerts/:id" element={<AlertDetailPage />} />
             <Route path="/exports" element={<ExportsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>

@@ -15,6 +15,10 @@ export interface Channel {
   subscriber_count: number
   /** Optional array of user-defined tags for categorization */
   tags?: string[] | null
+  /** Region taxonomy tag (e.g., 'Europe', 'Middle East') */
+  region?: string | null
+  /** Topic taxonomy tags (e.g., ['Conflict', 'Intelligence']) */
+  topics?: string[] | null
   /** ISO 8601 timestamp when the channel was first added to the system */
   created_at: string
   /** ISO 8601 timestamp of the most recent message fetch operation (null if never fetched) */
@@ -96,6 +100,8 @@ export interface Message {
   needs_translation?: boolean
   /** Translation priority level (e.g., 'high', 'normal', 'low', null if not prioritized) */
   translation_priority?: string | null
+  /** Relevance score from 0.0 to 1.0 (higher = more relevant, null if not calculated) */
+  relevance_score?: number | null
 }
 
 export interface TranslationUpdate {
@@ -228,6 +234,8 @@ export interface Alert {
   keywords?: string[] | null
   /** Named entities to trigger the alert (null if not using entity matching) */
   entities?: string[] | null
+  /** Match mode: "any" (default) or "all" keywords must match */
+  match_mode?: string
   /** Minimum threshold for triggering (interpretation depends on alert type) */
   min_threshold: number
   /** How often to check for matches (e.g., 'realtime', 'hourly', 'daily') */
@@ -238,6 +246,8 @@ export interface Alert {
   is_active: boolean
   /** ISO 8601 timestamp when the alert was last triggered (null if never triggered) */
   last_triggered_at?: string | null
+  /** ISO 8601 timestamp when the alert was last evaluated */
+  last_evaluated_at?: string | null
   /** ISO 8601 timestamp when the alert was created */
   created_at: string
   /** ISO 8601 timestamp when the alert was last updated (null if never updated) */
@@ -317,6 +327,37 @@ export interface BulkAddResponse {
   success_count: number
   /** Number of channels that failed to be added */
   failure_count: number
+}
+
+export interface CuratedCollection {
+  id: string
+  name: string
+  description: string | null
+  region: string | null
+  topic: string | null
+  curator: string | null
+  channel_count: number
+  curated_channel_usernames: string[]
+  thumbnail_url: string | null
+  last_curated_at: string | null
+}
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: string
+  title: string
+  body?: string | null
+  link?: string | null
+  is_read: boolean
+  metadata?: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface NotificationListResponse {
+  notifications: Notification[]
+  unread_count: number
+  total: number
 }
 
 export interface DashboardData {

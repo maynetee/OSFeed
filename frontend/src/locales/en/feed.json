@@ -4,5 +4,8 @@
   "filters": "Filters",
   "export": "Export",
   "refresh": "Refresh",
-  "lastRefresh": "Last refresh:"
+  "lastRefresh": "Last refresh:",
+  "sortLatest": "Latest",
+  "sortRelevance": "Most Relevant",
+  "relevanceScore": "Relevance"
 }

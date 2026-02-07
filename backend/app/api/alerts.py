@@ -95,6 +95,7 @@ async def create_alert(
             entities=payload.entities or [],
             min_threshold=payload.min_threshold,
             frequency=payload.frequency,
+            match_mode=payload.match_mode,
             notification_channels=payload.notification_channels or ["in_app"],
             is_active=payload.is_active,
         )
