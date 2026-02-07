@@ -22,12 +22,23 @@ export default {
         info: 'hsl(var(--info))',
         duplicate: 'hsl(var(--duplicate))',
         translated: 'hsl(var(--translated))',
+        accent: 'hsl(var(--accent))',
+        'accent-foreground': 'hsl(var(--accent-foreground))',
         'sidebar-bg': 'hsl(var(--sidebar-bg))',
         'sidebar-border': 'hsl(var(--sidebar-border))',
       },
       fontFamily: {
         sans: ['var(--font-sans)'],
         mono: ['var(--font-mono)'],
+      },
+      animation: {
+        shimmer: 'shimmer 1.5s infinite',
+      },
+      keyframes: {
+        shimmer: {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
+        },
       },
       boxShadow: {
         glow: '0 0 30px rgba(59, 130, 246, 0.25)',

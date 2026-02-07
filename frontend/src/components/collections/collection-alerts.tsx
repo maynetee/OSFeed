@@ -5,7 +5,13 @@ import { useTranslation } from 'react-i18next'
 import { alertsApi, type Alert } from '@/lib/api/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -190,9 +196,7 @@ export function CollectionAlerts({ collectionId }: CollectionAlertsProps) {
                 {isActive ? t('collections.alertsActive') : t('collections.alertsInactive')}
               </Button>
               <Button
-                onClick={() =>
-                  editing ? updateAlert.mutate() : createAlert.mutate()
-                }
+                onClick={() => (editing ? updateAlert.mutate() : createAlert.mutate())}
                 disabled={createAlert.isPending || updateAlert.isPending}
               >
                 {t('collections.save')}
@@ -209,7 +213,8 @@ export function CollectionAlerts({ collectionId }: CollectionAlertsProps) {
                 <div>
                   <p className="text-sm font-semibold">{alert.name}</p>
                   <p className="text-xs text-foreground/60">
-                    {alert.frequency} · {t('collections.alertsThresholdLabel', { count: alert.min_threshold })}
+                    {alert.frequency} ·{' '}
+                    {t('collections.alertsThresholdLabel', { count: alert.min_threshold })}
                   </p>
                   {alert.last_triggered_at ? (
                     <p className="text-xs text-foreground/50">

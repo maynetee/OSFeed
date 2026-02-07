@@ -99,7 +99,7 @@ export function SignupPage() {
 
   const handleSignup = async (values: SignupFormValues) => {
     setError(null)
-    trackEvent("Signup Submit")
+    trackEvent('Signup Submit')
     try {
       const response = await authApi.register(values.email, values.password, {
         username: values.username,
@@ -161,8 +161,9 @@ export function SignupPage() {
               Check your email
             </h2>
             <p className="text-sm mb-6" style={{ color: '#8B949E' }}>
-              We've sent a verification link to <strong style={{ color: '#FFFFFF' }}>{registeredEmail}</strong>.
-              Please click the link to verify your account.
+              We've sent a verification link to{' '}
+              <strong style={{ color: '#FFFFFF' }}>{registeredEmail}</strong>. Please click the link
+              to verify your account.
             </p>
             {resendSent ? (
               <p className="text-sm" style={{ color: '#8B949E' }}>
@@ -198,7 +199,10 @@ export function SignupPage() {
 
   return (
     <PageLayout>
-      <Seo title="Sign Up — Osfeed" description="Create your Osfeed account and start monitoring Telegram channels with real-time translation and intelligence." />
+      <Seo
+        title="Sign Up — Osfeed"
+        description="Create your Osfeed account and start monitoring Telegram channels with real-time translation and intelligence."
+      />
       <section className="px-6 py-20 md:py-28">
         <div className="mx-auto max-w-lg">
           <motion.div className="text-center mb-10" {...fadeInUp}>
@@ -233,7 +237,11 @@ export function SignupPage() {
             <form className="space-y-5" onSubmit={form.handleSubmit(handleSignup)}>
               {/* Username */}
               <div className="space-y-2">
-                <label htmlFor="username" className="block text-sm font-medium" style={{ color: '#FFFFFF' }}>
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium"
+                  style={{ color: '#FFFFFF' }}
+                >
                   Username
                 </label>
                 <input
@@ -243,12 +251,15 @@ export function SignupPage() {
                   className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
                   style={{
                     backgroundColor: '#0D1117',
-                    border: form.formState.errors.username ? '1px solid #F85149' : '1px solid #30363D',
+                    border: form.formState.errors.username
+                      ? '1px solid #F85149'
+                      : '1px solid #30363D',
                     color: '#FFFFFF',
                   }}
                   {...form.register('username')}
                   onFocus={(e) => {
-                    if (!form.formState.errors.username) e.currentTarget.style.borderColor = '#00D4AA'
+                    if (!form.formState.errors.username)
+                      e.currentTarget.style.borderColor = '#00D4AA'
                   }}
                 />
                 {form.formState.errors.username && (
@@ -260,7 +271,11 @@ export function SignupPage() {
 
               {/* Email */}
               <div className="space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium" style={{ color: '#FFFFFF' }}>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium"
+                  style={{ color: '#FFFFFF' }}
+                >
                   Email
                 </label>
                 <input
@@ -287,7 +302,11 @@ export function SignupPage() {
 
               {/* Password */}
               <div className="space-y-2">
-                <label htmlFor="password" className="block text-sm font-medium" style={{ color: '#FFFFFF' }}>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium"
+                  style={{ color: '#FFFFFF' }}
+                >
                   Password
                 </label>
                 <input
@@ -296,12 +315,15 @@ export function SignupPage() {
                   className="w-full rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
                   style={{
                     backgroundColor: '#0D1117',
-                    border: form.formState.errors.password ? '1px solid #F85149' : '1px solid #30363D',
+                    border: form.formState.errors.password
+                      ? '1px solid #F85149'
+                      : '1px solid #30363D',
                     color: '#FFFFFF',
                   }}
                   {...form.register('password')}
                   onFocus={(e) => {
-                    if (!form.formState.errors.password) e.currentTarget.style.borderColor = '#00D4AA'
+                    if (!form.formState.errors.password)
+                      e.currentTarget.style.borderColor = '#00D4AA'
                   }}
                 />
                 {form.formState.errors.password && (
@@ -325,7 +347,11 @@ export function SignupPage() {
 
               {/* Country */}
               <div className="space-y-2">
-                <label htmlFor="country" className="block text-sm font-medium" style={{ color: '#FFFFFF' }}>
+                <label
+                  htmlFor="country"
+                  className="block text-sm font-medium"
+                  style={{ color: '#FFFFFF' }}
+                >
                   Country
                 </label>
                 <div className="relative">
@@ -334,12 +360,15 @@ export function SignupPage() {
                     className="w-full appearance-none rounded-lg px-4 py-2.5 text-sm outline-none transition-colors"
                     style={{
                       backgroundColor: '#0D1117',
-                      border: form.formState.errors.country ? '1px solid #F85149' : '1px solid #30363D',
+                      border: form.formState.errors.country
+                        ? '1px solid #F85149'
+                        : '1px solid #30363D',
                       color: form.watch('country') ? '#FFFFFF' : '#8B949E',
                     }}
                     {...form.register('country')}
                     onFocus={(e) => {
-                      if (!form.formState.errors.country) e.currentTarget.style.borderColor = '#00D4AA'
+                      if (!form.formState.errors.country)
+                        e.currentTarget.style.borderColor = '#00D4AA'
                     }}
                   >
                     <option value="">Select your country</option>
@@ -369,7 +398,12 @@ export function SignupPage() {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { value: 'solo' as const, label: 'Solo', price: '€99/mo', desc: '1 user' },
-                    { value: 'team' as const, label: 'Team', price: '€399/mo', desc: 'Up to 5 users' },
+                    {
+                      value: 'team' as const,
+                      label: 'Team',
+                      price: '€399/mo',
+                      desc: 'Up to 5 users',
+                    },
                   ].map((plan) => (
                     <label
                       key={plan.value}
@@ -377,9 +411,7 @@ export function SignupPage() {
                       style={{
                         backgroundColor: '#0D1117',
                         border:
-                          selectedPlan === plan.value
-                            ? '2px solid #00D4AA'
-                            : '1px solid #30363D',
+                          selectedPlan === plan.value ? '2px solid #00D4AA' : '1px solid #30363D',
                       }}
                     >
                       <input
@@ -425,11 +457,19 @@ export function SignupPage() {
                   />
                   <span className="text-sm" style={{ color: '#8B949E' }}>
                     I agree to the{' '}
-                    <Link to="/terms" className="font-medium hover:underline" style={{ color: '#00D4AA' }}>
+                    <Link
+                      to="/terms"
+                      className="font-medium hover:underline"
+                      style={{ color: '#00D4AA' }}
+                    >
                       Terms of Service
                     </Link>{' '}
                     and{' '}
-                    <Link to="/privacy" className="font-medium hover:underline" style={{ color: '#00D4AA' }}>
+                    <Link
+                      to="/privacy"
+                      className="font-medium hover:underline"
+                      style={{ color: '#00D4AA' }}
+                    >
                       Privacy Policy
                     </Link>
                   </span>
@@ -461,7 +501,11 @@ export function SignupPage() {
 
             <p className="mt-6 text-center text-sm" style={{ color: '#8B949E' }}>
               Already have an account?{' '}
-              <Link to="/login" className="font-medium hover:underline" style={{ color: '#00D4AA' }}>
+              <Link
+                to="/login"
+                className="font-medium hover:underline"
+                style={{ color: '#00D4AA' }}
+              >
                 Log in
               </Link>
             </p>

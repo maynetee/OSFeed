@@ -49,8 +49,7 @@ export const collectionsApi = {
     auto_assign_languages?: string[]
     auto_assign_keywords?: string[]
     auto_assign_tags?: string[]
-  }) =>
-    api.post<Collection>('/api/collections', payload),
+  }) => api.post<Collection>('/api/collections', payload),
 
   /**
    * Update an existing collection's properties.
@@ -112,9 +111,16 @@ export const collectionsApi = {
    *
    * @returns Promise resolving to an object containing an array of collection summaries
    */
-  overview: () => api.get<{ collections: { id: string; name: string; message_count_7d: number; channel_count: number; created_at: string }[] }>(
-    '/api/collections/overview',
-  ),
+  overview: () =>
+    api.get<{
+      collections: {
+        id: string
+        name: string
+        message_count_7d: number
+        channel_count: number
+        created_at: string
+      }[]
+    }>('/api/collections/overview'),
 
   /**
    * Compare statistics across multiple collections.
@@ -124,10 +130,15 @@ export const collectionsApi = {
    * @returns Promise resolving to an object containing comparison data for each collection
    */
   compare: (collection_ids: string[]) =>
-    api.get<{ comparisons: { collection_id: string; name: string; message_count_7d: number; channel_count: number; duplicate_rate: number }[] }>(
-      '/api/collections/compare',
-      { params: buildParams({ collection_ids }) },
-    ),
+    api.get<{
+      comparisons: {
+        collection_id: string
+        name: string
+        message_count_7d: number
+        channel_count: number
+        duplicate_rate: number
+      }[]
+    }>('/api/collections/compare', { params: buildParams({ collection_ids }) }),
 
   /**
    * Export messages from a collection in a specified format.
@@ -141,8 +152,14 @@ export const collectionsApi = {
    * @param params.limit - Maximum number of messages to include
    * @returns Promise resolving to the exported data (Blob for PDF, text/JSON for other formats)
    */
-  exportMessages: (id: string, params?: { format?: string; start_date?: string; end_date?: string; limit?: number }) =>
-    api.post(`/api/collections/${id}/export`, null, { params: params ? buildParams(params) : undefined, responseType: params?.format === 'pdf' ? 'blob' : undefined }),
+  exportMessages: (
+    id: string,
+    params?: { format?: string; start_date?: string; end_date?: string; limit?: number },
+  ) =>
+    api.post(`/api/collections/${id}/export`, null, {
+      params: params ? buildParams(params) : undefined,
+      responseType: params?.format === 'pdf' ? 'blob' : undefined,
+    }),
 
   /**
    * Retrieve the list of users with whom this collection is shared.
@@ -182,9 +199,10 @@ export const curatedCollectionsApi = {
   list: (params?: { region?: string; topic?: string; search?: string }) =>
     api.get<CuratedCollection[]>('/api/collections/curated', { params }),
 
-  get: (id: string) =>
-    api.get<CuratedCollection>(`/api/collections/curated/${id}`),
+  get: (id: string) => api.get<CuratedCollection>(`/api/collections/curated/${id}`),
 
   import: (id: string) =>
-    api.post<{ imported_count: number; already_existed: number }>(`/api/collections/curated/${id}/import`),
+    api.post<{ imported_count: number; already_existed: number }>(
+      `/api/collections/curated/${id}/import`,
+    ),
 }

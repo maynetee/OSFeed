@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { subDays } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 
+import { PageTransition } from '@/components/layout/page-transition'
 import { MessageFeed } from '@/components/messages/message-feed'
 import { MessageFilters } from '@/components/messages/message-filters'
 import { Button } from '@/components/ui/button'
@@ -35,11 +36,14 @@ export function SearchPage() {
     queryFn: async () => (await collectionsApi.list()).data,
   })
 
-  const rangeDays = dateRange === '24h' ? 1 : dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : null
+  const rangeDays =
+    dateRange === '24h' ? 1 : dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : null
 
   const activeChannelIds = useMemo(() => {
     const availableChannelIds = new Set((channelsQuery.data ?? []).map((channel) => channel.id))
-    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const availableCollectionIds = new Set(
+      (collectionsQuery.data ?? []).map((collection) => collection.id),
+    )
     const validChannelIds = channelIds.filter((id) => availableChannelIds.has(id))
     const validCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
     const collectionChannelIds =
@@ -59,7 +63,9 @@ export function SearchPage() {
       setChannelIds(nextChannelIds)
     }
 
-    const availableCollectionIds = new Set((collectionsQuery.data ?? []).map((collection) => collection.id))
+    const availableCollectionIds = new Set(
+      (collectionsQuery.data ?? []).map((collection) => collection.id),
+    )
     const nextCollectionIds = collectionIds.filter((id) => availableCollectionIds.has(id))
     if (nextCollectionIds.length !== collectionIds.length) {
       setCollectionIds(nextCollectionIds)
@@ -68,7 +74,16 @@ export function SearchPage() {
     if (!filtersTouched && (channelIds.length > 0 || collectionIds.length > 0)) {
       resetFilters()
     }
-  }, [channelsQuery.data, collectionsQuery.data, channelIds, collectionIds, filtersTouched, resetFilters, setChannelIds, setCollectionIds])
+  }, [
+    channelsQuery.data,
+    collectionsQuery.data,
+    channelIds,
+    collectionIds,
+    filtersTouched,
+    resetFilters,
+    setChannelIds,
+    setCollectionIds,
+  ])
 
   const keywordQuery = useQuery({
     queryKey: ['search', 'keyword', query, activeChannelIds, dateRange, mediaTypes],
@@ -102,81 +117,84 @@ export function SearchPage() {
     )
   }, [keywordQuery.data, query])
 
-  const hasActiveFilters = channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0
+  const hasActiveFilters =
+    channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0
   const totalChannels = (channelsQuery.data ?? []).length
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <p className="text-sm text-foreground/60">{t('search.subtitle')}</p>
-        <h2 className="text-2xl font-semibold">{t('search.title')}</h2>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          placeholder={t('search.placeholder')}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label={t('search.placeholder')}
-        />
-        <Button variant="secondary">{t('search.launch')}</Button>
-      </div>
-
-      {hasActiveFilters ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-2 text-xs text-foreground/70">
-          <span>
-            {t('filters.active', { count: activeChannelIds.length, total: totalChannels })}
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
-            {t('filters.clear')}
-          </Button>
+    <PageTransition>
+      <div className="flex flex-col gap-6">
+        <div>
+          <p className="text-sm text-foreground/60">{t('search.subtitle')}</p>
+          <h2 className="text-2xl font-semibold">{t('search.title')}</h2>
         </div>
-      ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            placeholder={t('search.placeholder')}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-label={t('search.placeholder')}
+          />
+          <Button variant="secondary">{t('search.launch')}</Button>
+        </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_3fr]">
-        <MessageFilters
-          channels={(channelsQuery.data ?? []).map((channel) => ({
-            id: channel.id,
-            title: channel.title,
-          }))}
-          collections={(collectionsQuery.data ?? []).map((collection) => ({
-            id: collection.id,
-            name: collection.name,
-          }))}
-        />
-        <div className="flex flex-col gap-4">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="keyword">{t('search.keyword')}</TabsTrigger>
-              <TabsTrigger value="entities">{t('search.entities')}</TabsTrigger>
-            </TabsList>
-            <TabsContent value="keyword">
-              {query.length < 3 ? (
-                <Card>
-                  <CardContent className="py-10 text-sm text-foreground/60">
-                    {t('search.minChars')}
-                  </CardContent>
-                </Card>
-              ) : (
-                <MessageFeed
-                  messages={keywordQuery.data?.messages ?? []}
-                  isLoading={keywordQuery.isLoading}
-                />
-              )}
-            </TabsContent>
-            <TabsContent value="entities">
-              {query.length < 3 ? (
-                <Card>
-                  <CardContent className="py-10 text-sm text-foreground/60">
-                    {t('search.minChars')}
-                  </CardContent>
-                </Card>
-              ) : (
-                <MessageFeed messages={entityResults} isLoading={keywordQuery.isLoading} />
-              )}
-            </TabsContent>
-          </Tabs>
+        {hasActiveFilters ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-2 text-xs text-foreground/70">
+            <span>
+              {t('filters.active', { count: activeChannelIds.length, total: totalChannels })}
+            </span>
+            <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
+              {t('filters.clear')}
+            </Button>
+          </div>
+        ) : null}
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_3fr]">
+          <MessageFilters
+            channels={(channelsQuery.data ?? []).map((channel) => ({
+              id: channel.id,
+              title: channel.title,
+            }))}
+            collections={(collectionsQuery.data ?? []).map((collection) => ({
+              id: collection.id,
+              name: collection.name,
+            }))}
+          />
+          <div className="flex flex-col gap-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="keyword">{t('search.keyword')}</TabsTrigger>
+                <TabsTrigger value="entities">{t('search.entities')}</TabsTrigger>
+              </TabsList>
+              <TabsContent value="keyword">
+                {query.length < 3 ? (
+                  <Card>
+                    <CardContent className="py-10 text-sm text-foreground/60">
+                      {t('search.minChars')}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <MessageFeed
+                    messages={keywordQuery.data?.messages ?? []}
+                    isLoading={keywordQuery.isLoading}
+                  />
+                )}
+              </TabsContent>
+              <TabsContent value="entities">
+                {query.length < 3 ? (
+                  <Card>
+                    <CardContent className="py-10 text-sm text-foreground/60">
+                      {t('search.minChars')}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <MessageFeed messages={entityResults} isLoading={keywordQuery.isLoading} />
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </div>
-    </div>
+    </PageTransition>
   )
 }

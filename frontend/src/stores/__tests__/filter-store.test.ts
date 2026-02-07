@@ -54,11 +54,7 @@ describe('useFilterStore', () => {
 
       setChannelIds(['channel-1', 'channel-2', 'channel-3'])
 
-      expect(useFilterStore.getState().channelIds).toEqual([
-        'channel-1',
-        'channel-2',
-        'channel-3',
-      ])
+      expect(useFilterStore.getState().channelIds).toEqual(['channel-1', 'channel-2', 'channel-3'])
     })
 
     it('should update channelIds when called multiple times', () => {
@@ -254,8 +250,14 @@ describe('useFilterStore', () => {
 
   describe('resetFilters', () => {
     it('should reset all filter values to initial state', () => {
-      const { setChannelIds, setCollectionIds, setMediaTypes, setDateRange, setFiltersTouched, resetFilters } =
-        useFilterStore.getState()
+      const {
+        setChannelIds,
+        setCollectionIds,
+        setMediaTypes,
+        setDateRange,
+        setFiltersTouched,
+        resetFilters,
+      } = useFilterStore.getState()
 
       // Set some values
       setChannelIds(['channel-1', 'channel-2'])
@@ -372,7 +374,8 @@ describe('useFilterStore', () => {
     })
 
     it('should not affect other state when setting collectionIds', () => {
-      const { setChannelIds, setCollectionIds, setMediaTypes, setDateRange } = useFilterStore.getState()
+      const { setChannelIds, setCollectionIds, setMediaTypes, setDateRange } =
+        useFilterStore.getState()
 
       // Set some initial state
       setChannelIds(['channel-1'])
@@ -395,7 +398,8 @@ describe('useFilterStore', () => {
     })
 
     it('should not affect other state when setting mediaTypes', () => {
-      const { setChannelIds, setCollectionIds, setMediaTypes, setDateRange } = useFilterStore.getState()
+      const { setChannelIds, setCollectionIds, setMediaTypes, setDateRange } =
+        useFilterStore.getState()
 
       // Set some initial state
       setChannelIds(['channel-1'])
@@ -418,7 +422,8 @@ describe('useFilterStore', () => {
     })
 
     it('should not affect other state when setting dateRange', () => {
-      const { setChannelIds, setCollectionIds, setMediaTypes, setDateRange } = useFilterStore.getState()
+      const { setChannelIds, setCollectionIds, setMediaTypes, setDateRange } =
+        useFilterStore.getState()
 
       // Set some initial state
       setChannelIds(['channel-1'])

@@ -17,7 +17,7 @@ interface UserState {
 }
 
 // Promise-based hydration: resolves when hydration completes (success or error)
-let resolveHydration: () => void = () => { }
+let resolveHydration: () => void = () => {}
 export const hydrationPromise = new Promise<void>((resolve) => {
   resolveHydration = resolve
 })
@@ -43,8 +43,8 @@ export const useUserStore = create<UserState>()(
         // Resolve the hydration promise deterministically
         resolveHydration()
       },
-    }
-  )
+    },
+  ),
 )
 
 /**

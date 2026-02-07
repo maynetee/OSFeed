@@ -47,9 +47,7 @@ export function PatternDetailModal({ pattern, open, onOpenChange }: PatternDetai
             </Badge>
             <DialogTitle>{pattern.title}</DialogTitle>
           </div>
-          <DialogDescription>
-            {new Date(pattern.detected_at).toLocaleString()}
-          </DialogDescription>
+          <DialogDescription>{new Date(pattern.detected_at).toLocaleString()}</DialogDescription>
         </DialogHeader>
 
         <div className="mt-4 space-y-4">

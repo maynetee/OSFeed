@@ -47,7 +47,8 @@ import frStats from '../locales/fr/stats.json'
 import frSummaries from '../locales/fr/summaries.json'
 import frAnalysis from '../locales/fr/analysis.json'
 
-const storedLanguage = typeof window !== 'undefined' ? localStorage.getItem('osfeed_language') : null
+const storedLanguage =
+  typeof window !== 'undefined' ? localStorage.getItem('osfeed_language') : null
 
 i18n.use(initReactI18next).init({
   resources: {

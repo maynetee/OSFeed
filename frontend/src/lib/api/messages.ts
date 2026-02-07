@@ -111,8 +111,7 @@ export const messagesApi = {
    * @param messageId - ID of the message to translate
    * @returns Promise resolving to the Message object with translation applied
    */
-  translateById: (messageId: string) =>
-    api.post<Message>(`/api/messages/${messageId}/translate`),
+  translateById: (messageId: string) => api.post<Message>(`/api/messages/${messageId}/translate`),
 
   /**
    * Export messages to an HTML file with optional filtering.

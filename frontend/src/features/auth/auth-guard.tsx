@@ -10,7 +10,11 @@ export function AuthGuard() {
 
   // Wait for store hydration before checking auth
   if (!hasHydrated) {
-    return <div className="flex h-screen items-center justify-center text-foreground/60">{t('common.loading')}</div>
+    return (
+      <div className="flex h-screen items-center justify-center text-foreground/60">
+        {t('common.loading')}
+      </div>
+    )
   }
 
   // Require authentication - check for user (tokens are in httpOnly cookies)

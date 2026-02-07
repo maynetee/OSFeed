@@ -8,25 +8,38 @@ import { AxiosError } from 'axios'
 import { Bot, Loader2, Check, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useUserStore } from '@/stores/user-store'
 import { authApi } from '@/lib/api/client'
 
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string()
-    .min(8, "Password must be at least 8 characters long")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/\d/, "Password must contain at least one digit")
-    .regex(/[!@#$%^&*(),.?":{}|<>]/, "Password must contain at least one special character (!@#$%^&*(),.?\":{}|<>)"),
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-})
+const registerSchema = z
+  .object({
+    email: z.string().email(),
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters long')
+      .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+      .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+      .regex(/\d/, 'Password must contain at least one digit')
+      .regex(
+        /[!@#$%^&*(),.?":{}|<>]/,
+        'Password must contain at least one special character (!@#$%^&*(),.?":{}|<>)',
+      ),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
 
 type RegisterFormValues = z.infer<typeof registerSchema>
 
@@ -35,7 +48,10 @@ const getErrorMessage = (detail: string | { code: string; reason: string } | und
   if (typeof detail === 'object' && detail !== null) {
     switch (detail.code) {
       case 'REGISTER_INVALID_PASSWORD':
-        return detail.reason || 'Password is too weak. Use at least 8 characters with letters and numbers'
+        return (
+          detail.reason ||
+          'Password is too weak. Use at least 8 characters with letters and numbers'
+        )
       default:
         return detail.reason || 'Registration failed. Please try again.'
     }
@@ -53,7 +69,9 @@ const getErrorMessage = (detail: string | { code: string; reason: string } | und
     case 'LOGIN_USER_NOT_VERIFIED':
       return 'Please verify your email before logging in'
     default:
-      return typeof detail === 'string' && detail ? detail : 'Registration failed. Please try again.'
+      return typeof detail === 'string' && detail
+        ? detail
+        : 'Registration failed. Please try again.'
   }
 }
 
@@ -151,7 +169,11 @@ export function RegisterPage() {
             ) : (
               <p className="text-sm text-muted-foreground">
                 Didn't receive the email? Check your spam folder or{' '}
-                <button type="button" className="text-primary font-medium hover:underline" onClick={handleResendVerification}>
+                <button
+                  type="button"
+                  className="text-primary font-medium hover:underline"
+                  onClick={handleResendVerification}
+                >
                   request a new link
                 </button>
               </p>
@@ -182,7 +204,9 @@ export function RegisterPage() {
 
       <Card className="w-full max-w-sm sm:max-w-md shadow-lg border-muted">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">{t('auth.createAccountTitle')}</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">
+            {t('auth.createAccountTitle')}
+          </CardTitle>
           <CardDescription className="text-center">
             {t('auth.createAccountDescription')}
           </CardDescription>
@@ -232,7 +256,9 @@ export function RegisterPage() {
                       ) : (
                         <X className="h-4 w-4 text-muted-foreground/40" />
                       )}
-                      <span className={req.met ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
+                      <span
+                        className={req.met ? 'text-green-600 font-medium' : 'text-muted-foreground'}
+                      >
                         {req.label}
                       </span>
                     </li>
@@ -254,11 +280,7 @@ export function RegisterPage() {
                 </span>
               )}
             </div>
-            <Button
-              type="submit"
-              className="w-full h-10"
-              disabled={form.formState.isSubmitting}
-            >
+            <Button type="submit" className="w-full h-10" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

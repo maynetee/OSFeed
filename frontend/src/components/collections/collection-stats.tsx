@@ -10,7 +10,10 @@ interface CollectionStatsProps {
   isLoading?: boolean
 }
 
-export const CollectionStats = memo(function CollectionStats({ stats, isLoading }: CollectionStatsProps) {
+export const CollectionStats = memo(function CollectionStats({
+  stats,
+  isLoading,
+}: CollectionStatsProps) {
   const { t } = useTranslation()
 
   if (isLoading && !stats) {

@@ -19,7 +19,7 @@ const MANUAL_REFRESH_TIMEOUT = 30_000
 
 export function useMessagePolling(
   refetchFn: () => Promise<unknown>,
-  options: UseMessagePollingOptions = {}
+  options: UseMessagePollingOptions = {},
 ) {
   const { interval = DEFAULT_INTERVAL, enabled = true } = options
   const [refreshState, setRefreshState] = useState<RefreshState>({
@@ -71,7 +71,7 @@ export function useMessagePolling(
           const completedJobs = new Set(
             jobs
               .filter((job) => job.status === 'completed' || job.status === 'failed')
-              .map((job) => job.id)
+              .map((job) => job.id),
           )
           const allDone = jobIds.every((id) => completedJobs.has(id))
           if (allDone) {
@@ -96,7 +96,7 @@ export function useMessagePolling(
         isRefreshingRef.current = false
       }
     },
-    [refetchFn]
+    [refetchFn],
   )
 
   // Set up polling interval
@@ -172,7 +172,7 @@ export function useMessagePolling(
       if (!date) return null
       return `${date.toLocaleDateString()} ${formatLastRefresh(date)}`
     },
-    [formatLastRefresh]
+    [formatLastRefresh],
   )
 
   return {

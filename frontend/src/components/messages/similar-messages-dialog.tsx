@@ -4,12 +4,7 @@ import { AlertTriangle, CheckCircle2, ExternalLink, Info } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Timestamp } from '@/components/common/timestamp'
 import { messagesApi } from '@/lib/api/client'
 import { analysisApi } from '@/lib/api/analysis'
@@ -37,7 +32,7 @@ export function SimilarMessagesDialog({
 
   // Sort by published_at to find earliest (original)
   const sorted = [...messages].sort(
-    (a, b) => new Date(a.published_at).getTime() - new Date(b.published_at).getTime()
+    (a, b) => new Date(a.published_at).getTime() - new Date(b.published_at).getTime(),
   )
   const earliestId = sorted.length > 0 ? sorted[0].id : null
 
@@ -83,7 +78,9 @@ export function SimilarMessagesDialog({
 
             {correlation.consistent_facts.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-green-500">{t('analysis.correlation.consistentFacts')}</p>
+                <p className="text-xs font-medium text-green-500">
+                  {t('analysis.correlation.consistentFacts')}
+                </p>
                 <ul className="space-y-1">
                   {correlation.consistent_facts.map((fact, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
@@ -97,7 +94,9 @@ export function SimilarMessagesDialog({
 
             {correlation.unique_details.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-blue-500">{t('analysis.correlation.uniqueDetails')}</p>
+                <p className="text-xs font-medium text-blue-500">
+                  {t('analysis.correlation.uniqueDetails')}
+                </p>
                 <ul className="space-y-1">
                   {correlation.unique_details.map((detail, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
@@ -111,7 +110,9 @@ export function SimilarMessagesDialog({
 
             {correlation.contradictions.length > 0 && (
               <div className="space-y-1">
-                <p className="text-xs font-medium text-red-500">{t('analysis.correlation.contradictions')}</p>
+                <p className="text-xs font-medium text-red-500">
+                  {t('analysis.correlation.contradictions')}
+                </p>
                 <ul className="space-y-1">
                   {correlation.contradictions.map((item, i) => (
                     <li key={i} className="flex items-start gap-2 text-xs text-foreground/80">
@@ -141,9 +142,7 @@ export function SimilarMessagesDialog({
             </div>
           ) : messages.length === 0 ? (
             <div className="py-12 text-center">
-              <p className="text-sm text-foreground/60">
-                {t('messages.similarEmpty')}
-              </p>
+              <p className="text-sm text-foreground/60">{t('messages.similarEmpty')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -154,7 +153,10 @@ export function SimilarMessagesDialog({
                   : null
 
                 return (
-                  <Card key={message.id} className={isOriginal ? 'border-green-500/50 bg-green-500/5' : ''}>
+                  <Card
+                    key={message.id}
+                    className={isOriginal ? 'border-green-500/50 bg-green-500/5' : ''}
+                  >
                     <CardContent className="py-4">
                       <div className="flex items-center gap-2 text-xs text-foreground/60">
                         <span className="font-semibold text-foreground">
@@ -164,7 +166,12 @@ export function SimilarMessagesDialog({
                           <span className="text-foreground/50">@{message.channel_username}</span>
                         )}
                         {telegramLink && (
-                          <a href={telegramLink} target="_blank" rel="noreferrer" className="hover:text-foreground">
+                          <a
+                            href={telegramLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-foreground"
+                          >
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}

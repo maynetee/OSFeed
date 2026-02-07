@@ -1,7 +1,7 @@
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { DashboardMockup } from "./DashboardMockup";
-import { trackEvent } from "@/lib/analytics";
+import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { DashboardMockup } from './DashboardMockup'
+import { trackEvent } from '@/lib/analytics'
 
 export function HeroSection() {
   return (
@@ -12,36 +12,34 @@ export function HeroSection() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
           >
-            <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm" style={{ borderColor: "#30363D", color: "#8B949E" }}>
+            <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm text-foreground-muted">
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ backgroundColor: "#3FB950" }} />
-                <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: "#3FB950" }} />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
               </span>
               Live Intelligence Feed
             </span>
           </motion.div>
 
           <motion.h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight"
-            style={{ color: "#FFFFFF" }}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight text-foreground"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
           >
-            Real-time intelligence.{" "}
-            <span style={{ color: "#00D4AA" }}>Zero noise.</span>
+            Real-time intelligence. <span className="text-accent">Zero noise.</span>
           </motion.h1>
 
           <motion.p
-            className="text-lg max-w-lg"
-            style={{ color: "#8B949E" }}
+            className="text-lg max-w-lg text-foreground-muted"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.6 }}
           >
-            Osfeed aggregates global intelligence sources, translates them in real-time, and delivers only what matters to you.
+            Osfeed aggregates global intelligence sources, translates them in real-time, and
+            delivers only what matters to you.
           </motion.p>
 
           <motion.div
@@ -52,17 +50,15 @@ export function HeroSection() {
           >
             <Link
               to="/signup"
-              className="inline-flex items-center gap-2 rounded-xl px-6 py-3 font-bold text-base transition-opacity hover:opacity-90"
-              style={{ backgroundColor: "#00D4AA", color: "#0D1117" }}
-              onClick={() => trackEvent("CTA Click", { button: "get-started" })}
+              className="inline-flex items-center gap-2 rounded-xl bg-accent text-accent-foreground px-6 py-3 font-bold text-base transition-opacity hover:opacity-90"
+              onClick={() => trackEvent('CTA Click', { button: 'get-started' })}
             >
               Get Started →
             </Link>
             <a
               href="#how-it-works"
-              className="inline-flex items-center gap-2 rounded-xl border px-6 py-3 font-bold text-base transition-colors hover:bg-white/5"
-              style={{ borderColor: "#30363D", color: "#FFFFFF" }}
-              onClick={() => trackEvent("CTA Click", { button: "how-it-works" })}
+              className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 font-bold text-base text-foreground transition-colors hover:bg-white/5"
+              onClick={() => trackEvent('CTA Click', { button: 'how-it-works' })}
             >
               See How It Works
             </a>
@@ -73,11 +69,11 @@ export function HeroSection() {
         <motion.div
           initial={{ opacity: 0, x: 60 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+          transition={{ delay: 0.3, duration: 0.8, ease: 'easeOut' }}
         >
           <DashboardMockup />
         </motion.div>
       </div>
     </section>
-  );
+  )
 }

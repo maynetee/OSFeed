@@ -29,6 +29,9 @@
   --sidebar-bg: 220 25% 97%;
   --sidebar-border: 220 13% 88%;
 
+  --accent: 166 100% 42%;
+  --accent-foreground: 220 30% 12%;
+
   --font-sans: 'Space Grotesk', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
@@ -57,6 +60,9 @@
 
   --sidebar-bg: 224 28% 10%;
   --sidebar-border: 224 18% 18%;
+
+  --accent: 166 100% 42%;
+  --accent-foreground: 224 30% 8%;
 }
 
 @layer base {
@@ -67,8 +73,11 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, hsl(217 91% 50% / 0.08), transparent);
+    background-image: radial-gradient(
+      ellipse 80% 50% at 50% -20%,
+      hsl(217 91% 50% / 0.08),
+      transparent
+    );
     background-attachment: fixed;
   }
 
@@ -78,7 +87,8 @@
       radial-gradient(ellipse 60% 40% at 100% 100%, hsl(262 83% 65% / 0.05), transparent);
   }
 
-  code, pre {
+  code,
+  pre {
     font-family: var(--font-mono);
   }
 }
@@ -137,5 +147,26 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.animate-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 25%, hsl(var(--muted) / 0.3) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
   }
 }

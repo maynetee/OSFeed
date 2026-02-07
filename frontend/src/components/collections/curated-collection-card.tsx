@@ -32,7 +32,10 @@ interface CuratedCollectionCardProps {
 export function CuratedCollectionCard({ collection }: CuratedCollectionCardProps) {
   const { t } = useTranslation()
   const [detailOpen, setDetailOpen] = useState(false)
-  const [importResult, setImportResult] = useState<{ imported_count: number; already_existed: number } | null>(null)
+  const [importResult, setImportResult] = useState<{
+    imported_count: number
+    already_existed: number
+  } | null>(null)
 
   const importMutation = useMutation({
     mutationFn: () => curatedCollectionsApi.import(collection.id),
@@ -60,9 +63,7 @@ export function CuratedCollectionCard({ collection }: CuratedCollectionCardProps
               {collection.region}
             </Badge>
           )}
-          {collection.topic && (
-            <Badge variant="outline">{collection.topic}</Badge>
-          )}
+          {collection.topic && <Badge variant="outline">{collection.topic}</Badge>}
         </div>
 
         {collection.curator && (
@@ -74,7 +75,9 @@ export function CuratedCollectionCard({ collection }: CuratedCollectionCardProps
         <div className="mt-auto flex flex-wrap items-center gap-2 pt-2">
           <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm">{t('curatedCollections.viewDetails')}</Button>
+              <Button variant="ghost" size="sm">
+                {t('curatedCollections.viewDetails')}
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -87,7 +90,9 @@ export function CuratedCollectionCard({ collection }: CuratedCollectionCardProps
               <div className="mt-4 space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   {collection.region && (
-                    <Badge className={regionColors[collection.region] ?? 'bg-muted text-foreground/60'}>
+                    <Badge
+                      className={regionColors[collection.region] ?? 'bg-muted text-foreground/60'}
+                    >
                       {collection.region}
                     </Badge>
                   )}
@@ -105,7 +110,8 @@ export function CuratedCollectionCard({ collection }: CuratedCollectionCardProps
 
                 {collection.last_curated_at && (
                   <p className="text-xs text-foreground/40">
-                    {t('curatedCollections.lastUpdated')}: {new Date(collection.last_curated_at).toLocaleDateString()}
+                    {t('curatedCollections.lastUpdated')}:{' '}
+                    {new Date(collection.last_curated_at).toLocaleDateString()}
                   </p>
                 )}
 
@@ -115,7 +121,9 @@ export function CuratedCollectionCard({ collection }: CuratedCollectionCardProps
                     {collection.curated_channel_usernames.length > 0 ? (
                       <ul className="space-y-1">
                         {collection.curated_channel_usernames.map((username) => (
-                          <li key={username} className="text-xs text-foreground/70">@{username}</li>
+                          <li key={username} className="text-xs text-foreground/70">
+                            @{username}
+                          </li>
                         ))}
                       </ul>
                     ) : (
@@ -136,9 +144,13 @@ export function CuratedCollectionCard({ collection }: CuratedCollectionCardProps
                 ) : (
                   <ConfirmDialog
                     title={t('curatedCollections.importAll')}
-                    description={t('curatedCollections.importConfirm', { count: collection.channel_count })}
+                    description={t('curatedCollections.importConfirm', {
+                      count: collection.channel_count,
+                    })}
                     confirmText={t('curatedCollections.importAll')}
-                    onConfirm={async () => { await importMutation.mutateAsync() }}
+                    onConfirm={async () => {
+                      await importMutation.mutateAsync()
+                    }}
                     triggerButton={
                       <Button disabled={importMutation.isPending}>
                         {t('curatedCollections.importAll')}

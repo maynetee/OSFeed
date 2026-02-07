@@ -63,18 +63,14 @@ export function SummaryGenerateModal({
             {t('summaries.generate')}
           </DialogTitle>
           <DialogDescription>
-            {result
-              ? t('summaries.executiveSummary')
-              : t('summaries.generatingDescription')}
+            {result ? t('summaries.executiveSummary') : t('summaries.generatingDescription')}
           </DialogDescription>
         </DialogHeader>
 
         {!result && !generateMutation.isPending && (
           <div className="flex flex-col gap-4 py-2">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">
-                {t('summaries.dateRange')}
-              </label>
+              <label className="mb-1.5 block text-sm font-medium">{t('summaries.dateRange')}</label>
               <div className="flex gap-2">
                 {(['24h', '7d', '30d'] as const).map((range) => (
                   <Button
@@ -107,10 +103,7 @@ export function SummaryGenerateModal({
               </div>
             </div>
 
-            <Button
-              className="mt-2 gap-2"
-              onClick={() => generateMutation.mutate()}
-            >
+            <Button className="mt-2 gap-2" onClick={() => generateMutation.mutate()}>
               <Sparkles className="h-4 w-4" />
               {t('summaries.generate')}
             </Button>

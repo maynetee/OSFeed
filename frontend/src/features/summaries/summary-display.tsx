@@ -62,9 +62,7 @@ export function SummaryDisplay({ summary }: SummaryDisplayProps) {
         <h4 className="mb-2 text-sm font-semibold text-foreground/80">
           {t('summaries.executiveSummary')}
         </h4>
-        <p className="text-sm leading-relaxed text-foreground/90">
-          {summary.summary_text}
-        </p>
+        <p className="text-sm leading-relaxed text-foreground/90">{summary.summary_text}</p>
       </div>
 
       {/* Key Themes */}

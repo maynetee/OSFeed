@@ -9,7 +9,12 @@ interface DuplicateBadgeProps {
   onClick?: () => void
 }
 
-export const DuplicateBadge = memo(function DuplicateBadge({ isDuplicate, score, duplicateCount, onClick }: DuplicateBadgeProps) {
+export const DuplicateBadge = memo(function DuplicateBadge({
+  isDuplicate,
+  score,
+  duplicateCount,
+  onClick,
+}: DuplicateBadgeProps) {
   const { t } = useTranslation()
 
   // Show source count badge if we have duplicate_count > 1

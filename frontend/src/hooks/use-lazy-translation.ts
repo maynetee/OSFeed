@@ -44,7 +44,7 @@ export function useLazyTranslation({ messages, enabled = true }: UseLazyTranslat
         msg.needs_translation &&
         !msg.translated_text &&
         !translatingRef.current.has(msg.id) &&
-        !failedRef.current.has(msg.id)
+        !failedRef.current.has(msg.id),
     )
 
     // Translate up to MAX_CONCURRENT messages

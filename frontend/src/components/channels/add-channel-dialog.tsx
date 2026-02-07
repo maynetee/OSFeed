@@ -28,7 +28,13 @@ interface AddChannelDialogProps {
   showTrigger?: boolean
 }
 
-export function AddChannelDialog({ onSubmit, onBulkSubmit, open: controlledOpen, onOpenChange, showTrigger = true }: AddChannelDialogProps) {
+export function AddChannelDialog({
+  onSubmit,
+  onBulkSubmit,
+  open: controlledOpen,
+  onOpenChange,
+  showTrigger = true,
+}: AddChannelDialogProps) {
   const { t } = useTranslation()
   const schema = z.object({
     username: z.string().min(2, t('channels.validation')),
@@ -70,8 +76,8 @@ export function AddChannelDialog({ onSubmit, onBulkSubmit, open: controlledOpen,
     // Split by newlines and commas, then clean up each username
     return text
       .split(/[\n,]/)
-      .map(u => u.trim())
-      .filter(u => u.length > 0)
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0)
   }
 
   const bulkSubmitHandler = async () => {
@@ -136,8 +142,12 @@ export function AddChannelDialog({ onSubmit, onBulkSubmit, open: controlledOpen,
         {onBulkSubmit && (
           <Tabs value={mode} onValueChange={(v) => setMode(v as 'single' | 'bulk')}>
             <TabsList className="w-full">
-              <TabsTrigger value="single" className="flex-1">{t('channels.singleMode')}</TabsTrigger>
-              <TabsTrigger value="bulk" className="flex-1">{t('channels.bulkMode')}</TabsTrigger>
+              <TabsTrigger value="single" className="flex-1">
+                {t('channels.singleMode')}
+              </TabsTrigger>
+              <TabsTrigger value="bulk" className="flex-1">
+                {t('channels.bulkMode')}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="single">
@@ -147,7 +157,11 @@ export function AddChannelDialog({ onSubmit, onBulkSubmit, open: controlledOpen,
                 )}
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="username">{t('channels.channelLabel')}</Label>
-                  <Input id="username" placeholder={t('channels.channelPlaceholder')} {...register('username')} />
+                  <Input
+                    id="username"
+                    placeholder={t('channels.channelPlaceholder')}
+                    {...register('username')}
+                  />
                   {errors.username ? (
                     <span className="text-xs text-danger">{errors.username.message}</span>
                   ) : null}
@@ -165,9 +179,14 @@ export function AddChannelDialog({ onSubmit, onBulkSubmit, open: controlledOpen,
                 )}
 
                 {bulkResults && (
-                  <div className={`rounded-md p-3 text-sm ${bulkResults.failure_count === 0 ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'}`}>
+                  <div
+                    className={`rounded-md p-3 text-sm ${bulkResults.failure_count === 0 ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-amber-500/10 text-amber-700 dark:text-amber-400'}`}
+                  >
                     <p className="font-medium">
-                      {t('channels.bulkResults', { success: bulkResults.success_count, failed: bulkResults.failure_count })}
+                      {t('channels.bulkResults', {
+                        success: bulkResults.success_count,
+                        failed: bulkResults.failure_count,
+                      })}
                     </p>
                     {bulkResults.failed.length > 0 && (
                       <ul className="mt-2 space-y-1 text-xs">
@@ -206,7 +225,11 @@ export function AddChannelDialog({ onSubmit, onBulkSubmit, open: controlledOpen,
             )}
             <div className="flex flex-col gap-2">
               <Label htmlFor="username">{t('channels.channelLabel')}</Label>
-              <Input id="username" placeholder={t('channels.channelPlaceholder')} {...register('username')} />
+              <Input
+                id="username"
+                placeholder={t('channels.channelPlaceholder')}
+                {...register('username')}
+              />
               {errors.username ? (
                 <span className="text-xs text-danger">{errors.username.message}</span>
               ) : null}

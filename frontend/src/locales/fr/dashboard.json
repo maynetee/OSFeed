@@ -1,4 +1,9 @@
 {
+  "welcome": "Tableau de Bord Intelligence",
+  "subtitle": "Surveillance OSINT en temps reel de toutes vos sources.",
+  "quickAddChannel": "Ajouter un canal",
+  "quickSummary": "Generer un resume",
+  "quickBrowse": "Parcourir les collections",
   "kpiMessages": "Messages aujourd'hui",
   "kpiDuplicates": "Duplicatas filtres",
   "kpiChannels": "Canaux actifs",

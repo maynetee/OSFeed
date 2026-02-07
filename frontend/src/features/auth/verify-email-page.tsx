@@ -4,7 +4,14 @@ import { AxiosError } from 'axios'
 import { Bot, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card'
 import { authApi } from '@/lib/api/client'
 
 type VerificationState = 'verifying' | 'success' | 'error'
@@ -33,7 +40,7 @@ export function VerifyEmailPage() {
         setState('error')
         setErrorMessage(
           axiosError.response?.data?.detail ||
-          'Verification failed. The token may be invalid or expired.'
+            'Verification failed. The token may be invalid or expired.',
         )
       }
     }
@@ -56,9 +63,7 @@ export function VerifyEmailPage() {
 
       <Card className="w-full max-w-sm sm:max-w-md shadow-lg border-muted">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            Email Verification
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Email Verification</CardTitle>
           <CardDescription className="text-center">
             {state === 'verifying' && 'Verifying your email address...'}
             {state === 'success' && 'Your email has been verified'}
@@ -81,17 +86,10 @@ export function VerifyEmailPage() {
                 <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-500" />
               </div>
               <div className="text-center space-y-2">
-                <p className="text-base font-medium">
-                  Your email has been verified successfully!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  You can now log in to your account
-                </p>
+                <p className="text-base font-medium">Your email has been verified successfully!</p>
+                <p className="text-sm text-muted-foreground">You can now log in to your account</p>
               </div>
-              <Button
-                onClick={() => navigate('/login')}
-                className="w-full mt-4"
-              >
+              <Button onClick={() => navigate('/login')} className="w-full mt-4">
                 Go to Login
               </Button>
             </div>
@@ -103,26 +101,14 @@ export function VerifyEmailPage() {
                 <XCircle className="h-10 w-10 text-destructive" />
               </div>
               <div className="text-center space-y-2">
-                <p className="text-base font-medium text-destructive">
-                  Verification Failed
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {errorMessage}
-                </p>
+                <p className="text-base font-medium text-destructive">Verification Failed</p>
+                <p className="text-sm text-muted-foreground">{errorMessage}</p>
               </div>
               <div className="w-full space-y-2 mt-4">
-                <Button
-                  onClick={handleRequestNewVerification}
-                  variant="default"
-                  className="w-full"
-                >
+                <Button onClick={handleRequestNewVerification} variant="default" className="w-full">
                   Request New Verification
                 </Button>
-                <Button
-                  onClick={() => navigate('/login')}
-                  variant="outline"
-                  className="w-full"
-                >
+                <Button onClick={() => navigate('/login')} variant="outline" className="w-full">
                   Back to Login
                 </Button>
               </div>

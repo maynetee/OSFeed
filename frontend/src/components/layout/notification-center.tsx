@@ -6,7 +6,13 @@ import { useNavigate } from 'react-router-dom'
 
 import { notificationsApi } from '@/lib/api/notifications'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Timestamp } from '@/components/common/timestamp'
 import { useMessageStream } from '@/hooks/use-message-stream'
 
@@ -64,7 +70,12 @@ export function NotificationCenter() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" aria-label={t('alerts.notifications')} className="relative">
+        <Button
+          variant="outline"
+          size="icon"
+          aria-label={t('alerts.notifications')}
+          className="relative"
+        >
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
             <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
@@ -108,9 +119,7 @@ export function NotificationCenter() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold">{n.title}</p>
-                  {!n.is_read && (
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  )}
+                  {!n.is_read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />}
                 </div>
                 {n.body && <p className="mt-0.5 text-xs text-foreground/60">{n.body}</p>}
                 <p className="mt-1 text-xs text-foreground/40">

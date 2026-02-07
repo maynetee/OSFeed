@@ -38,7 +38,11 @@ export function ResourceDetailPage() {
       <article className="py-24 px-6">
         <div className="max-w-3xl mx-auto">
           {/* Back link */}
-          <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <Link
               to="/resources"
               className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80"
@@ -98,26 +102,26 @@ export function ResourceDetailPage() {
             <p className="text-base leading-relaxed" style={{ color: '#C9D1D9' }}>
               {article.excerpt} The landscape of open-source intelligence continues to evolve at an
               unprecedented pace, driven by the convergence of advanced natural language processing,
-              real-time data collection, and sophisticated analytical frameworks. Understanding these
-              dynamics is essential for anyone working in the intelligence space today.
+              real-time data collection, and sophisticated analytical frameworks. Understanding
+              these dynamics is essential for anyone working in the intelligence space today.
             </p>
 
             <p className="text-base leading-relaxed" style={{ color: '#C9D1D9' }}>
               Modern OSINT practitioners face a dual challenge: the volume of available information
-              grows exponentially while the time available for analysis continues to shrink. Traditional
-              methods of manual review and keyword-based filtering are no longer sufficient. Instead,
-              analysts must leverage semantic understanding, automated translation pipelines, and
-              vector-based deduplication to maintain operational awareness across dozens or even
-              hundreds of sources simultaneously.
+              grows exponentially while the time available for analysis continues to shrink.
+              Traditional methods of manual review and keyword-based filtering are no longer
+              sufficient. Instead, analysts must leverage semantic understanding, automated
+              translation pipelines, and vector-based deduplication to maintain operational
+              awareness across dozens or even hundreds of sources simultaneously.
             </p>
 
             <p className="text-base leading-relaxed" style={{ color: '#C9D1D9' }}>
               The implications extend beyond the technical. As intelligence tools become more
-              accessible, the competitive advantage shifts from data access to analytical capability.
-              Organizations that invest in structured workflows — combining automated collection with
-              human-in-the-loop validation — consistently outperform those relying on either approach
-              in isolation. The key lies in building systems that amplify human judgment rather than
-              replace it.
+              accessible, the competitive advantage shifts from data access to analytical
+              capability. Organizations that invest in structured workflows — combining automated
+              collection with human-in-the-loop validation — consistently outperform those relying
+              on either approach in isolation. The key lies in building systems that amplify human
+              judgment rather than replace it.
             </p>
 
             <p className="text-base leading-relaxed" style={{ color: '#C9D1D9' }}>

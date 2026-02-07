@@ -13,7 +13,7 @@ export function useCountUp({
   duration = 2000,
   start = 0,
   separator = ',',
-  startOnMount = true
+  startOnMount = true,
 }: UseCountUpOptions) {
   const [count, setCount] = useState(start)
   const [isComplete, setIsComplete] = useState(false)

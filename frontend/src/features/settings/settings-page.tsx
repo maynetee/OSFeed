@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
+import { PageTransition } from '@/components/layout/page-transition'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +15,9 @@ function loadPrefs(): { email: boolean; in_app: boolean } {
   try {
     const stored = localStorage.getItem(PREFS_KEY)
     if (stored) return JSON.parse(stored)
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { email: false, in_app: true }
 }
 
@@ -50,7 +53,8 @@ export function SettingsPage() {
 
   // Update digest preferences
   const updateDigest = useMutation({
-    mutationFn: (payload: Parameters<typeof digestsApi.updatePreferences>[0]) => digestsApi.updatePreferences(payload),
+    mutationFn: (payload: Parameters<typeof digestsApi.updatePreferences>[0]) =>
+      digestsApi.updatePreferences(payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['digest-preferences'] }),
   })
 
@@ -67,22 +71,22 @@ export function SettingsPage() {
 
   const handleDigestToggle = useCallback(
     (enabled: boolean) => updateDigest.mutate({ enabled }),
-    [updateDigest]
+    [updateDigest],
   )
 
   const handleFrequencyChange = useCallback(
     (frequency: string) => updateDigest.mutate({ frequency }),
-    [updateDigest]
+    [updateDigest],
   )
 
   const handleHourChange = useCallback(
     (send_hour: number) => updateDigest.mutate({ send_hour }),
-    [updateDigest]
+    [updateDigest],
   )
 
   const handleMaxMessagesChange = useCallback(
     (max_messages: number) => updateDigest.mutate({ max_messages }),
-    [updateDigest]
+    [updateDigest],
   )
 
   const handleCollectionToggle = useCallback(
@@ -93,7 +97,7 @@ export function SettingsPage() {
         : current.filter((id) => id !== collectionId)
       updateDigest.mutate({ collection_ids: updated })
     },
-    [updateDigest, digestData]
+    [updateDigest, digestData],
   )
 
   const handleLanguageChange = async (value: string) => {
@@ -109,175 +113,183 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <p className="text-sm text-foreground/60">{t('settings.subtitle')}</p>
-        <h2 className="text-2xl font-semibold">{t('settings.title')}</h2>
-      </div>
+    <PageTransition>
+      <div className="flex flex-col gap-6">
+        <div>
+          <p className="text-sm text-foreground/60">{t('settings.subtitle')}</p>
+          <h2 className="text-2xl font-semibold">{t('settings.title')}</h2>
+        </div>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 py-6">
-          <div>
-            <p className="text-sm font-semibold">{t('settings.notificationsTitle')}</p>
-            <p className="text-xs text-foreground/60">{t('settings.notificationsDescription')}</p>
-          </div>
-          <div className="flex flex-col gap-3">
-            <label className="flex items-center justify-between">
-              <span className="text-sm">{t('settings.notificationInApp')}</span>
-              <input
-                type="checkbox"
-                checked={prefs.in_app}
-                onChange={(e) => setPrefs((p) => ({ ...p, in_app: e.target.checked }))}
-                className="h-4 w-4 accent-primary"
-              />
-            </label>
-            <label className="flex items-center justify-between">
-              <span className="text-sm">{t('settings.notificationEmail')}</span>
-              <input
-                type="checkbox"
-                checked={prefs.email}
-                onChange={(e) => setPrefs((p) => ({ ...p, email: e.target.checked }))}
-                className="h-4 w-4 accent-primary"
-              />
-            </label>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Daily Digest Section */}
-      <Card>
-        <CardContent className="flex flex-col gap-4 py-6">
-          <div>
-            <p className="text-sm font-semibold">{t('settings.digestTitle')}</p>
-            <p className="text-xs text-foreground/60">{t('settings.digestDescription')}</p>
-          </div>
-
-          {digestLoading ? (
-            <p className="text-xs text-foreground/40">{t('settings.digestLoading')}</p>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {/* Enable toggle */}
+        <Card>
+          <CardContent className="flex flex-col gap-4 py-6">
+            <div>
+              <p className="text-sm font-semibold">{t('settings.notificationsTitle')}</p>
+              <p className="text-xs text-foreground/60">{t('settings.notificationsDescription')}</p>
+            </div>
+            <div className="flex flex-col gap-3">
               <label className="flex items-center justify-between">
-                <span className="text-sm">{t('settings.digestEnabled')}</span>
+                <span className="text-sm">{t('settings.notificationInApp')}</span>
                 <input
                   type="checkbox"
-                  checked={digestData?.enabled ?? false}
-                  onChange={(e) => handleDigestToggle(e.target.checked)}
+                  checked={prefs.in_app}
+                  onChange={(e) => setPrefs((p) => ({ ...p, in_app: e.target.checked }))}
                   className="h-4 w-4 accent-primary"
                 />
               </label>
-
-              {/* Frequency */}
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="digest-frequency">{t('settings.digestFrequency')}</Label>
-                <select
-                  id="digest-frequency"
-                  value={digestData?.frequency ?? 'daily'}
-                  onChange={(e) => handleFrequencyChange(e.target.value)}
-                  className="rounded border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="daily">{t('settings.digestDaily')}</option>
-                  <option value="weekly">{t('settings.digestWeekly')}</option>
-                </select>
-              </div>
-
-              {/* Send hour */}
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="digest-hour">{t('settings.digestSendHour')}</Label>
-                <select
-                  id="digest-hour"
-                  value={digestData?.send_hour ?? 8}
-                  onChange={(e) => handleHourChange(Number(e.target.value))}
-                  className="rounded border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {HOURS.map((h) => (
-                    <option key={h} value={h}>
-                      {String(h).padStart(2, '0')}:00 UTC
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Max messages */}
-              <div className="flex flex-col gap-1">
-                <Label htmlFor="digest-max">{t('settings.digestMaxMessages')}</Label>
-                <select
-                  id="digest-max"
-                  value={digestData?.max_messages ?? 20}
-                  onChange={(e) => handleMaxMessagesChange(Number(e.target.value))}
-                  className="rounded border border-input bg-background px-3 py-2 text-sm"
-                >
-                  {MAX_MSG_OPTIONS.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Collection multi-select */}
-              {collectionsData && collectionsData.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <Label>{t('settings.digestCollections')}</Label>
-                  <div className="flex flex-col gap-1 max-h-48 overflow-y-auto rounded border border-input p-2">
-                    {collectionsData.map((col) => (
-                      <label key={col.id} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={(digestData?.collection_ids || []).includes(col.id)}
-                          onChange={(e) => handleCollectionToggle(col.id, e.target.checked)}
-                          className="h-3.5 w-3.5 accent-primary"
-                        />
-                        {col.name}
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-foreground/40">{t('settings.digestCollectionsHint')}</p>
-                </div>
-              )}
-
-              {/* Send Preview */}
-              <button
-                onClick={() => {
-                  setPreviewStatus(null)
-                  sendPreview.mutate()
-                }}
-                disabled={sendPreview.isPending}
-                className="self-start rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
-                {sendPreview.isPending ? t('settings.digestSending') : t('settings.digestSendPreview')}
-              </button>
-              {previewStatus && <p className="text-xs text-foreground/60">{previewStatus}</p>}
+              <label className="flex items-center justify-between">
+                <span className="text-sm">{t('settings.notificationEmail')}</span>
+                <input
+                  type="checkbox"
+                  checked={prefs.email}
+                  onChange={(e) => setPrefs((p) => ({ ...p, email: e.target.checked }))}
+                  className="h-4 w-4 accent-primary"
+                />
+              </label>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 py-6">
-          <div>
-            <p className="text-sm font-semibold">{t('settings.languageTitle')}</p>
-            <p className="text-xs text-foreground/60">{t('settings.languageDescription')}</p>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="language">{t('settings.languageLabel')}</Label>
-            <Input
-              id="language"
-              list="language-options"
-              defaultValue={i18n.language}
-              onBlur={(event) => handleLanguageChange(event.target.value)}
-            />
-            <datalist id="language-options">
-              {LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.name}
-                </option>
-              ))}
-            </datalist>
-            {isTranslating ? <p className="text-xs text-primary">{t('settings.translating')}</p> : null}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        {/* Daily Digest Section */}
+        <Card>
+          <CardContent className="flex flex-col gap-4 py-6">
+            <div>
+              <p className="text-sm font-semibold">{t('settings.digestTitle')}</p>
+              <p className="text-xs text-foreground/60">{t('settings.digestDescription')}</p>
+            </div>
+
+            {digestLoading ? (
+              <p className="text-xs text-foreground/40">{t('settings.digestLoading')}</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {/* Enable toggle */}
+                <label className="flex items-center justify-between">
+                  <span className="text-sm">{t('settings.digestEnabled')}</span>
+                  <input
+                    type="checkbox"
+                    checked={digestData?.enabled ?? false}
+                    onChange={(e) => handleDigestToggle(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                </label>
+
+                {/* Frequency */}
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="digest-frequency">{t('settings.digestFrequency')}</Label>
+                  <select
+                    id="digest-frequency"
+                    value={digestData?.frequency ?? 'daily'}
+                    onChange={(e) => handleFrequencyChange(e.target.value)}
+                    className="rounded border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="daily">{t('settings.digestDaily')}</option>
+                    <option value="weekly">{t('settings.digestWeekly')}</option>
+                  </select>
+                </div>
+
+                {/* Send hour */}
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="digest-hour">{t('settings.digestSendHour')}</Label>
+                  <select
+                    id="digest-hour"
+                    value={digestData?.send_hour ?? 8}
+                    onChange={(e) => handleHourChange(Number(e.target.value))}
+                    className="rounded border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {HOURS.map((h) => (
+                      <option key={h} value={h}>
+                        {String(h).padStart(2, '0')}:00 UTC
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Max messages */}
+                <div className="flex flex-col gap-1">
+                  <Label htmlFor="digest-max">{t('settings.digestMaxMessages')}</Label>
+                  <select
+                    id="digest-max"
+                    value={digestData?.max_messages ?? 20}
+                    onChange={(e) => handleMaxMessagesChange(Number(e.target.value))}
+                    className="rounded border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {MAX_MSG_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Collection multi-select */}
+                {collectionsData && collectionsData.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <Label>{t('settings.digestCollections')}</Label>
+                    <div className="flex flex-col gap-1 max-h-48 overflow-y-auto rounded border border-input p-2">
+                      {collectionsData.map((col) => (
+                        <label key={col.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={(digestData?.collection_ids || []).includes(col.id)}
+                            onChange={(e) => handleCollectionToggle(col.id, e.target.checked)}
+                            className="h-3.5 w-3.5 accent-primary"
+                          />
+                          {col.name}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-foreground/40">
+                      {t('settings.digestCollectionsHint')}
+                    </p>
+                  </div>
+                )}
+
+                {/* Send Preview */}
+                <button
+                  onClick={() => {
+                    setPreviewStatus(null)
+                    sendPreview.mutate()
+                  }}
+                  disabled={sendPreview.isPending}
+                  className="self-start rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {sendPreview.isPending
+                    ? t('settings.digestSending')
+                    : t('settings.digestSendPreview')}
+                </button>
+                {previewStatus && <p className="text-xs text-foreground/60">{previewStatus}</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex flex-col gap-4 py-6">
+            <div>
+              <p className="text-sm font-semibold">{t('settings.languageTitle')}</p>
+              <p className="text-xs text-foreground/60">{t('settings.languageDescription')}</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="language">{t('settings.languageLabel')}</Label>
+              <Input
+                id="language"
+                list="language-options"
+                defaultValue={i18n.language}
+                onBlur={(event) => handleLanguageChange(event.target.value)}
+              />
+              <datalist id="language-options">
+                {LANGUAGES.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </option>
+                ))}
+              </datalist>
+              {isTranslating ? (
+                <p className="text-xs text-primary">{t('settings.translating')}</p>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </PageTransition>
   )
 }

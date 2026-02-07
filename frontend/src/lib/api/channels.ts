@@ -1,10 +1,5 @@
 import { api } from './axios-instance'
-import type {
-  Channel,
-  FetchJobStatus,
-  BulkAddResponse,
-  ChannelInfoUpdate,
-} from './types'
+import type { Channel, FetchJobStatus, BulkAddResponse, ChannelInfoUpdate } from './types'
 
 export const channelsApi = {
   /**
@@ -40,8 +35,7 @@ export const channelsApi = {
    * @param usernames - Array of Telegram username handles to add
    * @returns Promise resolving to a BulkAddResponse with succeeded and failed channels
    */
-  addBulk: (usernames: string[]) =>
-    api.post<BulkAddResponse>('/api/channels/bulk', { usernames }),
+  addBulk: (usernames: string[]) => api.post<BulkAddResponse>('/api/channels/bulk', { usernames }),
 
   /**
    * Remove a channel from the monitoring system.

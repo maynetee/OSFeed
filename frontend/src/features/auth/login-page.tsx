@@ -15,7 +15,7 @@ import { trackEvent } from '@/lib/analytics'
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1, "Password is required"),
+  password: z.string().min(1, 'Password is required'),
 })
 
 type LoginFormValues = z.infer<typeof loginSchema>
@@ -43,7 +43,7 @@ export function LoginPage() {
 
   const handleLogin = async (values: LoginFormValues) => {
     setError(null)
-    trackEvent("Login Submit")
+    trackEvent('Login Submit')
     try {
       // Login - tokens are set as httpOnly cookies automatically
       const response = await authApi.login(values.email, values.password)
@@ -64,7 +64,10 @@ export function LoginPage() {
 
   return (
     <PageLayout>
-      <Seo title="Login — Osfeed" description="Sign in to your Osfeed account to access your intelligence dashboard." />
+      <Seo
+        title="Login — Osfeed"
+        description="Sign in to your Osfeed account to access your intelligence dashboard."
+      />
       <section className="flex items-center justify-center px-4 py-20 sm:py-32">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -95,7 +98,11 @@ export function LoginPage() {
 
           <form className="space-y-5" onSubmit={form.handleSubmit(handleLogin)}>
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium" style={{ color: '#8B949E' }}>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium"
+                style={{ color: '#8B949E' }}
+              >
                 Email
               </label>
               <input
@@ -109,8 +116,13 @@ export function LoginPage() {
                   color: '#FFFFFF',
                 }}
                 {...form.register('email')}
-                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
-                onBlur={(e) => { e.target.style.borderColor = '#30363D'; form.register('email').onBlur(e) }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#00D4AA'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#30363D'
+                  form.register('email').onBlur(e)
+                }}
               />
               {form.formState.errors.email && (
                 <span className="text-xs font-medium" style={{ color: '#F85149' }}>
@@ -121,15 +133,23 @@ export function LoginPage() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium" style={{ color: '#8B949E' }}>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium"
+                  style={{ color: '#8B949E' }}
+                >
                   Password
                 </label>
                 <Link
                   to="/forgot-password"
                   className="text-xs transition-colors"
                   style={{ color: '#8B949E' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#00D4AA' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = '#8B949E' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#00D4AA'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#8B949E'
+                  }}
                 >
                   Forgot password?
                 </Link>
@@ -144,8 +164,13 @@ export function LoginPage() {
                   color: '#FFFFFF',
                 }}
                 {...form.register('password')}
-                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
-                onBlur={(e) => { e.target.style.borderColor = '#30363D'; form.register('password').onBlur(e) }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#00D4AA'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#30363D'
+                  form.register('password').onBlur(e)
+                }}
               />
               {form.formState.errors.password && (
                 <span className="text-xs font-medium" style={{ color: '#F85149' }}>
@@ -180,8 +205,12 @@ export function LoginPage() {
               to="/signup"
               className="font-medium transition-colors"
               style={{ color: '#00D4AA' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#FFFFFF' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = '#00D4AA' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#FFFFFF'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#00D4AA'
+              }}
             >
               Sign up
             </Link>

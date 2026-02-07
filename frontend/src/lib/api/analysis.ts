@@ -119,6 +119,5 @@ export const analysisApi = {
   getTimeline: (timelineId: string) =>
     api.get<TimelineResponse>(`/api/analysis/timelines/${timelineId}`),
 
-  deleteTimeline: (timelineId: string) =>
-    api.delete(`/api/analysis/timelines/${timelineId}`),
+  deleteTimeline: (timelineId: string) => api.delete(`/api/analysis/timelines/${timelineId}`),
 }

@@ -68,7 +68,10 @@ export function ResourcesPage() {
 
   return (
     <PageLayout>
-      <Seo title="Intelligence Brief — Osfeed" description="Read the latest intelligence briefs, analysis, and guides on OSINT methodology and Telegram monitoring." />
+      <Seo
+        title="Intelligence Brief — Osfeed"
+        description="Read the latest intelligence briefs, analysis, and guides on OSINT methodology and Telegram monitoring."
+      />
       {/* Hero */}
       <section className="py-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
@@ -172,7 +175,10 @@ export function ResourcesPage() {
                         {article.title}
                       </h2>
 
-                      <div className="mt-2 flex items-center gap-3 text-xs" style={{ color: '#8B949E' }}>
+                      <div
+                        className="mt-2 flex items-center gap-3 text-xs"
+                        style={{ color: '#8B949E' }}
+                      >
                         <span className="flex items-center gap-1">
                           <Calendar size={12} />
                           {article.date}
@@ -183,7 +189,10 @@ export function ResourcesPage() {
                         </span>
                       </div>
 
-                      <p className="mt-3 text-sm leading-relaxed line-clamp-3" style={{ color: '#8B949E' }}>
+                      <p
+                        className="mt-3 text-sm leading-relaxed line-clamp-3"
+                        style={{ color: '#8B949E' }}
+                      >
                         {article.excerpt}
                       </p>
 

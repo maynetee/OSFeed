@@ -27,7 +27,12 @@ const slideInRight = {
   transition: { duration: 0.5, ease: 'easeOut' },
 }
 
-const SUBJECT_OPTIONS = ['General Inquiry', 'Technical Support', 'Partnership', 'Enterprise'] as const
+const SUBJECT_OPTIONS = [
+  'General Inquiry',
+  'Technical Support',
+  'Partnership',
+  'Enterprise',
+] as const
 
 export function ContactPage() {
   const [name, setName] = useState('')
@@ -43,7 +48,7 @@ export function ContactPage() {
     if (!name.trim() || !email.trim() || !message.trim()) return
     setSubmitting(true)
     setError(null)
-    trackEvent("Contact Submit")
+    trackEvent('Contact Submit')
     try {
       await api.post('/api/contact-sales', {
         name,
@@ -74,7 +79,10 @@ export function ContactPage() {
 
   return (
     <PageLayout>
-      <Seo title="Contact — Osfeed" description="Get in touch with the Osfeed team. Questions, feedback, or partnership inquiries — we'd love to hear from you." />
+      <Seo
+        title="Contact — Osfeed"
+        description="Get in touch with the Osfeed team. Questions, feedback, or partnership inquiries — we'd love to hear from you."
+      />
       {/* Hero */}
       <section className="px-6 pt-20 pb-12 text-center">
         <motion.h1
@@ -205,7 +213,9 @@ export function ContactPage() {
                   </div>
 
                   {error && (
-                    <p className="text-sm" style={{ color: '#F85149' }}>{error}</p>
+                    <p className="text-sm" style={{ color: '#F85149' }}>
+                      {error}
+                    </p>
                   )}
 
                   {/* Submit */}
@@ -256,7 +266,8 @@ export function ContactPage() {
                   Enterprise
                 </h4>
                 <p className="mt-1 text-sm" style={{ color: '#8B949E' }}>
-                  Looking for a custom plan or dedicated support? Reach out with "Enterprise" as the subject and we'll connect you with our sales team.
+                  Looking for a custom plan or dedicated support? Reach out with "Enterprise" as the
+                  subject and we'll connect you with our sales team.
                 </p>
               </div>
             </div>

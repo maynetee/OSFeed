@@ -35,8 +35,12 @@ export function TimelineGenerateModal({ open, onOpenChange }: TimelineGenerateMo
   })
 
   const generateMutation = useMutation({
-    mutationFn: (params: { topic?: string; collection_id?: string; start_date?: string; end_date?: string }) =>
-      analysisApi.generateTimeline(params),
+    mutationFn: (params: {
+      topic?: string
+      collection_id?: string
+      start_date?: string
+      end_date?: string
+    }) => analysisApi.generateTimeline(params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['timelines'] })
       onOpenChange(false)
@@ -49,7 +53,12 @@ export function TimelineGenerateModal({ open, onOpenChange }: TimelineGenerateMo
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const params: { topic?: string; collection_id?: string; start_date?: string; end_date?: string } = {}
+    const params: {
+      topic?: string
+      collection_id?: string
+      start_date?: string
+      end_date?: string
+    } = {}
     if (topic.trim()) params.topic = topic.trim()
     if (collectionId) params.collection_id = collectionId
     if (startDate) params.start_date = new Date(startDate).toISOString()
@@ -116,10 +125,7 @@ export function TimelineGenerateModal({ open, onOpenChange }: TimelineGenerateMo
           </div>
 
           <DialogFooter>
-            <Button
-              type="submit"
-              disabled={!canSubmit || generateMutation.isPending}
-            >
+            <Button type="submit" disabled={!canSubmit || generateMutation.isPending}>
               {generateMutation.isPending
                 ? t('analysis.timeline.generating')
                 : t('analysis.timeline.generate')}

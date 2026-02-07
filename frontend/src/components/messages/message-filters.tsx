@@ -44,7 +44,7 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
       setTopic: state.setTopic,
       setFiltersTouched: state.setFiltersTouched,
       resetFilters: state.resetFilters,
-    }))
+    })),
   )
   const { t } = useTranslation()
 
@@ -58,32 +58,56 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
   )
 
   const REGIONS = ['Europe', 'Middle East', 'Asia-Pacific', 'Americas', 'Africa', 'Global']
-  const TOPICS = ['Conflict', 'Trade', 'Politics', 'Cyber', 'Defense', 'Energy', 'Policy', 'Intelligence']
+  const TOPICS = [
+    'Conflict',
+    'Trade',
+    'Politics',
+    'Cyber',
+    'Defense',
+    'Energy',
+    'Policy',
+    'Intelligence',
+  ]
 
   const hasActiveFilters = useMemo(
-    () => channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0 || dateRange !== 'all' || region !== '' || topic !== '',
-    [channelIds.length, collectionIds.length, mediaTypes.length, dateRange, region, topic]
+    () =>
+      channelIds.length > 0 ||
+      collectionIds.length > 0 ||
+      mediaTypes.length > 0 ||
+      dateRange !== 'all' ||
+      region !== '' ||
+      topic !== '',
+    [channelIds.length, collectionIds.length, mediaTypes.length, dateRange, region, topic],
   )
 
   const activeFilterSummary = useMemo(() => {
     const summary: string[] = []
 
     if (channelIds.length > 0) {
-      summary.push(`${channelIds.length} ${channelIds.length === 1 ? t('filters.channel') : t('filters.channels')}`)
+      summary.push(
+        `${channelIds.length} ${channelIds.length === 1 ? t('filters.channel') : t('filters.channels')}`,
+      )
     }
 
     if (collectionIds.length > 0) {
-      summary.push(`${collectionIds.length} ${collectionIds.length === 1 ? t('filters.collection') : t('filters.collections')}`)
+      summary.push(
+        `${collectionIds.length} ${collectionIds.length === 1 ? t('filters.collection') : t('filters.collections')}`,
+      )
     }
 
     if (mediaTypes.length > 0) {
-      const typeLabels = mediaTypes.map(type => {
-        switch(type) {
-          case 'text': return t('filters.text')
-          case 'photo': return t('filters.photo')
-          case 'video': return t('filters.video')
-          case 'document': return t('filters.document')
-          default: return type
+      const typeLabels = mediaTypes.map((type) => {
+        switch (type) {
+          case 'text':
+            return t('filters.text')
+          case 'photo':
+            return t('filters.photo')
+          case 'video':
+            return t('filters.video')
+          case 'document':
+            return t('filters.document')
+          default:
+            return type
         }
       })
       summary.push(typeLabels.join(' + '))
@@ -125,7 +149,11 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         )}
 
         <div className="flex justify-end">
-          {(channelIds.length > 0 || collectionIds.length > 0 || mediaTypes.length > 0 || region !== '' || topic !== '') ? (
+          {channelIds.length > 0 ||
+          collectionIds.length > 0 ||
+          mediaTypes.length > 0 ||
+          region !== '' ||
+          topic !== '' ? (
             <Button variant="ghost" size="sm" onClick={() => resetFilters()}>
               {t('filters.clear')}
             </Button>
@@ -133,7 +161,9 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </div>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.period')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">
+            {t('filters.period')}
+          </legend>
           <div className="flex flex-wrap gap-2">
             {[
               { value: '24h', label: '24h' },
@@ -158,7 +188,9 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </fieldset>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.mediaTypes')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">
+            {t('filters.mediaTypes')}
+          </legend>
           <div className="flex flex-wrap gap-2">
             <Button
               variant={mediaTypes.length === 0 ? 'default' : 'outline'}
@@ -188,7 +220,7 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
                     setMediaTypes(
                       active
                         ? mediaTypes.filter((t) => t !== type.value)
-                        : [...mediaTypes, type.value]
+                        : [...mediaTypes, type.value],
                     )
                   }}
                   aria-pressed={active}
@@ -201,7 +233,9 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </fieldset>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.region')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">
+            {t('filters.region')}
+          </legend>
           <div className="flex flex-wrap gap-2">
             <Button
               variant={region === '' ? 'default' : 'outline'}
@@ -232,7 +266,9 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </fieldset>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.topic')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">
+            {t('filters.topic')}
+          </legend>
           <div className="flex flex-wrap gap-2">
             <Button
               variant={topic === '' ? 'default' : 'outline'}
@@ -263,7 +299,9 @@ export function MessageFilters({ channels, collections }: MessageFiltersProps) {
         </fieldset>
 
         <fieldset>
-          <legend className="text-xs font-semibold uppercase text-foreground/90">{t('filters.channels')}</legend>
+          <legend className="text-xs font-semibold uppercase text-foreground/90">
+            {t('filters.channels')}
+          </legend>
           <div className="flex flex-wrap gap-2">
             {channelOptions.map((channel) => {
               const active = channelIds.includes(channel.id)

@@ -9,14 +9,27 @@ import { api } from '@/lib/api/axios-instance'
 import { trackEvent } from '@/lib/analytics'
 
 const contactSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name must be at most 100 characters'),
+  name: z
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must be at most 100 characters'),
   email: z.string().email('Please enter a valid email address'),
-  company: z.string().min(2, 'Company must be at least 2 characters').max(100, 'Company must be at most 100 characters'),
-  job_title: z.string().min(2, 'Job title must be at least 2 characters').max(100, 'Job title must be at most 100 characters'),
+  company: z
+    .string()
+    .min(2, 'Company must be at least 2 characters')
+    .max(100, 'Company must be at most 100 characters'),
+  job_title: z
+    .string()
+    .min(2, 'Job title must be at least 2 characters')
+    .max(100, 'Job title must be at most 100 characters'),
   company_size: z.enum(['1-10', '11-50', '51-200', '201-500', '500+'], {
     required_error: 'Please select a company size',
   }),
-  message: z.string().max(2000, 'Message must be at most 2000 characters').optional().or(z.literal('')),
+  message: z
+    .string()
+    .max(2000, 'Message must be at most 2000 characters')
+    .optional()
+    .or(z.literal('')),
 })
 
 type ContactFormData = z.infer<typeof contactSchema>
@@ -52,7 +65,7 @@ export function ContactSalesPage() {
 
   const onSubmit = async (data: ContactFormData) => {
     setSubmitError(null)
-    trackEvent("Contact Sales Submit")
+    trackEvent('Contact Sales Submit')
     try {
       await api.post('/api/contact-sales', data)
       setSubmitted(true)
@@ -63,7 +76,10 @@ export function ContactSalesPage() {
 
   return (
     <PageLayout>
-      <Seo title="Contact Sales — Osfeed" description="Talk to our sales team about Enterprise plans, custom integrations, and dedicated support for your organization." />
+      <Seo
+        title="Contact Sales — Osfeed"
+        description="Talk to our sales team about Enterprise plans, custom integrations, and dedicated support for your organization."
+      />
       <section className="px-6 py-20 md:py-28">
         <div className="mx-auto max-w-2xl">
           <motion.h1
@@ -99,7 +115,14 @@ export function ContactSalesPage() {
                   className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full"
                   style={{ backgroundColor: 'rgba(0, 212, 170, 0.1)' }}
                 >
-                  <svg className="h-8 w-8" style={{ color: '#00D4AA' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="h-8 w-8"
+                    style={{ color: '#00D4AA' }}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
@@ -125,7 +148,9 @@ export function ContactSalesPage() {
                       placeholder="Your name"
                     />
                     {errors.name && (
-                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>{errors.name.message}</p>
+                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>
+                        {errors.name.message}
+                      </p>
                     )}
                   </div>
 
@@ -141,7 +166,9 @@ export function ContactSalesPage() {
                       placeholder="you@company.com"
                     />
                     {errors.email && (
-                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>{errors.email.message}</p>
+                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>
+                        {errors.email.message}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -159,7 +186,9 @@ export function ContactSalesPage() {
                       placeholder="Company name"
                     />
                     {errors.company && (
-                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>{errors.company.message}</p>
+                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>
+                        {errors.company.message}
+                      </p>
                     )}
                   </div>
 
@@ -175,7 +204,9 @@ export function ContactSalesPage() {
                       placeholder="Your role"
                     />
                     {errors.job_title && (
-                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>{errors.job_title.message}</p>
+                      <p className="mt-1 text-sm" style={{ color: '#F85149' }}>
+                        {errors.job_title.message}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -200,7 +231,9 @@ export function ContactSalesPage() {
                     ))}
                   </select>
                   {errors.company_size && (
-                    <p className="mt-1 text-sm" style={{ color: '#F85149' }}>{errors.company_size.message}</p>
+                    <p className="mt-1 text-sm" style={{ color: '#F85149' }}>
+                      {errors.company_size.message}
+                    </p>
                   )}
                 </div>
 
@@ -216,12 +249,16 @@ export function ContactSalesPage() {
                     placeholder="Tell us about your needs..."
                   />
                   {errors.message && (
-                    <p className="mt-1 text-sm" style={{ color: '#F85149' }}>{errors.message.message}</p>
+                    <p className="mt-1 text-sm" style={{ color: '#F85149' }}>
+                      {errors.message.message}
+                    </p>
                   )}
                 </div>
 
                 {submitError && (
-                  <p className="text-sm" style={{ color: '#F85149' }}>{submitError}</p>
+                  <p className="text-sm" style={{ color: '#F85149' }}>
+                    {submitError}
+                  </p>
                 )}
 
                 <button

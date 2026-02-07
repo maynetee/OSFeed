@@ -47,8 +47,10 @@ export const alertsApi = {
    * @param payload - Partial alert configuration with fields to update
    * @returns Promise resolving to the updated Alert object
    */
-  update: (id: string, payload: Partial<Omit<Alert, 'id' | 'user_id' | 'created_at' | 'updated_at'>>) =>
-    api.put<Alert>(`/api/alerts/${id}`, payload),
+  update: (
+    id: string,
+    payload: Partial<Omit<Alert, 'id' | 'user_id' | 'created_at' | 'updated_at'>>,
+  ) => api.put<Alert>(`/api/alerts/${id}`, payload),
 
   /**
    * Delete an alert by ID.

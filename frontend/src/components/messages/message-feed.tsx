@@ -5,6 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { MessageCard } from '@/components/messages/message-card'
 import { MessageSkeleton } from '@/components/messages/message-skeleton'
 import { EmptyState } from '@/components/common/empty-state'
+import { Radio } from 'lucide-react'
 import { useLazyTranslation } from '@/hooks/use-lazy-translation'
 import type { Message } from '@/lib/api/client'
 
@@ -60,7 +61,7 @@ export const MessageFeed = memo(function MessageFeed({
 
       return baseHeight + textHeight + mediaHeight + embedHeight + 16 // 16px for gap
     },
-    [messages]
+    [messages],
   )
 
   // Virtualizer instance
@@ -96,6 +97,7 @@ export const MessageFeed = memo(function MessageFeed({
   if (!isLoading && messages.length === 0) {
     return (
       <EmptyState
+        icon={Radio}
         title={t('messages.noMessagesTitle')}
         description={t('messages.noMessagesDescription')}
       />

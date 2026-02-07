@@ -3,10 +3,12 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { VitePWA } from 'vite-plugin-pwa'
 import viteCompression from 'vite-plugin-compression'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 export default defineConfig({
   plugins: [
     react(),
+    visualizer({ open: false, filename: 'dist/stats.html', gzipSize: true, brotliSize: true }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico'],
@@ -49,10 +51,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'recharts': ['recharts'],
-          'framer-motion': ['framer-motion'],
-          'i18next': ['react-i18next', 'i18next'],
-          'tanstack': ['@tanstack/react-query'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-ui': ['framer-motion', 'lucide-react'],
+          'vendor-charts': ['recharts'],
+          'vendor-i18n': ['react-i18next', 'i18next'],
         },
       },
     },

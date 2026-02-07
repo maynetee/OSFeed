@@ -35,8 +35,7 @@ const steps = [
     number: '02',
     headline: 'Process',
     icon: Cpu,
-    description:
-      'Our AI translates, deduplicates, and filters in real-time. Noise becomes signal.',
+    description: 'Our AI translates, deduplicates, and filters in real-time. Noise becomes signal.',
     detail: {
       type: 'translation' as const,
       raw: 'Военные учения начались в западной части Чёрного моря с участием трёх фрегатов...',
@@ -48,13 +47,16 @@ const steps = [
     number: '03',
     headline: 'Act',
     icon: Zap,
-    description:
-      'Get alerts, daily digests, or on-demand summaries. Your intelligence, your way.',
+    description: 'Get alerts, daily digests, or on-demand summaries. Your intelligence, your way.',
     detail: {
       type: 'alerts' as const,
       items: [
         { title: 'Escalation detected', subtitle: 'Ukraine — 12 correlated sources', urgent: true },
-        { title: 'Daily digest ready', subtitle: 'Trade & Sanctions — 34 new items', urgent: false },
+        {
+          title: 'Daily digest ready',
+          subtitle: 'Trade & Sanctions — 34 new items',
+          urgent: false,
+        },
         { title: 'Keyword match', subtitle: '"sanctions" appeared in 8 channels', urgent: false },
       ],
     },
@@ -127,7 +129,10 @@ const useCases = [
 
 function SourceListMockup({ items }: { items: { name: string; region: string }[] }) {
   return (
-    <div className="rounded-xl p-6" style={{ backgroundColor: '#0D1117', border: '1px solid #30363D' }}>
+    <div
+      className="rounded-xl p-6"
+      style={{ backgroundColor: '#0D1117', border: '1px solid #30363D' }}
+    >
       <div className="flex items-center gap-2 mb-4">
         <div className="h-3 w-3 rounded-full" style={{ backgroundColor: '#3FB950' }} />
         <span className="text-xs font-medium" style={{ color: '#8B949E' }}>
@@ -142,10 +147,7 @@ function SourceListMockup({ items }: { items: { name: string; region: string }[]
             style={{ backgroundColor: '#161B22', border: '1px solid #21262D' }}
           >
             <div className="flex items-center gap-3">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ backgroundColor: '#00D4AA' }}
-              />
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: '#00D4AA' }} />
               <span className="text-sm font-medium" style={{ color: '#E6EDF3' }}>
                 {item.name}
               </span>
@@ -165,7 +167,10 @@ function SourceListMockup({ items }: { items: { name: string; region: string }[]
 
 function TranslationMockup({ raw, translated }: { raw: string; translated: string }) {
   return (
-    <div className="rounded-xl p-6" style={{ backgroundColor: '#0D1117', border: '1px solid #30363D' }}>
+    <div
+      className="rounded-xl p-6"
+      style={{ backgroundColor: '#0D1117', border: '1px solid #30363D' }}
+    >
       <div className="flex items-center gap-2 mb-4">
         <Cpu size={14} style={{ color: '#8B949E' }} />
         <span className="text-xs font-medium" style={{ color: '#8B949E' }}>
@@ -173,11 +178,16 @@ function TranslationMockup({ raw, translated }: { raw: string; translated: strin
         </span>
       </div>
       <div className="flex flex-col gap-4">
-        <div className="rounded-lg px-4 py-3" style={{ backgroundColor: '#161B22', border: '1px solid #21262D' }}>
+        <div
+          className="rounded-lg px-4 py-3"
+          style={{ backgroundColor: '#161B22', border: '1px solid #21262D' }}
+        >
           <span className="text-xs font-medium block mb-1" style={{ color: '#8B949E' }}>
             Original (RU)
           </span>
-          <p className="text-sm" style={{ color: '#E6EDF3' }}>{raw}</p>
+          <p className="text-sm" style={{ color: '#E6EDF3' }}>
+            {raw}
+          </p>
         </div>
         <div className="flex justify-center">
           <motion.div
@@ -189,21 +199,33 @@ function TranslationMockup({ raw, translated }: { raw: string; translated: strin
         </div>
         <div
           className="rounded-lg px-4 py-3"
-          style={{ backgroundColor: 'rgba(0, 212, 170, 0.05)', border: '1px solid rgba(0, 212, 170, 0.2)' }}
+          style={{
+            backgroundColor: 'rgba(0, 212, 170, 0.05)',
+            border: '1px solid rgba(0, 212, 170, 0.2)',
+          }}
         >
           <span className="text-xs font-medium block mb-1" style={{ color: '#00D4AA' }}>
             Translated (EN)
           </span>
-          <p className="text-sm" style={{ color: '#E6EDF3' }}>{translated}</p>
+          <p className="text-sm" style={{ color: '#E6EDF3' }}>
+            {translated}
+          </p>
         </div>
       </div>
     </div>
   )
 }
 
-function AlertsMockup({ items }: { items: { title: string; subtitle: string; urgent: boolean }[] }) {
+function AlertsMockup({
+  items,
+}: {
+  items: { title: string; subtitle: string; urgent: boolean }[]
+}) {
   return (
-    <div className="rounded-xl p-6" style={{ backgroundColor: '#0D1117', border: '1px solid #30363D' }}>
+    <div
+      className="rounded-xl p-6"
+      style={{ backgroundColor: '#0D1117', border: '1px solid #30363D' }}
+    >
       <div className="flex items-center gap-2 mb-4">
         <Zap size={14} style={{ color: '#8B949E' }} />
         <span className="text-xs font-medium" style={{ color: '#8B949E' }}>
@@ -239,7 +261,8 @@ function AlertsMockup({ items }: { items: { title: string; subtitle: string; urg
 function StepMockup({ step }: { step: (typeof steps)[number] }) {
   const { detail } = step
   if (detail.type === 'sources') return <SourceListMockup items={detail.items} />
-  if (detail.type === 'translation') return <TranslationMockup raw={detail.raw} translated={detail.translated} />
+  if (detail.type === 'translation')
+    return <TranslationMockup raw={detail.raw} translated={detail.translated} />
   return <AlertsMockup items={detail.items} />
 }
 
@@ -251,7 +274,10 @@ export function HowItWorksPage() {
 
   return (
     <PageLayout>
-      <Seo title="How It Works — Osfeed" description="Learn how Osfeed collects, translates, deduplicates, and summarizes intelligence from Telegram channels in real time." />
+      <Seo
+        title="How It Works — Osfeed"
+        description="Learn how Osfeed collects, translates, deduplicates, and summarizes intelligence from Telegram channels in real time."
+      />
       {/* ── Hero ── */}
       <section className="py-24 md:py-32 px-6 text-center">
         <div className="mx-auto max-w-3xl">
@@ -262,9 +288,7 @@ export function HowItWorksPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
           >
-            How{' '}
-            <span style={{ color: '#00D4AA' }}>Osfeed</span>{' '}
-            works
+            How <span style={{ color: '#00D4AA' }}>Osfeed</span> works
           </motion.h1>
           <motion.p
             className="text-lg md:text-xl leading-relaxed"
@@ -407,8 +431,15 @@ export function HowItWorksPage() {
                 </p>
                 <ul className="flex flex-col gap-2 mt-2">
                   {active.bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-start gap-2 text-sm" style={{ color: '#8B949E' }}>
-                      <span className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#00D4AA' }} />
+                    <li
+                      key={bullet}
+                      className="flex items-start gap-2 text-sm"
+                      style={{ color: '#8B949E' }}
+                    >
+                      <span
+                        className="mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: '#00D4AA' }}
+                      />
                       {bullet}
                     </li>
                   ))}
@@ -455,7 +486,10 @@ export function HowItWorksPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="relative py-24 md:py-32 px-6 overflow-hidden" style={{ backgroundColor: '#0D1117' }}>
+      <section
+        className="relative py-24 md:py-32 px-6 overflow-hidden"
+        style={{ backgroundColor: '#0D1117' }}
+      >
         {/* Background glow */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[160px] pointer-events-none"

@@ -22,8 +22,11 @@ export const authApi = {
    * @param password - Password for the new account
    * @returns Promise resolving to registration response
    */
-  register: (email: string, password: string, extra?: { username?: string; country?: string; plan?: string }) =>
-    api.post('/api/auth/register', { email, password, ...extra }),
+  register: (
+    email: string,
+    password: string,
+    extra?: { username?: string; country?: string; plan?: string },
+  ) => api.post('/api/auth/register', { email, password, ...extra }),
 
   /**
    * Verify a user's email address using a verification token.
@@ -32,8 +35,7 @@ export const authApi = {
    * @param token - Email verification token sent to the user's email
    * @returns Promise resolving to verification response
    */
-  verifyEmail: (token: string) =>
-    api.post('/api/auth/verify', { token }),
+  verifyEmail: (token: string) => api.post('/api/auth/verify', { token }),
 
   /**
    * Request a new email verification token.
@@ -42,8 +44,7 @@ export const authApi = {
    * @param email - Email address to send the verification token to
    * @returns Promise resolving to request response
    */
-  requestVerification: (email: string) =>
-    api.post('/api/auth/request-verify-token', { email }),
+  requestVerification: (email: string) => api.post('/api/auth/request-verify-token', { email }),
 
   /**
    * Initiate password reset process for a user account.
@@ -52,8 +53,7 @@ export const authApi = {
    * @param email - Email address of the account to reset
    * @returns Promise resolving to password reset request response
    */
-  forgotPassword: (email: string) =>
-    api.post('/api/auth/forgot-password', { email }),
+  forgotPassword: (email: string) => api.post('/api/auth/forgot-password', { email }),
 
   /**
    * Reset a user's password using a reset token.

@@ -119,9 +119,7 @@ export function CollectionManager({ onSubmit, collection, hideTrigger }: Collect
     const query = channelSearch.trim().toLowerCase()
     if (!query) return channels
     return channels.filter((channel) =>
-      [channel.title, channel.username].some((value) =>
-        value?.toLowerCase().includes(query),
-      ),
+      [channel.title, channel.username].some((value) => value?.toLowerCase().includes(query)),
     )
   }, [channels, channelSearch])
 
@@ -168,7 +166,9 @@ export function CollectionManager({ onSubmit, collection, hideTrigger }: Collect
           <div className="flex flex-col gap-2">
             <Label htmlFor="name">{t('collections.nameLabel')}</Label>
             <Input id="name" placeholder={t('collections.namePlaceholder')} {...register('name')} />
-            {errors.name ? <span className="text-xs text-danger">{errors.name.message}</span> : null}
+            {errors.name ? (
+              <span className="text-xs text-danger">{errors.name.message}</span>
+            ) : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="description">{t('collections.descriptionLabel')}</Label>

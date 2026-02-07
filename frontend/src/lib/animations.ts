@@ -1,4 +1,4 @@
-import { Variants } from 'framer-motion'
+import type { Variants } from 'framer-motion'
 
 // Fade in + slide up (for sections entering viewport)
 export const fadeInUp: Variants = {
@@ -67,4 +67,26 @@ export const tabCrossfade: Variants = {
   enter: { opacity: 0, x: 20 },
   center: { opacity: 1, x: 0, transition: { duration: 0.3, ease: 'easeOut' } },
   exit: { opacity: 0, x: -20, transition: { duration: 0.2, ease: 'easeIn' } },
+}
+
+// Page transition (for authenticated pages)
+export const pageTransition: Variants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] },
+  },
+}
+
+// Scale on hover for interactive elements
+export const scaleOnHover = {
+  scale: 1.05,
+  transition: { duration: 0.2, ease: 'easeOut' },
+}
+
+// Press effect for buttons
+export const pressEffect = {
+  scale: 0.97,
+  transition: { duration: 0.1 },
 }

@@ -7,24 +7,16 @@ interface PageLayoutProps {
 
 export function PageLayout({ children }: PageLayoutProps) {
   return (
-    <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: '#0D1117', color: '#F3F4F6' }}>
+    <div className="dark min-h-screen bg-background text-foreground font-sans antialiased">
       {/* Background glows */}
       <div className="fixed inset-0 pointer-events-none">
-        <div
-          className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full"
-          style={{ backgroundColor: 'rgba(0, 212, 170, 0.04)' }}
-        />
-        <div
-          className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full"
-          style={{ backgroundColor: 'rgba(0, 212, 170, 0.04)' }}
-        />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full bg-accent/[0.04]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] blur-[120px] rounded-full bg-accent/[0.04]" />
       </div>
 
       <Nav />
 
-      <main className="relative z-10 pt-16">
-        {children}
-      </main>
+      <main className="relative z-10 pt-16">{children}</main>
 
       <Footer />
     </div>

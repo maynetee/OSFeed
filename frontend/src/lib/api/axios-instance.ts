@@ -55,7 +55,8 @@ api.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
     // Skip auth refresh for login/register/refresh endpoints
-    const isAuthEndpoint = originalRequest?.url?.includes('/api/auth/login') ||
+    const isAuthEndpoint =
+      originalRequest?.url?.includes('/api/auth/login') ||
       originalRequest?.url?.includes('/api/auth/register') ||
       originalRequest?.url?.includes('/api/auth/refresh')
 
@@ -98,7 +99,7 @@ api.interceptors.response.use(
     } finally {
       isRefreshing = false
     }
-  }
+  },
 )
 
 /**

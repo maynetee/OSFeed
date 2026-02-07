@@ -7,7 +7,14 @@ import { z } from 'zod'
 import { Bot, Loader2, CheckCircle2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authApi } from '@/lib/api/client'
@@ -55,7 +62,10 @@ export function ForgotPasswordPage() {
             {t('auth.forgotPasswordTitle', 'Reset Password')}
           </CardTitle>
           <CardDescription className="text-center">
-            {t('auth.forgotPasswordDescription', 'Enter your email address and we will send you a password reset link')}
+            {t(
+              'auth.forgotPasswordDescription',
+              'Enter your email address and we will send you a password reset link',
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -68,8 +78,10 @@ export function ForgotPasswordPage() {
                     {t('auth.forgotPasswordSuccessTitle', 'Check your email')}
                   </h3>
                   <p className="mt-1 text-sm text-green-700 dark:text-green-400">
-                    {t('auth.forgotPasswordSuccessMessage',
-                      'If an account exists with this email, you will receive a password reset link shortly.')}
+                    {t(
+                      'auth.forgotPasswordSuccessMessage',
+                      'If an account exists with this email, you will receive a password reset link shortly.',
+                    )}
                   </p>
                 </div>
               </div>
@@ -91,11 +103,7 @@ export function ForgotPasswordPage() {
                   </span>
                 )}
               </div>
-              <Button
-                type="submit"
-                className="w-full h-10"
-                disabled={form.formState.isSubmitting}
-              >
+              <Button type="submit" className="w-full h-10" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

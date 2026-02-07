@@ -8,18 +8,27 @@ import { AxiosError } from 'axios'
 import { Bot, Loader2 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { authApi } from '@/lib/api/client'
 
-const resetPasswordSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-})
+const resetPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
 
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>
 
@@ -87,9 +96,7 @@ export function ResetPasswordPage() {
       <Card className="w-full max-w-sm sm:max-w-md shadow-lg border-muted">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Reset Password</CardTitle>
-          <CardDescription className="text-center">
-            Enter your new password below
-          </CardDescription>
+          <CardDescription className="text-center">Enter your new password below</CardDescription>
         </CardHeader>
         <CardContent>
           {tokenError && (
@@ -137,11 +144,7 @@ export function ResetPasswordPage() {
                   </span>
                 )}
               </div>
-              <Button
-                type="submit"
-                className="w-full h-10"
-                disabled={form.formState.isSubmitting}
-              >
+              <Button type="submit" className="w-full h-10" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -6,12 +6,7 @@ function SignificanceDots({ level }: { level: number }) {
   return (
     <div className="flex gap-0.5">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className={`h-2 w-2 rounded-full ${
-            i < level ? 'bg-primary' : 'bg-muted'
-          }`}
-        />
+        <div key={i} className={`h-2 w-2 rounded-full ${i < level ? 'bg-primary' : 'bg-muted'}`} />
       ))}
     </div>
   )
@@ -45,9 +40,7 @@ export function TimelineDisplay({ events }: TimelineDisplayProps) {
 
             <div className="space-y-1.5">
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-foreground-muted">
-                  {event.date}
-                </span>
+                <span className="text-xs font-medium text-foreground-muted">{event.date}</span>
                 <SignificanceDots level={event.significance} />
               </div>
 

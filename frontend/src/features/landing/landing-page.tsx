@@ -22,8 +22,14 @@ export function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen font-sans antialiased" style={{ backgroundColor: '#0D1117', color: '#F3F4F6' }}>
-      <Seo title="Osfeed — Real-time Intelligence Platform" description="Monitor, translate, and analyze Telegram channels in real time. Osfeed is the OSINT platform built for intelligence professionals, journalists, and security teams." />
+    <div
+      className="min-h-screen font-sans antialiased"
+      style={{ backgroundColor: '#0D1117', color: '#F3F4F6' }}
+    >
+      <Seo
+        title="Osfeed — Real-time Intelligence Platform"
+        description="Monitor, translate, and analyze Telegram channels in real time. Osfeed is the OSINT platform built for intelligence professionals, journalists, and security teams."
+      />
       {/* Background glows */}
       <div className="fixed inset-0 pointer-events-none">
         <div

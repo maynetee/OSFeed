@@ -1,3 +1,4 @@
+import { PageTransition } from '@/components/layout/page-transition'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
@@ -42,23 +43,25 @@ export function ChannelDetailPage() {
   })
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardContent className="py-6">
-          <div className="flex flex-col gap-2">
-            <p className="text-sm text-foreground/60">{t('channels.channelLabel')}</p>
-            <h2 className="text-2xl font-semibold">
-              {channelQuery.data?.title ?? t('common.loading')}
-            </h2>
-            <p className="text-sm text-foreground/60">{channelQuery.data?.username}</p>
-          </div>
-        </CardContent>
-      </Card>
+    <PageTransition>
+      <div className="flex flex-col gap-6">
+        <Card>
+          <CardContent className="py-6">
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-foreground/60">{t('channels.channelLabel')}</p>
+              <h2 className="text-2xl font-semibold">
+                {channelQuery.data?.title ?? t('common.loading')}
+              </h2>
+              <p className="text-sm text-foreground/60">{channelQuery.data?.username}</p>
+            </div>
+          </CardContent>
+        </Card>
 
-      <MessageFeed
-        messages={messagesQuery.data?.messages ?? []}
-        isLoading={messagesQuery.isLoading}
-      />
-    </div>
+        <MessageFeed
+          messages={messagesQuery.data?.messages ?? []}
+          isLoading={messagesQuery.isLoading}
+        />
+      </div>
+    </PageTransition>
   )
 }

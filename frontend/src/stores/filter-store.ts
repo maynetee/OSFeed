@@ -41,5 +41,16 @@ export const useFilterStore = create<FilterState>((set) => ({
   setFiltersTouched: (touched) => set({ filtersTouched: touched }),
   setUniqueOnly: (unique) => set({ uniqueOnly: unique }),
   setHighEscalationOnly: (high) => set({ highEscalationOnly: high }),
-  resetFilters: () => set({ channelIds: [], collectionIds: [], mediaTypes: [], region: '', topic: '', filtersTouched: false, dateRange: 'all', uniqueOnly: false, highEscalationOnly: false }),
+  resetFilters: () =>
+    set({
+      channelIds: [],
+      collectionIds: [],
+      mediaTypes: [],
+      region: '',
+      topic: '',
+      filtersTouched: false,
+      dateRange: 'all',
+      uniqueOnly: false,
+      highEscalationOnly: false,
+    }),
 }))

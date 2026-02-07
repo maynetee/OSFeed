@@ -9,10 +9,19 @@ import { Label } from '@/components/ui/label'
 interface CollectionExportDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onExport: (params: { format: string; start_date?: string; end_date?: string; limit?: number }) => void
+  onExport: (params: {
+    format: string
+    start_date?: string
+    end_date?: string
+    limit?: number
+  }) => void
 }
 
-export function CollectionExportDialog({ open, onOpenChange, onExport }: CollectionExportDialogProps) {
+export function CollectionExportDialog({
+  open,
+  onOpenChange,
+  onExport,
+}: CollectionExportDialogProps) {
   const { t } = useTranslation()
   const [format, setFormat] = useState('csv')
   const [startDate, setStartDate] = useState('')
@@ -41,11 +50,21 @@ export function CollectionExportDialog({ open, onOpenChange, onExport }: Collect
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="startDate">{t('collections.exportStart')}</Label>
-              <Input id="startDate" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="endDate">{t('collections.exportEnd')}</Label>
-              <Input id="endDate" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </div>
           </div>
           <div className="flex flex-col gap-2">

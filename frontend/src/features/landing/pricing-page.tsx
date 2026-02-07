@@ -114,8 +114,7 @@ const faqs = [
   },
   {
     question: 'What payment methods do you accept?',
-    answer:
-      'Credit card for Solo and Team. Wire transfer available for Enterprise.',
+    answer: 'Credit card for Solo and Team. Wire transfer available for Enterprise.',
   },
   {
     question: 'Can I cancel anytime?',
@@ -128,10 +127,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div
-      className="border-b"
-      style={{ borderColor: '#30363D' }}
-    >
+    <div className="border-b" style={{ borderColor: '#30363D' }}>
       <button
         className="flex w-full items-center justify-between py-5 text-left"
         onClick={() => setOpen(!open)}
@@ -139,10 +135,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
         <span className="text-base font-medium" style={{ color: '#FFFFFF' }}>
           {question}
         </span>
-        <motion.span
-          animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-        >
+        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
           <ChevronDown className="h-5 w-5" style={{ color: '#8B949E' }} />
         </motion.span>
       </button>
@@ -170,7 +163,10 @@ export function PricingPage() {
 
   return (
     <PageLayout>
-      <Seo title="Pricing — Osfeed" description="Choose the right plan for your intelligence needs. Solo, Team, and Enterprise options with full platform access." />
+      <Seo
+        title="Pricing — Osfeed"
+        description="Choose the right plan for your intelligence needs. Solo, Team, and Enterprise options with full platform access."
+      />
       {/* Hero */}
       <section className="px-6 py-20 md:py-28 text-center">
         <div className="mx-auto max-w-3xl">
@@ -187,7 +183,8 @@ export function PricingPage() {
             {...fadeInUp}
             transition={{ ...fadeInUp.transition, delay: 0.1 }}
           >
-            Start with Solo or scale with your team. All plans include full access to our intelligence platform.
+            Start with Solo or scale with your team. All plans include full access to our
+            intelligence platform.
           </motion.p>
 
           {/* Toggle */}
@@ -203,7 +200,10 @@ export function PricingPage() {
                 backgroundColor: !yearly ? '#00D4AA' : 'transparent',
                 color: !yearly ? '#0D1117' : '#8B949E',
               }}
-              onClick={() => { setYearly(false); trackEvent("Pricing Toggle", { period: "monthly" }) }}
+              onClick={() => {
+                setYearly(false)
+                trackEvent('Pricing Toggle', { period: 'monthly' })
+              }}
             >
               Monthly
             </button>
@@ -213,7 +213,10 @@ export function PricingPage() {
                 backgroundColor: yearly ? '#00D4AA' : 'transparent',
                 color: yearly ? '#0D1117' : '#8B949E',
               }}
-              onClick={() => { setYearly(true); trackEvent("Pricing Toggle", { period: "yearly" }) }}
+              onClick={() => {
+                setYearly(true)
+                trackEvent('Pricing Toggle', { period: 'yearly' })
+              }}
             >
               Yearly
               <span
@@ -236,9 +239,7 @@ export function PricingPage() {
               className="relative rounded-2xl p-8 flex flex-col"
               style={{
                 backgroundColor: '#161B22',
-                border: plan.highlighted
-                  ? '2px solid #00D4AA'
-                  : '1px solid #30363D',
+                border: plan.highlighted ? '2px solid #00D4AA' : '1px solid #30363D',
               }}
               initial={{ opacity: 0, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -292,9 +293,7 @@ export function PricingPage() {
                     ) : (
                       <Minus className="h-4 w-4 flex-shrink-0" style={{ color: '#30363D' }} />
                     )}
-                    <span style={{ color: f.included ? '#FFFFFF' : '#8B949E' }}>
-                      {f.name}
-                    </span>
+                    <span style={{ color: f.included ? '#FFFFFF' : '#8B949E' }}>{f.name}</span>
                   </li>
                 ))}
               </ul>
@@ -314,7 +313,7 @@ export function PricingPage() {
                         color: '#0D1117',
                       }
                 }
-                onClick={() => trackEvent("Plan Select", { plan: plan.name.toLowerCase() })}
+                onClick={() => trackEvent('Plan Select', { plan: plan.name.toLowerCase() })}
               >
                 {plan.cta}
               </Link>

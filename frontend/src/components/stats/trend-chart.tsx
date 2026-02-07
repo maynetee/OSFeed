@@ -73,11 +73,7 @@ export function TrendChart({ data }: TrendChartProps) {
               axisLine={false}
               tick={{ fill: colors.foregroundMuted }}
             />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              tick={{ fill: colors.foregroundMuted }}
-            />
+            <YAxis tickLine={false} axisLine={false} tick={{ fill: colors.foregroundMuted }} />
             <Tooltip
               contentStyle={{
                 background: colors.background,

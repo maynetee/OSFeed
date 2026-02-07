@@ -9,6 +9,7 @@ import {
   Search,
   Settings,
   Sparkles,
+  Zap,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -64,7 +65,7 @@ export function Sidebar() {
 
     const drawer = drawerRef.current
     const focusableElements = drawer.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     )
     const firstElement = focusableElements[0]
     const lastElement = focusableElements[focusableElements.length - 1]
@@ -101,27 +102,33 @@ export function Sidebar() {
     return () => drawer.removeEventListener('keydown', handleKeyDown)
   }, [isMobile, mobileDrawerOpen])
 
-  const { data: stats, isLoading, isError } = useQuery({
+  const {
+    data: stats,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['stats', 'overview'],
     queryFn: async () => (await statsApi.overview()).data,
     staleTime: 60000, // 1 minute
   })
 
   const statusMessages = stats?.messages_last_24h ?? 0
-  const statusDuplicates = stats?.duplicates_last_24h && stats?.messages_last_24h
-    ? Math.round((stats.duplicates_last_24h / stats.messages_last_24h) * 100)
-    : 0
+  const statusDuplicates =
+    stats?.duplicates_last_24h && stats?.messages_last_24h
+      ? Math.round((stats.duplicates_last_24h / stats.messages_last_24h) * 100)
+      : 0
 
   const sidebarContent = (
-    <aside
-      className={cn(
-        'flex h-full flex-col border-r border-sidebar-border bg-sidebar-bg px-4 py-6',
-        isMobile ? 'w-64' : collapsed ? 'w-20' : 'w-64',
-      )}
+    <motion.aside
+      animate={{ width: isMobile ? 256 : collapsed ? 80 : 256 }}
+      transition={{ duration: 0.2, ease: 'easeInOut' }}
+      className="flex h-full flex-col border-r border-sidebar-border bg-sidebar-bg px-4 py-6 overflow-hidden"
     >
-      <div className={cn('flex items-center gap-3 px-2', !isMobile && collapsed && 'justify-center')}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-          <span className="text-lg font-semibold">O</span>
+      <div
+        className={cn('flex items-center gap-3 px-2', !isMobile && collapsed && 'justify-center')}
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <Zap className="h-5 w-5" />
         </div>
         {(isMobile || !collapsed) && (
           <div>
@@ -143,14 +150,15 @@ export function Sidebar() {
               to={item.to}
               className={({ isActive }) =>
                 cn(
-                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 border-l-[3px]',
                   isActive
-                    ? 'bg-primary/15 text-primary'
-                    : 'text-foreground-muted hover:bg-muted hover:text-foreground',
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-transparent text-foreground-muted hover:bg-muted hover:text-foreground',
                   !isMobile && collapsed && 'justify-center px-2',
                 )
               }
               aria-current={isCurrentPage ? 'page' : undefined}
+              title={!isMobile && collapsed ? t(`navigation.${item.key}`) : undefined}
             >
               <Icon className="h-4 w-4" />
               {(isMobile || !collapsed) && <span>{t(`navigation.${item.key}`)}</span>}
@@ -159,16 +167,36 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className={cn('mt-auto rounded-xl border border-border bg-card p-4', !isMobile && collapsed && 'p-3')}>
-        <p className={cn('text-xs font-semibold uppercase tracking-wide text-foreground-muted', !isMobile && collapsed && 'text-center')}>
-          {t('sidebar.status')}
-        </p>
+      <div
+        className={cn(
+          'mt-auto rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-sm',
+          !isMobile && collapsed && 'p-3',
+        )}
+      >
+        <div className={cn('flex items-center gap-2', !isMobile && collapsed && 'justify-center')}>
+          <span
+            className={cn(
+              'inline-block h-2 w-2 rounded-full',
+              isError
+                ? 'bg-destructive'
+                : isLoading
+                  ? 'bg-yellow-500 animate-pulse'
+                  : 'bg-green-500',
+            )}
+          />
+          <p
+            className={cn(
+              'text-xs font-semibold uppercase tracking-wide text-foreground-muted',
+              !isMobile && collapsed && 'hidden',
+            )}
+          >
+            {t('sidebar.status')}
+          </p>
+        </div>
         {(isMobile || !collapsed) && (
           <>
             {isError ? (
-              <p className="mt-2 text-xs text-destructive">
-                {t('sidebar.error')}
-              </p>
+              <p className="mt-2 text-xs text-destructive">{t('sidebar.error')}</p>
             ) : isLoading ? (
               <div className="mt-2 space-y-2 animate-pulse">
                 <div className="h-3 w-full rounded bg-muted" />
@@ -185,7 +213,7 @@ export function Sidebar() {
           </>
         )}
       </div>
-    </aside>
+    </motion.aside>
   )
 
   if (isMobile) {

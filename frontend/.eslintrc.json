@@ -2,10 +2,11 @@
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:react-hooks/recommended"
+    "plugin:react-hooks/recommended",
+    "plugin:jsx-a11y/recommended"
   ],
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint", "react-refresh"],
+  "plugins": ["@typescript-eslint", "react-refresh", "jsx-a11y"],
   "root": true,
   "ignorePatterns": ["dist", ".eslintrc.json"]
 }

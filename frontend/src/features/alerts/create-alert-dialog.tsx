@@ -17,7 +17,12 @@ interface CreateAlertDialogProps {
   collections: Collection[]
 }
 
-export function CreateAlertDialog({ open, onOpenChange, alert, collections }: CreateAlertDialogProps) {
+export function CreateAlertDialog({
+  open,
+  onOpenChange,
+  alert,
+  collections,
+}: CreateAlertDialogProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const isEdit = !!alert
@@ -67,8 +72,13 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Parameters<typeof alertsApi.update>[1] }) =>
-      alertsApi.update(id, payload),
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string
+      payload: Parameters<typeof alertsApi.update>[1]
+    }) => alertsApi.update(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['alerts'] })
       onOpenChange(false)
@@ -98,9 +108,7 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
   }
 
   const toggleChannel = (ch: string) => {
-    setChannels((prev) =>
-      prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]
-    )
+    setChannels((prev) => (prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]))
   }
 
   const handleSubmit = () => {
@@ -135,7 +143,12 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
         <div className="flex flex-col gap-4 mt-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="alert-name">{t('alerts.name')}</Label>
-            <Input id="alert-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('alerts.namePlaceholder')} />
+            <Input
+              id="alert-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('alerts.namePlaceholder')}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -148,7 +161,9 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
             >
               <option value="">{t('alerts.selectCollection')}</option>
               {collections.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
@@ -157,24 +172,51 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
             <Label>{t('alerts.keywords')}</Label>
             <div className="flex flex-wrap gap-1 mb-1">
               {keywords.map((kw) => (
-                <span key={kw} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                <span
+                  key={kw}
+                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                >
                   {kw}
-                  <button type="button" onClick={() => setKeywords(keywords.filter((k) => k !== kw))}><X className="h-3 w-3" /></button>
+                  <button
+                    type="button"
+                    onClick={() => setKeywords(keywords.filter((k) => k !== kw))}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </span>
               ))}
             </div>
-            <Input value={keywordInput} onChange={(e) => setKeywordInput(e.target.value)} onKeyDown={handleKeywordKeyDown} placeholder={t('alerts.keywordsPlaceholder')} />
+            <Input
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onKeyDown={handleKeywordKeyDown}
+              placeholder={t('alerts.keywordsPlaceholder')}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <Label>{t('alerts.matchMode')}</Label>
             <div className="flex gap-3">
               <label className="flex items-center gap-1.5 text-sm">
-                <input type="radio" name="match_mode" value="any" checked={matchMode === 'any'} onChange={() => setMatchMode('any')} className="accent-primary" />
+                <input
+                  type="radio"
+                  name="match_mode"
+                  value="any"
+                  checked={matchMode === 'any'}
+                  onChange={() => setMatchMode('any')}
+                  className="accent-primary"
+                />
                 {t('alerts.matchAny')}
               </label>
               <label className="flex items-center gap-1.5 text-sm">
-                <input type="radio" name="match_mode" value="all" checked={matchMode === 'all'} onChange={() => setMatchMode('all')} className="accent-primary" />
+                <input
+                  type="radio"
+                  name="match_mode"
+                  value="all"
+                  checked={matchMode === 'all'}
+                  onChange={() => setMatchMode('all')}
+                  className="accent-primary"
+                />
                 {t('alerts.matchAll')}
               </label>
             </div>
@@ -184,24 +226,47 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
             <Label>{t('alerts.entities')}</Label>
             <div className="flex flex-wrap gap-1 mb-1">
               {entities.map((ent) => (
-                <span key={ent} className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs">
+                <span
+                  key={ent}
+                  className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs"
+                >
                   {ent}
-                  <button type="button" onClick={() => setEntities(entities.filter((e) => e !== ent))}><X className="h-3 w-3" /></button>
+                  <button
+                    type="button"
+                    onClick={() => setEntities(entities.filter((e) => e !== ent))}
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </span>
               ))}
             </div>
-            <Input value={entityInput} onChange={(e) => setEntityInput(e.target.value)} onKeyDown={handleEntityKeyDown} placeholder={t('alerts.entitiesPlaceholder')} />
+            <Input
+              value={entityInput}
+              onChange={(e) => setEntityInput(e.target.value)}
+              onKeyDown={handleEntityKeyDown}
+              placeholder={t('alerts.entitiesPlaceholder')}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
             <Label>{t('alerts.notificationChannels')}</Label>
             <div className="flex gap-3">
               <label className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" checked={channels.includes('in_app')} onChange={() => toggleChannel('in_app')} className="accent-primary" />
+                <input
+                  type="checkbox"
+                  checked={channels.includes('in_app')}
+                  onChange={() => toggleChannel('in_app')}
+                  className="accent-primary"
+                />
                 {t('alerts.inApp')}
               </label>
               <label className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" checked={channels.includes('email')} onChange={() => toggleChannel('email')} className="accent-primary" />
+                <input
+                  type="checkbox"
+                  checked={channels.includes('email')}
+                  onChange={() => toggleChannel('email')}
+                  className="accent-primary"
+                />
                 {t('alerts.email')}
               </label>
             </div>
@@ -209,7 +274,12 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="alert-frequency">{t('alerts.frequency')}</Label>
-            <select id="alert-frequency" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={frequency} onChange={(e) => setFrequency(e.target.value)}>
+            <select
+              id="alert-frequency"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value)}
+            >
               <option value="realtime">{t('alerts.frequencyRealtime')}</option>
               <option value="hourly">{t('alerts.frequencyHourly')}</option>
               <option value="daily">{t('alerts.frequencyDaily')}</option>
@@ -218,11 +288,22 @@ export function CreateAlertDialog({ open, onOpenChange, alert, collections }: Cr
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="alert-threshold">{t('alerts.threshold')}</Label>
-            <Input id="alert-threshold" type="number" min={1} value={minThreshold} onChange={(e) => setMinThreshold(Number(e.target.value))} />
+            <Input
+              id="alert-threshold"
+              type="number"
+              min={1}
+              value={minThreshold}
+              onChange={(e) => setMinThreshold(Number(e.target.value))}
+            />
           </div>
 
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="accent-primary" />
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="accent-primary"
+            />
             {t('alerts.active')}
           </label>
 

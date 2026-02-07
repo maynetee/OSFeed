@@ -1,15 +1,16 @@
 {
+  "welcome": "Intelligence Dashboard",
+  "subtitle": "Real-time OSINT monitoring across all your sources.",
+  "quickAddChannel": "Add Channel",
+  "quickSummary": "Generate Summary",
+  "quickBrowse": "Browse Collections",
   "kpiMessages": "Messages today",
   "kpiDuplicates": "Duplicates filtered",
   "kpiChannels": "Active channels",
   "digestTitle": "Daily Digest",
   "digestSubtitle": "3 major events, briefed in 3 minutes.",
   "digestAction": "View full digest",
-  "digestItems": [
-    "Black Sea tensions",
-    "New economic sanctions",
-    "Logistics mobilization"
-  ],
+  "digestItems": ["Black Sea tensions", "New economic sanctions", "Logistics mobilization"],
   "digestItemMeta": "12 cross-checked sources, 2 hours",
   "digestSignal": "Strong signal",
   "trustTitle": "Trust",
