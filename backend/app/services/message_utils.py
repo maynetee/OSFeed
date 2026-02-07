@@ -40,6 +40,7 @@ def apply_message_filters(
     start_date: Optional[datetime],
     end_date: Optional[datetime],
     media_types: Optional[list[str]] = None,
+    region: Optional[str] = None,
 ):
     """Apply filters to message query based on user permissions and optional filters.
 
@@ -51,6 +52,7 @@ def apply_message_filters(
         start_date: Optional start date filter
         end_date: Optional end date filter
         media_types: Optional media types filter
+        region: Optional channel region filter
 
     Returns:
         Filtered SQLAlchemy query
@@ -86,6 +88,9 @@ def apply_message_filters(
         else:
             # Only non-text media types selected
             query = query.where(Message.media_type.in_(media_types))
+
+    if region:
+        query = query.where(Channel.region == region)
 
     return query
 
