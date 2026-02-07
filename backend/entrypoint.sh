@@ -3,18 +3,10 @@ set -e
 
 echo "Running database migrations..."
 
-# Try to run migrations
-if ! alembic upgrade head 2>&1; then
-    echo "Migration failed, checking if database needs stamping..."
-
-    # Check if this is a "relation already exists" error (database exists but no alembic tracking)
-    # Stamp to head so alembic considers all migrations applied
-    echo "Stamping database to head..."
-    alembic stamp head || true
-
-    echo "Retrying migrations..."
-    alembic upgrade head
-fi
+# Stamp to last known safe base and re-run idempotent migrations
+# This ensures any missing columns/tables are created
+alembic stamp c4d5e6f7a8b9
+alembic upgrade head
 
 echo "Migrations complete!"
 echo "Starting application..."

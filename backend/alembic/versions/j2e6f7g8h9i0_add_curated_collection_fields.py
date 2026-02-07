@@ -19,18 +19,32 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_columns = [c['name'] for c in inspector.get_columns('collections')]
+
     # Make user_id nullable (curated collections have no owner)
     with op.batch_alter_table('collections') as batch_op:
         batch_op.alter_column('user_id', existing_type=sa.String(length=36), nullable=True)
 
-    op.add_column('collections', sa.Column('is_curated', sa.Boolean(), nullable=False, server_default=sa.text('0')))
-    op.add_column('collections', sa.Column('curator', sa.String(length=100), nullable=True))
-    op.add_column('collections', sa.Column('region', sa.String(length=50), nullable=True))
-    op.add_column('collections', sa.Column('topic', sa.String(length=50), nullable=True))
-    op.add_column('collections', sa.Column('thumbnail_url', sa.String(length=500), nullable=True))
-    op.add_column('collections', sa.Column('last_curated_at', sa.DateTime(timezone=True), nullable=True))
-    op.add_column('collections', sa.Column('curated_channel_usernames', sa.JSON(), nullable=True))
-    op.create_index('ix_collections_is_curated', 'collections', ['is_curated'])
+    if 'is_curated' not in existing_columns:
+        op.add_column('collections', sa.Column('is_curated', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+    if 'curator' not in existing_columns:
+        op.add_column('collections', sa.Column('curator', sa.String(length=100), nullable=True))
+    if 'region' not in existing_columns:
+        op.add_column('collections', sa.Column('region', sa.String(length=50), nullable=True))
+    if 'topic' not in existing_columns:
+        op.add_column('collections', sa.Column('topic', sa.String(length=50), nullable=True))
+    if 'thumbnail_url' not in existing_columns:
+        op.add_column('collections', sa.Column('thumbnail_url', sa.String(length=500), nullable=True))
+    if 'last_curated_at' not in existing_columns:
+        op.add_column('collections', sa.Column('last_curated_at', sa.DateTime(timezone=True), nullable=True))
+    if 'curated_channel_usernames' not in existing_columns:
+        op.add_column('collections', sa.Column('curated_channel_usernames', sa.JSON(), nullable=True))
+
+    existing_indexes = [i['name'] for i in inspector.get_indexes('collections')]
+    if 'ix_collections_is_curated' not in existing_indexes:
+        op.create_index('ix_collections_is_curated', 'collections', ['is_curated'])
 
 
 def downgrade() -> None:

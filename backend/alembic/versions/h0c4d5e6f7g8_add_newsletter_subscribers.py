@@ -19,14 +19,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        'newsletter_subscribers',
-        sa.Column('id', sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('email', sa.String(255), unique=True, nullable=False, index=True),
-        sa.Column('subscribed_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
-        sa.Column('unsubscribed_at', sa.DateTime(timezone=True), nullable=True),
-    )
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_tables = inspector.get_table_names()
+
+    if 'newsletter_subscribers' not in existing_tables:
+        op.create_table(
+            'newsletter_subscribers',
+            sa.Column('id', sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True),
+            sa.Column('email', sa.String(255), unique=True, nullable=False, index=True),
+            sa.Column('subscribed_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+            sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
+            sa.Column('unsubscribed_at', sa.DateTime(timezone=True), nullable=True),
+        )
 
 
 def downgrade() -> None:

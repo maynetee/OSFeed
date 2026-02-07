@@ -19,23 +19,33 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Add username and country to users table
-    op.add_column('users', sa.Column('username', sa.String(20), nullable=True))
-    op.add_column('users', sa.Column('country', sa.String(2), nullable=True))
-    op.create_unique_constraint('uq_users_username', 'users', ['username'])
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_columns = [c['name'] for c in inspector.get_columns('users')]
+
+    if 'username' not in existing_columns:
+        op.add_column('users', sa.Column('username', sa.String(20), nullable=True))
+    if 'country' not in existing_columns:
+        op.add_column('users', sa.Column('country', sa.String(2), nullable=True))
+
+    existing_constraints = [c['name'] for c in inspector.get_unique_constraints('users')]
+    if 'uq_users_username' not in existing_constraints:
+        op.create_unique_constraint('uq_users_username', 'users', ['username'])
 
     # Create contact_sales_leads table
-    op.create_table(
-        'contact_sales_leads',
-        sa.Column('id', sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column('name', sa.String(100), nullable=False),
-        sa.Column('email', sa.String(255), nullable=False),
-        sa.Column('company', sa.String(100), nullable=False),
-        sa.Column('job_title', sa.String(100), nullable=False),
-        sa.Column('company_size', sa.String(20), nullable=False),
-        sa.Column('message', sa.Text(), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-    )
+    existing_tables = inspector.get_table_names()
+    if 'contact_sales_leads' not in existing_tables:
+        op.create_table(
+            'contact_sales_leads',
+            sa.Column('id', sa.dialects.postgresql.UUID(as_uuid=True), primary_key=True),
+            sa.Column('name', sa.String(100), nullable=False),
+            sa.Column('email', sa.String(255), nullable=False),
+            sa.Column('company', sa.String(100), nullable=False),
+            sa.Column('job_title', sa.String(100), nullable=False),
+            sa.Column('company_size', sa.String(20), nullable=False),
+            sa.Column('message', sa.Text(), nullable=True),
+            sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        )
 
 
 def downgrade() -> None:

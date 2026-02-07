@@ -19,9 +19,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('channels', sa.Column('region', sa.String(50), nullable=True))
-    op.add_column('channels', sa.Column('topics', sa.JSON(), nullable=True))
-    op.create_index('ix_channels_region', 'channels', ['region'])
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_columns = [c['name'] for c in inspector.get_columns('channels')]
+
+    if 'region' not in existing_columns:
+        op.add_column('channels', sa.Column('region', sa.String(50), nullable=True))
+    if 'topics' not in existing_columns:
+        op.add_column('channels', sa.Column('topics', sa.JSON(), nullable=True))
+
+    existing_indexes = [i['name'] for i in inspector.get_indexes('channels')]
+    if 'ix_channels_region' not in existing_indexes:
+        op.create_index('ix_channels_region', 'channels', ['region'])
 
 
 def downgrade() -> None:

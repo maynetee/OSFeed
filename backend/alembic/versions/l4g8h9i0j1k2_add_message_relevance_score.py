@@ -19,8 +19,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('messages', sa.Column('relevance_score', sa.Float(), nullable=True))
-    op.create_index('ix_messages_relevance_score', 'messages', ['relevance_score'])
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    existing_columns = [c['name'] for c in inspector.get_columns('messages')]
+
+    if 'relevance_score' not in existing_columns:
+        op.add_column('messages', sa.Column('relevance_score', sa.Float(), nullable=True))
+
+    existing_indexes = [i['name'] for i in inspector.get_indexes('messages')]
+    if 'ix_messages_relevance_score' not in existing_indexes:
+        op.create_index('ix_messages_relevance_score', 'messages', ['relevance_score'])
 
 
 def downgrade() -> None:
