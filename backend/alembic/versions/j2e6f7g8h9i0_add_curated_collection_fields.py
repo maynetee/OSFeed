@@ -28,7 +28,7 @@ def upgrade() -> None:
         batch_op.alter_column('user_id', existing_type=sa.String(length=36), nullable=True)
 
     if 'is_curated' not in existing_columns:
-        op.add_column('collections', sa.Column('is_curated', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+        op.add_column('collections', sa.Column('is_curated', sa.Boolean(), nullable=False, server_default=sa.text('false')))
     if 'curator' not in existing_columns:
         op.add_column('collections', sa.Column('curator', sa.String(length=100), nullable=True))
     if 'region' not in existing_columns:
