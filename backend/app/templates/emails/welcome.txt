@@ -1,0 +1,17 @@
+{{ app_name }} - Welcome!
+
+Hello {{ username }},
+
+Thank you for joining {{ app_name }} — your intelligent OSINT platform for monitoring and analyzing Telegram channels.
+
+Here's what you can do:
+
+- Monitor Channels: Track Telegram channels with real-time message collection
+- AI Translation: Automatically translate messages with multi-LLM routing
+- Smart Alerts: Set up keyword and topic-based alerts
+- Daily Digests: Get AI-powered summaries of channel activity
+
+Get started: {{ dashboard_link }}
+
+---
+© {{ app_name }}. All rights reserved.

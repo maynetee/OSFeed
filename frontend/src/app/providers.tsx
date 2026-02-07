@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import { I18nextProvider } from 'react-i18next'
 import { useTranslation } from 'react-i18next'
+import { HelmetProvider } from 'react-helmet-async'
 
 import i18n from '@/app/i18n'
 import { useTheme } from '@/hooks/use-theme'
@@ -39,17 +40,19 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <I18nextProvider i18n={i18n}>
-          <ErrorBoundary>
-            <BrowserRouter>
-              <ThemeBridge />
-              <LanguageBridge />
-              {children}
-            </BrowserRouter>
-          </ErrorBoundary>
-        </I18nextProvider>
-      </QueryClientProvider>
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <I18nextProvider i18n={i18n}>
+            <ErrorBoundary>
+              <BrowserRouter>
+                <ThemeBridge />
+                <LanguageBridge />
+                {children}
+              </BrowserRouter>
+            </ErrorBoundary>
+          </I18nextProvider>
+        </QueryClientProvider>
+      </HelmetProvider>
     </React.StrictMode>
   )
 }

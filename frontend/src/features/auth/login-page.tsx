@@ -1,18 +1,17 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { AxiosError } from 'axios'
-import { Bot, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useUserStore } from '@/stores/user-store'
 import { authApi } from '@/lib/api/client'
+import { PageLayout } from '../landing/components/PageLayout'
+import { Seo } from '../landing/components/Seo'
+import { trackEvent } from '@/lib/analytics'
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -35,7 +34,6 @@ const getErrorMessage = (detail: string | undefined): string => {
 export function LoginPage() {
   const navigate = useNavigate()
   const { setUser } = useUserStore()
-  const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
 
   const form = useForm<LoginFormValues>({
@@ -45,6 +43,7 @@ export function LoginPage() {
 
   const handleLogin = async (values: LoginFormValues) => {
     setError(null)
+    trackEvent("Login Submit")
     try {
       // Login - tokens are set as httpOnly cookies automatically
       const response = await authApi.login(values.email, values.password)
@@ -64,91 +63,131 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex items-center gap-2 mb-8">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Bot className="h-6 w-6" />
-        </div>
-        <span className="text-2xl font-bold tracking-tight">OSFeed</span>
-      </div>
+    <PageLayout>
+      <Seo title="Login — Osfeed" description="Sign in to your Osfeed account to access your intelligence dashboard." />
+      <section className="flex items-center justify-center px-4 py-20 sm:py-32">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="w-full max-w-md rounded-2xl border p-8"
+          style={{
+            backgroundColor: '#161B22',
+            borderColor: '#30363D',
+          }}
+        >
+          <h1 className="text-3xl font-bold text-center mb-8" style={{ color: '#FFFFFF' }}>
+            Welcome back
+          </h1>
 
-      <Card className="w-full max-w-sm sm:max-w-md shadow-lg border-muted">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">{t('auth.loginTitle')}</CardTitle>
-          <CardDescription className="text-center">
-            {t('auth.loginDescription')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
           {error && (
-            <div className="mb-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive font-medium border border-destructive/20">
+            <div
+              className="mb-6 rounded-lg p-3 text-sm font-medium border"
+              style={{
+                backgroundColor: 'rgba(248, 81, 73, 0.1)',
+                borderColor: 'rgba(248, 81, 73, 0.3)',
+                color: '#F85149',
+              }}
+            >
               {error}
             </div>
           )}
-          <form className="space-y-4" onSubmit={form.handleSubmit(handleLogin)}>
+
+          <form className="space-y-5" onSubmit={form.handleSubmit(handleLogin)}>
             <div className="space-y-2">
-              <Label htmlFor="email">{t('auth.email')}</Label>
-              <Input
+              <label htmlFor="email" className="block text-sm font-medium" style={{ color: '#8B949E' }}>
+                Email
+              </label>
+              <input
                 id="email"
                 type="email"
                 placeholder="name@example.com"
-                className="h-10"
+                className="w-full h-11 rounded-lg border px-3 text-sm outline-none transition-colors"
+                style={{
+                  backgroundColor: '#0D1117',
+                  borderColor: '#30363D',
+                  color: '#FFFFFF',
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
+                onBlur={(e) => { e.target.style.borderColor = '#30363D' }}
                 {...form.register('email')}
               />
               {form.formState.errors.email && (
-                <span className="text-xs text-destructive font-medium">
+                <span className="text-xs font-medium" style={{ color: '#F85149' }}>
                   {form.formState.errors.email.message}
                 </span>
               )}
             </div>
+
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="password">{t('auth.password')}</Label>
-                <Link to="/forgot-password" className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                <label htmlFor="password" className="block text-sm font-medium" style={{ color: '#8B949E' }}>
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs transition-colors"
+                  style={{ color: '#8B949E' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#00D4AA' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#8B949E' }}
+                >
                   Forgot password?
                 </Link>
               </div>
-              <Input
+              <input
                 id="password"
                 type="password"
-                className="h-10"
+                className="w-full h-11 rounded-lg border px-3 text-sm outline-none transition-colors"
+                style={{
+                  backgroundColor: '#0D1117',
+                  borderColor: '#30363D',
+                  color: '#FFFFFF',
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#00D4AA' }}
+                onBlur={(e) => { e.target.style.borderColor = '#30363D' }}
                 {...form.register('password')}
               />
               {form.formState.errors.password && (
-                <span className="text-xs text-destructive font-medium">
+                <span className="text-xs font-medium" style={{ color: '#F85149' }}>
                   {form.formState.errors.password.message}
                 </span>
               )}
             </div>
-            <Button
+
+            <button
               type="submit"
-              className="w-full h-10"
               disabled={form.formState.isSubmitting}
+              className="w-full h-11 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: '#00D4AA',
+                color: '#0D1117',
+              }}
             >
               {form.formState.isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('auth.signingIn')}
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Signing in...
                 </>
               ) : (
-                t('auth.signIn')
+                'Log in'
               )}
-            </Button>
+            </button>
           </form>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-2 border-t bg-muted/5 py-4">
-          <p className="text-xs text-center text-muted-foreground">
+
+          <p className="mt-6 text-center text-sm" style={{ color: '#8B949E' }}>
             Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-primary font-medium hover:underline">
-              {t('auth.createAccount')}
+            <Link
+              to="/signup"
+              className="font-medium transition-colors"
+              style={{ color: '#00D4AA' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = '#FFFFFF' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = '#00D4AA' }}
+            >
+              Sign up
             </Link>
           </p>
-        </CardFooter>
-      </Card>
-
-      <p className="mt-8 text-center text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} OSFeed Inc. All rights reserved.
-      </p>
-    </div>
+        </motion.div>
+      </section>
+    </PageLayout>
   )
 }

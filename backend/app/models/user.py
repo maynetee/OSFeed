@@ -17,7 +17,9 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     __tablename__ = "users"
 
     # Profile information
+    username = Column(String(20), unique=True, nullable=True)
     full_name = Column(String(255), nullable=True)
+    country = Column(String(2), nullable=True)
     role = Column(
         SQLEnum(UserRole, values_callable=lambda x: [e.value for e in x]),
         default=UserRole.VIEWER,
@@ -33,6 +35,13 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     last_login_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Stripe subscription
+    stripe_customer_id = Column(String(255), nullable=True, unique=True)
+    stripe_subscription_id = Column(String(255), nullable=True)
+    subscription_plan = Column(String(20), default="none")  # solo, team, enterprise, none
+    subscription_status = Column(String(20), default="none")  # active, canceled, past_due, trialing, none
+    subscription_period_end = Column(DateTime(timezone=True), nullable=True)
 
     # Refresh token (hashed)
     refresh_token_hash = Column(String(128), nullable=True)

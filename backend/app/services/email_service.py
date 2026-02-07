@@ -235,6 +235,89 @@ class EmailService:
             text=text,
         )
 
+    async def send_welcome_email(self, email: str, username: str) -> bool:
+        """Send welcome email after signup."""
+        settings = get_settings()
+        if not settings.email_enabled:
+            logger.info(f"Email disabled - would send welcome to {_redact_email(email)}")
+            return False
+
+        provider = self._get_provider()
+        if not provider:
+            logger.warning("No email provider configured")
+            return False
+
+        context = {
+            "username": username,
+            "dashboard_link": f"{settings.frontend_url.rstrip('/')}/dashboard",
+            "app_name": "OSFeed",
+        }
+
+        html = template_renderer.render("welcome.html", **context)
+        text = template_renderer.render("welcome.txt", **context)
+
+        return await provider.send(
+            to=email,
+            subject="Welcome to OSFeed!",
+            html=html,
+            text=text,
+        )
+
+    async def send_contact_confirmation(self, email: str, name: str) -> bool:
+        """Send confirmation after contact form submission."""
+        settings = get_settings()
+        if not settings.email_enabled:
+            logger.info(f"Email disabled - would send contact confirmation to {_redact_email(email)}")
+            return False
+
+        provider = self._get_provider()
+        if not provider:
+            logger.warning("No email provider configured")
+            return False
+
+        context = {
+            "name": name,
+            "app_name": "OSFeed",
+        }
+
+        html = template_renderer.render("contact_confirmation.html", **context)
+        text = template_renderer.render("contact_confirmation.txt", **context)
+
+        return await provider.send(
+            to=email,
+            subject="We received your message - OSFeed",
+            html=html,
+            text=text,
+        )
+
+    async def send_newsletter_welcome(self, email: str) -> bool:
+        """Send welcome email for newsletter subscription."""
+        settings = get_settings()
+        if not settings.email_enabled:
+            logger.info(f"Email disabled - would send newsletter welcome to {_redact_email(email)}")
+            return False
+
+        provider = self._get_provider()
+        if not provider:
+            logger.warning("No email provider configured")
+            return False
+
+        unsubscribe_link = f"{settings.frontend_url.rstrip('/')}/newsletter/unsubscribe?email={email}"
+        context = {
+            "unsubscribe_link": unsubscribe_link,
+            "app_name": "OSFeed",
+        }
+
+        html = template_renderer.render("newsletter_welcome.html", **context)
+        text = template_renderer.render("newsletter_welcome.txt", **context)
+
+        return await provider.send(
+            to=email,
+            subject="Welcome to the OSFeed Newsletter!",
+            html=html,
+            text=text,
+        )
+
     async def send_alert_triggered(self, email: str, alert_name: str, summary: str, message_count: int) -> bool:
         """Send alert triggered notification email."""
         settings = get_settings()

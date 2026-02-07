@@ -22,8 +22,8 @@ export const authApi = {
    * @param password - Password for the new account
    * @returns Promise resolving to registration response
    */
-  register: (email: string, password: string) =>
-    api.post('/api/auth/register', { email, password }),
+  register: (email: string, password: string, extra?: { username?: string; country?: string; plan?: string }) =>
+    api.post('/api/auth/register', { email, password, ...extra }),
 
   /**
    * Verify a user's email address using a verification token.

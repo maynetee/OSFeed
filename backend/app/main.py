@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
 from app.database import init_db, get_engine
-from app.api import channels, messages, auth, collections, audit_logs, stats, alerts
+from app.api import channels, messages, auth, collections, audit_logs, stats, alerts, contact_sales, stripe, newsletter
 from app.jobs.collect_messages import collect_messages_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
 from app.jobs.purge_audit_logs import purge_audit_logs_job
@@ -142,6 +142,9 @@ app.include_router(collections.router, prefix="/api/collections", tags=["collect
 app.include_router(audit_logs.router, prefix="/api/audit-logs", tags=["audit-logs"])
 app.include_router(stats.router, prefix="/api/stats", tags=["stats"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["alerts"])
+app.include_router(contact_sales.router, prefix="/api", tags=["contact-sales"])
+app.include_router(stripe.router, prefix="/api", tags=["stripe"])
+app.include_router(newsletter.router, prefix="/api", tags=["newsletter"])
 
 
 @app.get("/")

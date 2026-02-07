@@ -1,0 +1,15 @@
+{{ app_name }} Newsletter - You're subscribed!
+
+Welcome to the {{ app_name }} newsletter. You'll receive updates on:
+
+- New features and product updates
+- OSINT analysis tips and best practices
+- Intelligence community insights
+- Platform tips and tricks
+
+We send updates occasionally — no spam, ever.
+
+To unsubscribe: {{ unsubscribe_link }}
+
+---
+© {{ app_name }}. All rights reserved.

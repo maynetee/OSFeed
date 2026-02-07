@@ -15,9 +15,11 @@ from app.config import get_settings
 # Import all models so Alembic can detect them
 from app.models import (
     Channel,
+    ContactSalesLead,
     FetchJob,
     Message,
     MessageTranslation,
+    NewsletterSubscriber,
     User,
     Collection,
     CollectionShare,

@@ -127,7 +127,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         return await super().create(user_create_safe, safe=safe, request=request)
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
-        """Called after a user successfully registers. Sends verification email."""
+        """Called after a user successfully registers. Sends verification and welcome emails."""
         logger.info(f"User {_redact_email(user.email)} has registered.")
         if settings.email_enabled:
             # Generate verification token manually (FastAPI-Users doesn't pass it here)
@@ -141,7 +141,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 secret=self.verification_token_secret,
                 lifetime_seconds=self.verification_token_lifetime_seconds,
             )
-            # Send email in background (non-blocking)
+            # Send emails in background (non-blocking)
             try:
                 asyncio.create_task(email_service.send_verification(user.email, token))
                 logger.info(f"Verification email task created for {_redact_email(user.email)}")
@@ -149,6 +149,16 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)} (event loop error): {e}")
             except (AttributeError, TypeError, ValueError) as e:
                 logger.error(f"Failed to create verification email task for {_redact_email(user.email)}: {e}")
+
+            # Send welcome email
+            username = getattr(user, 'username', None) or user.email.split('@')[0]
+            try:
+                asyncio.create_task(email_service.send_welcome_email(user.email, username))
+                logger.info(f"Welcome email task created for {_redact_email(user.email)}")
+            except RuntimeError as e:
+                logger.error(f"Failed to create welcome email task for {_redact_email(user.email)} (event loop error): {e}")
+            except (AttributeError, TypeError, ValueError) as e:
+                logger.error(f"Failed to create welcome email task for {_redact_email(user.email)}: {e}")
         else:
             logger.warning(f"Email disabled - skipping verification email for {_redact_email(user.email)}")
 

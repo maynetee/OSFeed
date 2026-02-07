@@ -1,0 +1,171 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "language": "en",
+    "last_updated": "2026-02-07"
+  },
+  "errors": {
+    "validation": {
+      "required_field": "This field is required",
+      "invalid_email": "Please enter a valid email address",
+      "password_too_short": "Password must be at least 8 characters",
+      "password_requirements": "Password must contain at least 8 characters, one uppercase letter, and one number",
+      "username_too_short": "Username must be at least 3 characters",
+      "username_too_long": "Username cannot exceed 20 characters",
+      "username_invalid_chars": "Username can only contain letters, numbers, and underscores",
+      "terms_not_accepted": "You must accept the Terms of Service and Privacy Policy",
+      "message_too_long": "Message cannot exceed 2,000 characters",
+      "invalid_country": "Please select a valid country"
+    },
+    "auth": {
+      "invalid_credentials": "Incorrect email or password. Please check your credentials and try again.",
+      "account_not_found": "No account found with that email address. Please check or create a new account.",
+      "email_already_registered": "An account with this email already exists. Try signing in instead.",
+      "session_expired": "Your session has expired. Please sign in again to continue.",
+      "too_many_attempts": "Too many login attempts. Please wait a few minutes before trying again.",
+      "email_not_verified": "Please verify your email address before signing in. Check your inbox for the verification link."
+    },
+    "http": {
+      "not_found_title": "Page not found",
+      "not_found_description": "The page you're looking for doesn't exist or has been moved. Head back to your dashboard.",
+      "internal_error_title": "Something went wrong",
+      "internal_error_description": "We encountered an unexpected error. Please try again or contact support if the issue persists.",
+      "forbidden_title": "Access denied",
+      "forbidden_description": "You don't have permission to view this page. Upgrade your plan or contact your administrator.",
+      "network_error": "Unable to connect to the server. Please check your internet connection and try again.",
+      "timeout": "The request took too long to complete. Please try again."
+    },
+    "payment": {
+      "payment_failed": "Your payment could not be processed. Please try again or use a different payment method.",
+      "card_declined": "Your card was declined. Please check your card details or contact your bank.",
+      "subscription_error": "We couldn't update your subscription. Please try again or contact support.",
+      "invalid_card": "The card information you entered is invalid. Please double-check and try again."
+    }
+  },
+  "success": {
+    "auth": {
+      "account_created": "Account created successfully. Please check your email to verify your address.",
+      "email_verified": "Your email has been verified. You can now sign in to your account.",
+      "password_reset_sent": "Password reset link sent. Check your inbox for instructions.",
+      "password_changed": "Your password has been updated successfully.",
+      "logged_out": "You've been signed out. See you next time."
+    },
+    "newsletter": {
+      "subscribed": "You're subscribed. Watch your inbox for intelligence updates.",
+      "unsubscribed": "You've been unsubscribed from the newsletter."
+    },
+    "contact": {
+      "message_sent": "Your message has been sent. We'll get back to you within 24 hours.",
+      "sales_form_submitted": "Thank you for your interest. Our team will reach out within one business day."
+    },
+    "subscription": {
+      "activated": "Your subscription is now active. Welcome to OSFeed.",
+      "cancelled": "Your subscription has been cancelled. You'll retain access until the end of your billing period.",
+      "upgraded": "Your plan has been upgraded. New features are available immediately.",
+      "downgraded": "Your plan has been changed. The new plan takes effect at your next billing cycle."
+    },
+    "platform": {
+      "alert_created": "Alert created. You'll be notified when matching intelligence is detected.",
+      "collection_saved": "Collection saved successfully.",
+      "settings_updated": "Your settings have been updated.",
+      "source_added": "Source added. New messages will appear in your feed shortly.",
+      "export_ready": "Your export is ready for download."
+    }
+  },
+  "loading": {
+    "generic": "Loading...",
+    "processing_payment": "Processing your payment...",
+    "creating_account": "Creating your account...",
+    "sending_message": "Sending your message...",
+    "loading_feed": "Loading your feed...",
+    "translating": "Translating...",
+    "analyzing": "Analyzing sources...",
+    "generating_digest": "Generating your digest...",
+    "applying_filters": "Applying filters...",
+    "exporting": "Preparing your export..."
+  },
+  "tooltips": {
+    "password_requirements": "Must be at least 8 characters with one uppercase letter and one number",
+    "username_requirements": "3-20 characters. Letters, numbers, and underscores only.",
+    "country_selection": "Select your country for tailored regional intelligence and compliance.",
+    "plan_comparison": "Compare features across plans to find the right fit for your intelligence needs.",
+    "semantic_deduplication": "Our AI identifies duplicate stories across sources, even when worded differently, so you see each story only once.",
+    "intelligence_alerts": "Set keyword or topic-based alerts to get notified when relevant intelligence appears across your sources.",
+    "translation_quality": "Messages are translated using AI models optimized for accuracy, with priority routing for breaking intelligence.",
+    "source_reliability": "Source reliability is assessed based on historical accuracy, posting frequency, and cross-reference consistency."
+  },
+  "empty_states": {
+    "no_results": {
+      "title": "No results found",
+      "description": "Try adjusting your search terms or broadening your filters."
+    },
+    "no_alerts": {
+      "title": "No alerts configured",
+      "description": "Create an alert to get notified when specific topics or keywords appear in your sources."
+    },
+    "no_collections": {
+      "title": "No collections yet",
+      "description": "Create a collection to organize and group related intelligence for easy access."
+    },
+    "feed_empty": {
+      "title": "Your feed is empty",
+      "description": "Add sources to start receiving translated intelligence in your feed."
+    },
+    "no_messages_matching": {
+      "title": "No messages match your filters",
+      "description": "Try removing some filters or expanding your date range to see more results."
+    },
+    "no_sources": {
+      "title": "No sources added",
+      "description": "Add Telegram channels to begin collecting and translating open-source intelligence."
+    }
+  },
+  "confirmations": {
+    "cancel_subscription": {
+      "title": "Cancel subscription",
+      "message": "Are you sure you want to cancel? You'll retain access until the end of your current billing period, but won't be charged again.",
+      "confirm": "Cancel subscription",
+      "cancel": "Keep my plan"
+    },
+    "delete_account": {
+      "title": "Delete account",
+      "message": "This action is permanent and cannot be undone. All your data, collections, and alerts will be permanently deleted.",
+      "confirm": "Delete my account",
+      "cancel": "Keep my account"
+    },
+    "delete_collection": {
+      "title": "Delete collection",
+      "message": "This will permanently delete this collection and remove all saved messages from it. This cannot be undone.",
+      "confirm": "Delete collection",
+      "cancel": "Keep collection"
+    },
+    "remove_alert": {
+      "title": "Remove alert",
+      "message": "This alert will be permanently removed and you'll stop receiving notifications for it.",
+      "confirm": "Remove alert",
+      "cancel": "Keep alert"
+    },
+    "remove_source": {
+      "title": "Remove source",
+      "message": "This source will be removed from your feed. Previously collected messages will remain in your history.",
+      "confirm": "Remove source",
+      "cancel": "Keep source"
+    }
+  },
+  "cta": {
+    "save_changes": "Save changes",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "go_back": "Go back",
+    "try_again": "Try again",
+    "learn_more": "Learn more",
+    "upgrade_now": "Upgrade now",
+    "get_started": "Get Started",
+    "contact_sales": "Contact Sales",
+    "subscribe": "Subscribe",
+    "read_more": "Read more",
+    "view_all": "View all",
+    "dismiss": "Dismiss",
+    "close": "Close"
+  }
+}

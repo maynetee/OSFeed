@@ -42,7 +42,7 @@ export function VerifyEmailPage() {
   }, [searchParams])
 
   const handleRequestNewVerification = () => {
-    navigate('/register')
+    navigate('/signup')
   }
 
   return (

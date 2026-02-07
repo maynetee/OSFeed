@@ -177,6 +177,14 @@ class Settings(BaseSettings):
     llm_cost_input_per_1k: float = 0.0
     llm_cost_output_per_1k: float = 0.0
 
+    # Stripe
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_solo_monthly_price_id: str = ""
+    stripe_solo_yearly_price_id: str = ""
+    stripe_team_monthly_price_id: str = ""
+    stripe_team_yearly_price_id: str = ""
+
     # Telegram API (User Account)
     telegram_api_id: int = 0
 

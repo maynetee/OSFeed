@@ -8,7 +8,9 @@ from app.models.user import UserRole
 
 class UserRead(schemas.BaseUser[UUID]):
     """Schema for reading user data."""
+    username: Optional[str] = None
     full_name: Optional[str] = None
+    country: Optional[str] = None
     role: UserRole = UserRole.VIEWER
     preferred_language: str = "en"
     consent_given_at: Optional[datetime] = None
@@ -18,7 +20,9 @@ class UserRead(schemas.BaseUser[UUID]):
 
 class UserCreate(schemas.BaseUserCreate):
     """Schema for creating a new user."""
+    username: Optional[str] = None
     full_name: Optional[str] = None
+    country: Optional[str] = None
     # role field removed per security fix - prevents clients from specifying role
     preferred_language: str = "en"
     consent_given_at: Optional[datetime] = None  # Set when user accepts terms
