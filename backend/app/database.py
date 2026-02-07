@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import StaticPool
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
 from app.config import get_settings
 import os
@@ -120,18 +120,27 @@ async def get_db():
 async def init_db():
     """Initialize database tables with retry logic.
 
-    Note: In production with PostgreSQL, prefer using Alembic migrations.
-    This function is kept for development and initial setup.
+    For PostgreSQL, Alembic migrations handle schema changes (via entrypoint.sh).
+    create_all is only used for SQLite (tests / local dev without PostgreSQL).
     """
+    from app.config import get_settings
+    settings = get_settings()
+
     max_retries = 5
     base_delay = 2
 
     for attempt in range(max_retries):
         try:
             engine = get_engine()
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database tables initialized")
+            if settings.use_sqlite:
+                async with engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                logger.info("Database tables initialized (SQLite mode)")
+            else:
+                # For PostgreSQL, just verify connectivity — Alembic handles schema
+                async with engine.begin() as conn:
+                    await conn.execute(text("SELECT 1"))
+                logger.info("Database connection verified (Alembic manages schema)")
             return
         except (OperationalError, DatabaseError) as e:
             if attempt < max_retries - 1:
