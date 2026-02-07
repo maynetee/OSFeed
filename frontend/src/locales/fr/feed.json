@@ -5,5 +5,7 @@
   "export": "Exporter",
   "sortLatest": "Plus récents",
   "sortRelevance": "Plus pertinents",
-  "relevanceScore": "Pertinence"
+  "relevanceScore": "Pertinence",
+  "allMessages": "Tous les messages",
+  "uniqueStories": "Articles uniques"
 }

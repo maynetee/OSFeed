@@ -27,6 +27,8 @@ export const messagesApi = {
     sort?: 'latest' | 'relevance'
     region?: string
     topics?: string[]
+    unique_only?: boolean
+    min_escalation?: number
   }) =>
     api.get<MessageListResponse>('/api/messages', {
       params: params ? buildParams(params) : undefined,

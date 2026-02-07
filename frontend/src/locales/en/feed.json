@@ -7,5 +7,7 @@
   "lastRefresh": "Last refresh:",
   "sortLatest": "Latest",
   "sortRelevance": "Most Relevant",
-  "relevanceScore": "Relevance"
+  "relevanceScore": "Relevance",
+  "allMessages": "All messages",
+  "uniqueStories": "Unique stories"
 }

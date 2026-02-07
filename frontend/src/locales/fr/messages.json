@@ -22,5 +22,8 @@
   "loadingMore": "Chargement...",
   "mediaAvailableOnTelegram": "Média disponible sur Telegram",
   "retry": "Réessayer",
-  "showMedia": "Afficher le média"
+  "showMedia": "Afficher le média",
+  "translate": "Traduire",
+  "sources": "{{count}} sources",
+  "originalSource": "Original"
 }
