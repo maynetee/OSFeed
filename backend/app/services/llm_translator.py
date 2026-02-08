@@ -37,6 +37,7 @@ import httpx
 from deep_translator import GoogleTranslator
 from langdetect import LangDetectException, detect
 from openai import AsyncOpenAI, OpenAIError
+from opentelemetry import trace
 from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -46,6 +47,8 @@ from app.config import get_settings
 from app.models.message import MessageTranslation
 from app.services.cache import get_redis_client, increment_translation_cache_hit, increment_translation_cache_miss
 from app.services.usage import record_api_usage
+
+tracer = trace.get_tracer(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -442,22 +445,26 @@ class LLMTranslator:
                 f"{glossary_context}"
             )
 
-            response = await client.chat.completions.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt,
-                    },
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Translate from {source_lang} to {target_lang}:\n{chunk}"
-                        ),
-                    },
-                ],
-                temperature=0.2,
-            )
+            with tracer.start_as_current_span(
+                "llm.translate",
+                attributes={"llm.model": model, "llm.provider": "openai"},
+            ):
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": system_prompt,
+                        },
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Translate from {source_lang} to {target_lang}:\n{chunk}"
+                            ),
+                        },
+                    ],
+                    temperature=0.2,
+                )
             translated_chunks.append(response.choices[0].message.content.strip())
             if response.usage:
                 await record_api_usage(
@@ -521,10 +528,14 @@ class LLMTranslator:
             ],
             "generationConfig": {"temperature": 0.2},
         }
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, params={"key": self.gemini_api_key}, json=payload)
-            response.raise_for_status()
-            data = response.json()
+        with tracer.start_as_current_span(
+            "llm.translate",
+            attributes={"llm.model": model, "llm.provider": "gemini"},
+        ):
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, params={"key": self.gemini_api_key}, json=payload)
+                response.raise_for_status()
+                data = response.json()
         candidates = data.get("candidates") or []
         if not candidates:
             raise RuntimeError("Gemini translation returned no candidates")

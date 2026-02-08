@@ -30,6 +30,7 @@ PUBLIC_ROUTES: list[str] = [
     "/api/newsletter",
     "/api/collections/curated",
     "/api/digests/unsubscribe",
+    "/metrics",
 ]
 
 
@@ -90,6 +91,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     content={"detail": "Not authenticated"},
                 )
             request.state.user_id = user_id
+
+            # Set Sentry user context
+            try:
+                import sentry_sdk
+                sentry_sdk.set_user({"id": user_id})
+            except Exception:
+                pass
         except (jwt.PyJWTError, Exception):
             return JSONResponse(
                 status_code=401,

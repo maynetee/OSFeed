@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
+from app.jobs.retry import retry
 from app.models.digest_preference import DigestPreference
 from app.models.user import User
 from app.services.digest_service import build_digest_content, send_digest_email
@@ -11,6 +12,7 @@ from app.services.digest_service import build_digest_content, send_digest_email
 logger = logging.getLogger(__name__)
 
 
+@retry(max_attempts=3)
 async def send_daily_digests_job():
     """Hourly job: send digests to users whose send_hour matches current UTC hour."""
     now = datetime.now(timezone.utc)

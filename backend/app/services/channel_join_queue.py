@@ -9,14 +9,16 @@ Format: JSON list of {username, user_id, queued_at}
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
+
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import settings
 from app.database import AsyncSessionLocal
+from app.jobs.retry import retry
 from app.services.telegram_client import get_telegram_client
 
 logger = logging.getLogger(__name__)
@@ -101,6 +103,7 @@ async def get_queue_entries() -> List[Dict[str, Any]]:
     return [json.loads(e) for e in entries]
 
 
+@retry(max_attempts=3)
 async def process_join_queue() -> int:
     """Process queued channel joins.
 
@@ -144,8 +147,9 @@ async def process_join_queue() -> int:
 
             # Create channel in database
             async with AsyncSessionLocal() as db:
+                from sqlalchemy import insert, select
+
                 from app.models.channel import Channel, user_channels
-                from sqlalchemy import select, insert
 
                 # Check if channel was created while queued
                 result = await db.execute(

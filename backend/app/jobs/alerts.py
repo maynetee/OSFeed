@@ -3,11 +3,13 @@ from datetime import datetime, timedelta, timezone
 
 from redis.exceptions import RedisError
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
 
 from app.database import AsyncSessionLocal
+from app.jobs.retry import retry
 from app.models.alert import Alert, AlertTrigger
 from app.models.channel import Channel
-from app.models.collection import Collection, collection_channels
+from app.models.collection import collection_channels
 from app.models.message import Message
 from app.models.notification import Notification
 from app.models.user import User
@@ -33,12 +35,17 @@ def _should_run(alert: Alert) -> bool:
     return alert.last_triggered_at <= now - timedelta(minutes=2)
 
 
+@retry(max_attempts=3)
 async def evaluate_alerts_job():
     now = datetime.now(timezone.utc)
     logger.info(f"[{now}] Starting alert evaluation job...")
 
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(Alert).where(Alert.is_active == True))
+        result = await session.execute(
+            select(Alert)
+            .options(selectinload(Alert.collection))
+            .where(Alert.is_active == True)
+        )
         alerts = result.scalars().all()
 
         for alert in alerts:
@@ -46,10 +53,7 @@ async def evaluate_alerts_job():
                 alert.last_evaluated_at = now
                 continue
 
-            collection_result = await session.execute(
-                select(Collection).where(Collection.id == alert.collection_id)
-            )
-            collection = collection_result.scalar_one_or_none()
+            collection = alert.collection
             if not collection:
                 alert.last_evaluated_at = now
                 continue

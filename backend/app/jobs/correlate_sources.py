@@ -2,9 +2,12 @@
 
 import logging
 
+from app.jobs.retry import retry
+
 logger = logging.getLogger(__name__)
 
 
+@retry(max_attempts=3)
 async def correlate_sources_job():
     """Analyze duplicate groups with 3+ sources for cross-source correlation. Runs every 10 min."""
     try:

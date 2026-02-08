@@ -1,6 +1,5 @@
-from datetime import datetime
-import logging
 import asyncio
+import logging
 from datetime import datetime, timezone
 from typing import Sequence
 
@@ -8,12 +7,12 @@ from sqlalchemy import select, update
 
 from app.config import get_settings
 from app.database import AsyncSessionLocal
+from app.jobs.retry import retry
 from app.models.message import Message
-from app.services.translation_pool import run_translation
-from app.services.translator import translator
 from app.services.events import publish_message_translated
+from app.services.translation_pool import run_translation
 from app.services.translation_service import should_channel_translate
-
+from app.services.translator import translator
 
 settings = get_settings()
 
@@ -22,6 +21,7 @@ DEFAULT_BATCH_SIZE = 200
 logger = logging.getLogger(__name__)
 
 
+@retry(max_attempts=3)
 async def translate_pending_messages_job(batch_size: int = DEFAULT_BATCH_SIZE) -> None:
     """Translate pending messages in the background."""
     async with AsyncSessionLocal() as db:

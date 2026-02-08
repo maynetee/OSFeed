@@ -1,4 +1,4 @@
-import logging
+import structlog
 from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -39,7 +39,9 @@ from app.jobs.score_escalation import score_escalation_job
 from app.jobs.score_relevance import score_relevance_job
 from app.jobs.send_daily_digests import send_daily_digests_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
+from app.logging_config import configure_logging
 from app.middleware.auth import AuthMiddleware
+from app.middleware.request_id import RequestIdMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.seeds.curated_collections import seed_curated_collections
 from app.services.channel_join_queue import process_join_queue
@@ -47,13 +49,11 @@ from app.services.fetch_queue import start_fetch_worker, stop_fetch_worker
 from app.services.rate_limiter import cleanup_rate_limiter
 from app.services.telegram_client import cleanup_telegram_client
 from app.services.telegram_updates import start_update_handler, stop_update_handler
+from app.tracing import setup_tracing
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+# Configure structured logging
+configure_logging()
+logger = structlog.get_logger(__name__)
 
 settings = get_settings()
 scheduler = AsyncIOScheduler()
@@ -61,6 +61,19 @@ scheduler = AsyncIOScheduler()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize Sentry (before other startup)
+    if settings.sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            integrations=[FastApiIntegration()],
+            sample_rate=1.0,
+            traces_sample_rate=settings.sentry_traces_sample_rate,
+        )
+        logger.info("Sentry initialized")
+
     redis_cache = None
     # Startup: Initialize database
     await init_db()
@@ -152,6 +165,19 @@ app = FastAPI(
     openapi_url=None if settings.app_env == "production" else "/openapi.json",
 )
 
+# Prometheus metrics
+if settings.prometheus_enabled:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator(
+        should_group_status_codes=True,
+        should_ignore_untemplated=True,
+        excluded_handlers=["/health", "/metrics"],
+    ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+# OpenTelemetry tracing
+setup_tracing(app)
+
 # CORS middleware - allow both www and non-www versions
 cors_origins = [
     settings.frontend_url,
@@ -174,6 +200,9 @@ app.add_middleware(
 
 # Auth middleware (inner — runs first on requests, after security headers on responses)
 app.add_middleware(AuthMiddleware)
+
+# Request ID middleware (between auth and security headers)
+app.add_middleware(RequestIdMiddleware)
 
 # Security headers middleware (outer — added last so it wraps all responses including auth 401s)
 app.add_middleware(SecurityHeadersMiddleware)

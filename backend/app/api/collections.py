@@ -449,38 +449,43 @@ async def import_curated_collection(
     if not usernames:
         return {"imported_count": 0, "already_existed": 0}
 
-    imported_count = 0
-    already_existed = 0
+    # Batch-load all existing channels by username in one query
+    ch_result = await db.execute(
+        select(Channel).where(Channel.username.in_(usernames))
+    )
+    existing_channels = {ch.username: ch for ch in ch_result.scalars().all()}
 
+    # Create missing channels in bulk
     for username in usernames:
-        # Check if channel exists by username
-        ch_result = await db.execute(
-            select(Channel).where(Channel.username == username)
-        )
-        channel = ch_result.scalar_one_or_none()
-
-        if not channel:
-            # Create a minimal Channel record
+        if username not in existing_channels:
             channel = Channel(
                 username=username,
                 title=username,
                 is_active=False,
             )
             db.add(channel)
-            await db.flush()
+            existing_channels[username] = channel
+    await db.flush()
 
-        # Check if user already has this channel
-        link_result = await db.execute(
-            select(user_channels).where(
-                user_channels.c.user_id == user.id,
-                user_channels.c.channel_id == channel.id,
-            )
+    # Batch-load existing user-channel links
+    all_channel_ids = [ch.id for ch in existing_channels.values()]
+    link_result = await db.execute(
+        select(user_channels.c.channel_id).where(
+            user_channels.c.user_id == user.id,
+            user_channels.c.channel_id.in_(all_channel_ids),
         )
-        if link_result.first():
+    )
+    already_linked_ids = {row.channel_id for row in link_result.all()}
+
+    imported_count = 0
+    already_existed = 0
+
+    for username in usernames:
+        channel = existing_channels[username]
+        if channel.id in already_linked_ids:
             already_existed += 1
             continue
 
-        # Add to user_channels junction table
         await db.execute(
             user_channels.insert().values(
                 user_id=user.id,

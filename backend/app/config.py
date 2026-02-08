@@ -182,6 +182,19 @@ class Settings(BaseSettings):
     llm_cost_input_per_1k: float = 0.0
     llm_cost_output_per_1k: float = 0.0
 
+    # Sentry
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.1
+
+    # Prometheus
+    prometheus_enabled: bool = True
+
+    # OpenTelemetry
+    otel_enabled: bool = False
+    otel_service_name: str = "osfeed-backend"
+    otel_exporter: str = "console"  # "console", "otlp"
+    otel_endpoint: str = ""  # OTLP endpoint URL
+
     # Stripe
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""

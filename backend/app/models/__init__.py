@@ -12,3 +12,4 @@ from app.models.newsletter_subscriber import NewsletterSubscriber
 from app.models.notification import Notification
 from app.models.digest_preference import DigestPreference
 from app.models.summary import Summary
+from app.models.dead_letter import DeadLetterEntry

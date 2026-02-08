@@ -5,12 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.database import AsyncSessionLocal
+from app.jobs.retry import retry
 from app.models.message import Message
 from app.services.relevance_scoring import RelevanceScoringService
 
 logger = logging.getLogger(__name__)
 
 
+@retry(max_attempts=3)
 async def score_relevance_job():
     """Score unscored messages from the last 48 hours."""
     logger.info(f"[{datetime.now(timezone.utc)}] Starting relevance scoring job...")

@@ -8,21 +8,23 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import List
 
-from sqlalchemy import select, func, and_
-from sqlalchemy.exc import SQLAlchemyError
 from redis.exceptions import RedisError
-from telethon.errors import RPCError, FloodWaitError
+from sqlalchemy import and_, func, select
+from sqlalchemy.exc import SQLAlchemyError
+from telethon.errors import FloodWaitError, RPCError
 
-from app.models.message import Message
-from app.models.channel import Channel
-from app.services.telegram_client import get_telegram_client
-from app.services.fetch_queue import enqueue_fetch_job
-from app.database import AsyncSessionLocal
 from app.config import settings
+from app.database import AsyncSessionLocal
+from app.jobs.retry import retry
+from app.models.channel import Channel
+from app.models.message import Message
+from app.services.fetch_queue import enqueue_fetch_job
+from app.services.telegram_client import get_telegram_client
 
 logger = logging.getLogger(__name__)
 
 
+@retry(max_attempts=3)
 async def collect_messages_job() -> None:
     """Background job to collect messages from all active Telegram channels.
 

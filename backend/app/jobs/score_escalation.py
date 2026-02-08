@@ -2,9 +2,12 @@
 
 import logging
 
+from app.jobs.retry import retry
+
 logger = logging.getLogger(__name__)
 
 
+@retry(max_attempts=3)
 async def score_escalation_job():
     """Score unscored messages for escalation level."""
     try:
