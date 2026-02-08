@@ -8,20 +8,23 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional, AsyncGenerator
+from typing import AsyncGenerator, Optional
 from uuid import UUID
 
-from sqlalchemy import select, desc, tuple_, and_
+from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
+from sqlalchemy import desc, select, tuple_
 from sqlalchemy.orm import selectinload
 
+from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.models.message import Message
-from app.models.channel import Channel, user_channels
-from app.schemas.message import MessageResponse
-from app.services.cache import get_redis_client
+from app.services.message_utils import (
+    apply_message_filters as _apply_message_filters,
+)
 from app.services.message_utils import (
     message_to_response as _message_to_response,
-    apply_message_filters as _apply_message_filters,
 )
 
 logger = logging.getLogger(__name__)
@@ -104,13 +107,22 @@ async def create_message_stream(
 
     # 2. Realtime tailing via Redis Pub/Sub
     if realtime:
-        redis = get_redis_client()
-        if not redis:
-            # Fallback to polling if Redis is down
+        settings = get_settings()
+        if not settings.redis_url:
             yield "event: error\ndata: {\"error\": \"Realtime unavailable\"}\n\n"
             return
 
-        pubsub = redis.pubsub()
+        # Dedicated Redis client for pub/sub with no socket_timeout
+        # (the shared client has socket_timeout=5 which kills long-lived subscriptions)
+        pubsub_redis = Redis.from_url(
+            settings.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=10,
+            socket_timeout=None,  # No timeout for blocking pub/sub reads
+            socket_keepalive=True,
+            health_check_interval=30,
+        )
+        pubsub = pubsub_redis.pubsub()
         await pubsub.subscribe("osfeed:events")
         yield "event: connected\ndata: {}\n\n"
 
@@ -118,65 +130,93 @@ async def create_message_stream(
             last_published_at = datetime.now(timezone.utc)
 
         try:
-            async for event in pubsub.listen():
-                if event["type"] != "message":
+            while True:
+                try:
+                    async for event in pubsub.listen():
+                        if event["type"] != "message":
+                            continue
+
+                        data = json.loads(event["data"])
+                        event_type = data.get("type", "")
+
+                        # Handle translation events - forward directly to client
+                        if event_type == "message:translated":
+                            translation_event = {
+                                "type": "message:translated",
+                                "data": data.get("data", {})
+                            }
+                            yield f"data: {json.dumps(translation_event)}\n\n"
+                            continue
+
+                        # Handle alert events - forward directly to client
+                        if event_type == "alert:triggered":
+                            alert_event = {
+                                "type": "alert:triggered",
+                                "data": data.get("data", {})
+                            }
+                            yield f"data: {json.dumps(alert_event)}\n\n"
+                            continue
+
+                        # Handle new message events - query DB and send
+                        if event_type == "message:new":
+                            async with AsyncSessionLocal() as db:
+                                query = select(Message).options(selectinload(Message.channel))
+                                query = _apply_message_filters(
+                                    query, user_id, channel_id, channel_ids, None, None, media_types,
+                                )
+
+                                if last_message_id:
+                                    query = query.where(
+                                        tuple_(Message.published_at, Message.id) > (last_published_at, last_message_id)
+                                    )
+                                else:
+                                    query = query.where(Message.published_at > last_published_at)
+
+                                query = query.order_by(Message.published_at.asc(), Message.id.asc())
+                                query = query.limit(50)
+
+                                result = await db.execute(query)
+                                new_messages = result.scalars().all()
+
+                            if new_messages:
+                                newest = new_messages[-1]
+                                last_published_at = newest.published_at
+                                last_message_id = newest.id
+
+                                payload = {
+                                    "messages": [
+                                        _message_to_response(msg).model_dump(mode="json")
+                                        for msg in new_messages
+                                    ],
+                                    "type": "realtime"
+                                }
+                                yield f"data: {json.dumps(payload)}\n\n"
+                except (RedisTimeoutError, RedisConnectionError, OSError) as e:
+                    logger.warning(f"Redis pub/sub connection lost: {type(e).__name__}: {e}, reconnecting...")
+                    try:
+                        await pubsub.unsubscribe("osfeed:events")
+                    except Exception:
+                        pass
+                    await asyncio.sleep(2)
+                    try:
+                        await pubsub.subscribe("osfeed:events")
+                    except Exception:
+                        # If resubscribe fails, recreate the pub/sub object
+                        try:
+                            await pubsub.close()
+                        except Exception:
+                            pass
+                        pubsub = pubsub_redis.pubsub()
+                        await pubsub.subscribe("osfeed:events")
                     continue
-
-                data = json.loads(event["data"])
-                event_type = data.get("type", "")
-
-                # Handle translation events - forward directly to client
-                if event_type == "message:translated":
-                    translation_event = {
-                        "type": "message:translated",
-                        "data": data.get("data", {})
-                    }
-                    yield f"data: {json.dumps(translation_event)}\n\n"
-                    continue
-
-                # Handle alert events - forward directly to client
-                if event_type == "alert:triggered":
-                    alert_event = {
-                        "type": "alert:triggered",
-                        "data": data.get("data", {})
-                    }
-                    yield f"data: {json.dumps(alert_event)}\n\n"
-                    continue
-
-                # Handle new message events - query DB and send
-                if event_type == "message:new":
-                    async with AsyncSessionLocal() as db:
-                        query = select(Message).options(selectinload(Message.channel))
-                        query = _apply_message_filters(query, user_id, channel_id, channel_ids, None, None, media_types)
-
-                        if last_message_id:
-                            query = query.where(
-                                tuple_(Message.published_at, Message.id) > (last_published_at, last_message_id)
-                            )
-                        else:
-                            query = query.where(Message.published_at > last_published_at)
-
-                        query = query.order_by(Message.published_at.asc(), Message.id.asc())
-                        query = query.limit(50)
-
-                        result = await db.execute(query)
-                        new_messages = result.scalars().all()
-
-                    if new_messages:
-                        newest = new_messages[-1]
-                        last_published_at = newest.published_at
-                        last_message_id = newest.id
-
-                        payload = {
-                            "messages": [
-                                _message_to_response(msg).model_dump(mode="json")
-                                for msg in new_messages
-                            ],
-                            "type": "realtime"
-                        }
-                        yield f"data: {json.dumps(payload)}\n\n"
         except asyncio.CancelledError:
-            await pubsub.unsubscribe("osfeed:events")
-            raise
+            pass
+        finally:
+            try:
+                await pubsub.unsubscribe("osfeed:events")
+                await pubsub.close()
+            except Exception:
+                pass
+            await pubsub_redis.close()
 
     yield "event: end\ndata: {}\n\n"
