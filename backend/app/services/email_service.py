@@ -318,7 +318,16 @@ class EmailService:
             text=text,
         )
 
-    async def send_alert_triggered(self, email: str, alert_name: str, summary: str, message_count: int) -> bool:
+    async def send_alert_triggered(
+        self,
+        email: str,
+        alert_name: str,
+        summary: str,
+        message_count: int,
+        keywords: list[str] | None = None,
+        message_preview: str | None = None,
+        alert_id: str | None = None,
+    ) -> bool:
         """Send alert triggered notification email."""
         settings = get_settings()
         if not settings.email_enabled:
@@ -330,11 +339,20 @@ class EmailService:
             logger.warning("No email provider configured")
             return False
 
+        # Build links for the email
+        base_url = settings.frontend_url.rstrip("/")
+        alert_link = f"{base_url}/alerts/{alert_id}" if alert_id else f"{base_url}/alerts"
+        unsubscribe_link = f"{base_url}/settings/notifications"
+
         context = {
             "user_email": email,
             "alert_name": alert_name,
             "summary": summary,
             "message_count": message_count,
+            "keywords": keywords or [],
+            "message_preview": message_preview or "",
+            "alert_link": alert_link,
+            "unsubscribe_link": unsubscribe_link,
             "app_name": "OSFeed",
         }
 

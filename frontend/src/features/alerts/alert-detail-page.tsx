@@ -17,10 +17,7 @@ export function AlertDetailPage() {
 
   const alertQuery = useQuery({
     queryKey: ['alerts', id],
-    queryFn: async () => {
-      const list = (await alertsApi.list()).data
-      return list.find((a) => a.id === id) ?? null
-    },
+    queryFn: async () => (await alertsApi.get(id!)).data,
     enabled: !!id,
   })
 

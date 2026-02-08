@@ -13,6 +13,14 @@ export const alertsApi = {
   list: (params?: { collection_id?: string }) => api.get<Alert[]>('/api/alerts', { params }),
 
   /**
+   * Retrieve a single alert by ID.
+   *
+   * @param id - The alert ID to retrieve
+   * @returns Promise resolving to the Alert object
+   */
+  get: (id: string) => api.get<Alert>(`/api/alerts/${id}`),
+
+  /**
    * Create a new alert with specified keywords, entities, and notification settings.
    * Alerts monitor collections for matching content and trigger notifications.
    *

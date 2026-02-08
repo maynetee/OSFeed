@@ -136,58 +136,86 @@ async def evaluate_alerts_job():
             alert.last_triggered_at = now
             alert.last_evaluated_at = now
 
-            # Create in-app notification
-            notification = Notification(
-                user_id=alert.user_id,
-                type="alert_triggered",
-                title=f"Alert: {alert.name}",
-                body=summary,
-                link=f"/alerts/{alert.id}",
-                metadata_={
-                    "alert_id": str(alert.id),
-                    "matched_keywords": keywords,
-                    "message_count": len(new_messages),
-                },
-            )
-            session.add(notification)
-
-            # Flush to get trigger.id before publishing event
-            await session.flush()
-
-            # Publish alert:triggered event with user_id for frontend targeting
-            try:
-                await publish_alert_triggered(
-                    alert_id=alert.id,
-                    trigger_id=trigger.id,
-                    alert_name=alert.name,
-                    summary=summary,
-                    message_count=len(new_messages),
-                    user_id=alert.user_id,
+            # Check rate limit: count notifications for this user in the last hour
+            rate_limit_window = now - timedelta(hours=1)
+            rate_count_result = await session.execute(
+                select(func.count()).where(
+                    Notification.user_id == alert.user_id,
+                    Notification.type == "alert_triggered",
+                    Notification.created_at >= rate_limit_window,
                 )
-                logger.debug(f"Published alert:triggered event for alert {alert.name}")
-            except RedisError as e:
-                logger.error(f"Failed to publish alert:triggered event for alert {alert.name}: {e}")
+            )
+            notifications_in_hour = rate_count_result.scalar() or 0
 
-            # Send email notification if email channel is enabled
-            if alert.notification_channels and 'email' in alert.notification_channels:
+            # If rate limit exceeded, skip notification and email but still commit the trigger
+            if notifications_in_hour >= 10:
+                logger.warning(
+                    f"Rate limit reached for user {alert.user_id}: {notifications_in_hour} "
+                    f"notifications in last hour, skipping notification for alert {alert.name}"
+                )
+            else:
+                # Create in-app notification
+                notification = Notification(
+                    user_id=alert.user_id,
+                    type="alert_triggered",
+                    title=f"Alert: {alert.name}",
+                    body=summary,
+                    link=f"/alerts/{alert.id}",
+                    metadata_={
+                        "alert_id": str(alert.id),
+                        "matched_keywords": keywords,
+                        "message_count": len(new_messages),
+                    },
+                )
+                session.add(notification)
+
+                # Flush to get trigger.id before publishing event
+                await session.flush()
+
+                # Publish alert:triggered event with user_id for frontend targeting
                 try:
-                    user_result = await session.execute(
-                        select(User).where(User.id == alert.user_id)
+                    await publish_alert_triggered(
+                        alert_id=alert.id,
+                        trigger_id=trigger.id,
+                        alert_name=alert.name,
+                        summary=summary,
+                        message_count=len(new_messages),
+                        user_id=alert.user_id,
                     )
-                    user = user_result.scalar_one_or_none()
-                    if user and user.email:
-                        success = await email_service.send_alert_triggered(
-                            email=user.email,
-                            alert_name=alert.name,
-                            summary=summary,
-                            message_count=len(new_messages)
+                    logger.debug(f"Published alert:triggered event for alert {alert.name}")
+                except RedisError as e:
+                    logger.error(f"Failed to publish alert:triggered event for alert {alert.name}: {e}")
+
+                # Send email notification if email channel is enabled
+                if alert.notification_channels and 'email' in alert.notification_channels:
+                    try:
+                        user_result = await session.execute(
+                            select(User).where(User.id == alert.user_id)
                         )
-                        if success:
-                            logger.debug(f"Sent email notification for alert {alert.name} to {user.email}")
-                        else:
-                            logger.warning(f"Failed to send email notification for alert {alert.name}")
-                except Exception as e:
-                    logger.error(f"Failed to send email notification for alert {alert.name}: {e}")
+                        user = user_result.scalar_one_or_none()
+                        if user and user.email:
+                            # Prepare message preview from first matched message
+                            message_preview = ""
+                            if new_messages:
+                                first_msg = new_messages[0]
+                                preview_text = first_msg.translated_text or first_msg.original_text or ""
+                                message_preview = preview_text[:200] if preview_text else ""
+
+                            success = await email_service.send_alert_triggered(
+                                email=user.email,
+                                alert_name=alert.name,
+                                summary=summary,
+                                message_count=len(new_messages),
+                                keywords=keywords,
+                                message_preview=message_preview,
+                                alert_id=str(alert.id),
+                            )
+                            if success:
+                                logger.debug(f"Sent email notification for alert {alert.name} to {user.email}")
+                            else:
+                                logger.warning(f"Failed to send email notification for alert {alert.name}")
+                    except Exception as e:
+                        logger.error(f"Failed to send email notification for alert {alert.name}: {e}")
 
         await session.commit()
 

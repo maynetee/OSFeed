@@ -9,10 +9,21 @@ Alert Details:
 Alert Name: {{ alert_name }}
 Summary: {{ summary }}
 Matching Messages: {{ message_count }}
+{% if keywords %}
+Keywords: {{ keywords|join(', ') }}
+{% endif %}
+
+{% if message_preview %}
+Message Preview:
+"{{ message_preview }}{% if message_preview|length >= 200 %}...{% endif %}"
+{% endif %}
 
 This alert was triggered based on your configured monitoring criteria. Please review your messages to take appropriate action.
+
+View in {{ app_name }}: {{ alert_link }}
 
 To manage your alerts or adjust notification settings, please log in to your {{ app_name }} account.
 
 ---
 © {{ app_name }}. All rights reserved.
+Manage notification preferences: {{ unsubscribe_link }}

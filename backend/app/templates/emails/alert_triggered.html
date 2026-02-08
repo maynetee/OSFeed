@@ -14,8 +14,14 @@
         .alert-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; margin: 16px 0; border-radius: 4px; }
         .alert-name { font-weight: 600; color: #92400e; font-size: 16px; margin-bottom: 8px; }
         .alert-summary { color: #78350f; margin-bottom: 8px; }
-        .alert-count { color: #92400e; font-weight: 500; }
+        .alert-count { color: #92400e; font-weight: 500; margin-bottom: 12px; }
+        .keywords { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .keyword-tag { display: inline-block; background: #fbbf24; color: #78350f; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 500; }
+        .message-preview { background: #fffbeb; border-radius: 4px; padding: 12px; margin-top: 12px; font-size: 14px; color: #92400e; font-style: italic; border-left: 2px solid #f59e0b; }
+        .btn { display: inline-block; background: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 16px 0; }
+        .btn:hover { background: #1d4ed8; }
         .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #9ca3af; }
+        .footer a { color: #6b7280; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -30,11 +36,25 @@
             <div class="alert-name">{{ alert_name }}</div>
             <div class="alert-summary">{{ summary }}</div>
             <div class="alert-count">{{ message_count }} matching message(s) detected</div>
+            {% if keywords %}
+            <div class="keywords">
+                {% for keyword in keywords %}
+                <span class="keyword-tag">{{ keyword }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if message_preview %}
+            <div class="message-preview">
+                "{{ message_preview }}{% if message_preview|length >= 200 %}...{% endif %}"
+            </div>
+            {% endif %}
         </div>
         <p>This alert was triggered based on your configured monitoring criteria. Please review your messages to take appropriate action.</p>
+        <a href="{{ alert_link }}" class="btn">View in {{ app_name }}</a>
         <p>To manage your alerts or adjust notification settings, please log in to your {{ app_name }} account.</p>
         <div class="footer">
             <p>&copy; {{ app_name }}. All rights reserved.</p>
+            <p><a href="{{ unsubscribe_link }}">Manage notification preferences</a></p>
         </div>
     </div>
 </body>
