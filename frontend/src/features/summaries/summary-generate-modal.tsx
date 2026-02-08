@@ -37,7 +37,7 @@ export function SummaryGenerateModal({
     mutationFn: () =>
       summariesApi.generate({
         collection_id: collectionId,
-        channel_ids: !collectionId ? channelIds : undefined,
+        channel_ids: !collectionId && channelIds?.length ? channelIds : undefined,
         date_range: dateRange,
         max_messages: maxMessages,
       }),

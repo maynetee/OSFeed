@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.users import current_active_user
 from app.database import get_db
+from app.models.channel import user_channels
 from app.models.collection import Collection, collection_channels
 from app.models.message import Message
 from app.models.summary import Summary
@@ -58,7 +59,11 @@ async def generate_summary_endpoint(
         elif payload.channel_ids:
             channel_ids = payload.channel_ids
         else:
-            raise HTTPException(status_code=400, detail="Provide collection_id or channel_ids")
+            # Default to all user channels
+            uc_result = await db.execute(
+                select(user_channels.c.channel_id).where(user_channels.c.user_id == user.id)
+            )
+            channel_ids = [row[0] for row in uc_result.all()]
 
         if not channel_ids:
             raise HTTPException(status_code=400, detail="No channels found for this scope")
