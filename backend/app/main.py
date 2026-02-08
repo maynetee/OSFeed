@@ -155,11 +155,11 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
 )
 
-# Security headers middleware
-app.add_middleware(SecurityHeadersMiddleware)
-
-# Auth middleware (added after SecurityHeaders so it executes first in reverse order)
+# Auth middleware (inner — runs first on requests, after security headers on responses)
 app.add_middleware(AuthMiddleware)
+
+# Security headers middleware (outer — added last so it wraps all responses including auth 401s)
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["auth"])
