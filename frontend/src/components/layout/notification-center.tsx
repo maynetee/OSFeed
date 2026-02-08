@@ -15,12 +15,14 @@ import {
 } from '@/components/ui/dialog'
 import { Timestamp } from '@/components/common/timestamp'
 import { useMessageStream } from '@/hooks/use-message-stream'
+import { useUserStore } from '@/stores/user-store'
 
 export function NotificationCenter() {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const user = useUserStore((s) => s.user)
 
   const notificationsQuery = useQuery({
     queryKey: ['notifications'],
@@ -48,7 +50,7 @@ export function NotificationCenter() {
   })
 
   useMessageStream({
-    enabled: true,
+    enabled: !!user,
     onAlert: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },

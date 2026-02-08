@@ -6,13 +6,15 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { useMessageStream } from '@/hooks/use-message-stream'
 import { useMobile } from '@/hooks/use-mobile'
+import { useUserStore } from '@/stores/user-store'
 
 export function AppShell() {
   useKeyboardShortcuts()
   const isMobile = useMobile()
+  const user = useUserStore((s) => s.user)
 
   useMessageStream({
-    enabled: true,
+    enabled: !!user,
     onAlert: (data) => {
       toast.success(data.alert_name, {
         description: data.summary,
