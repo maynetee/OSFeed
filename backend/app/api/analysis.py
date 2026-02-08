@@ -36,7 +36,7 @@ router = APIRouter()
 @router.get("/escalation", response_model=EscalationTrendResponse)
 async def get_escalation_trend(
     collection_id: Optional[UUID] = None,
-    period: str = Query("7d", regex="^(7d|30d|90d)$"),
+    period: str = Query("7d", pattern="^(7d|30d|90d)$"),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -132,7 +132,7 @@ async def get_correlation(
 
 @router.get("/patterns", response_model=PatternListResponse)
 async def list_patterns(
-    period: str = Query("7d", regex="^(7d|30d)$"),
+    period: str = Query("7d", pattern="^(7d|30d)$"),
     limit: int = Query(10, ge=1, le=50),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),

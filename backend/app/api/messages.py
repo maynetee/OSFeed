@@ -86,7 +86,7 @@ async def list_messages(
     topics: Optional[List[str]] = Query(None, description="Filter by channel topics"),
     unique_only: bool = Query(False, description="Show only unique stories (one per duplicate group)"),
     min_escalation: Optional[float] = Query(None, ge=0.0, le=1.0, description="Filter messages with escalation score >= this value"),
-    sort: str = Query("latest", regex="^(latest|relevance)$"),
+    sort: str = Query("latest", pattern="^(latest|relevance)$"),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
