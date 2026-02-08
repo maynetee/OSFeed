@@ -1,12 +1,14 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+import asyncio
+import logging
+import os
+
+from sqlalchemy import event, text
+from sqlalchemy.exc import DatabaseError, OperationalError, SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import StaticPool
-from sqlalchemy import event, text
-from sqlalchemy.exc import SQLAlchemyError, OperationalError, DatabaseError
+
 from app.config import get_settings
-import os
-import logging
-import asyncio
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -137,9 +139,30 @@ async def init_db():
                     await conn.run_sync(Base.metadata.create_all)
                 logger.info("Database tables initialized (SQLite mode)")
             else:
-                # For PostgreSQL, just verify connectivity — Alembic handles schema
+                # For PostgreSQL, verify connectivity and fix any missing columns
                 async with engine.begin() as conn:
                     await conn.execute(text("SELECT 1"))
+                    # Ensure summaries table has all required columns
+                    result = await conn.execute(text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_name = 'summaries'"
+                    ))
+                    existing_cols = {row[0] for row in result}
+                    if existing_cols:  # table exists
+                        migrations = {
+                            "channel_ids": "ALTER TABLE summaries ADD COLUMN channel_ids JSON DEFAULT '[]'",
+                            "date_range_start": "ALTER TABLE summaries ADD COLUMN date_range_start TIMESTAMPTZ",
+                            "date_range_end": "ALTER TABLE summaries ADD COLUMN date_range_end TIMESTAMPTZ",
+                            "key_themes": "ALTER TABLE summaries ADD COLUMN key_themes JSON DEFAULT '[]'",
+                            "notable_events": "ALTER TABLE summaries ADD COLUMN notable_events JSON DEFAULT '[]'",
+                            "message_count": "ALTER TABLE summaries ADD COLUMN message_count INTEGER DEFAULT 0",
+                            "model_used": "ALTER TABLE summaries ADD COLUMN model_used VARCHAR(50)",
+                            "generation_time_seconds": "ALTER TABLE summaries ADD COLUMN generation_time_seconds FLOAT",
+                        }
+                        for col, ddl in migrations.items():
+                            if col not in existing_cols:
+                                await conn.execute(text(ddl))
+                                logger.info(f"Added missing column summaries.{col}")
                 logger.info("Database connection verified (Alembic manages schema)")
             return
         except (OperationalError, DatabaseError) as e:
