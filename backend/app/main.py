@@ -22,6 +22,7 @@ from app.jobs.score_escalation import score_escalation_job
 from app.jobs.score_relevance import score_relevance_job
 from app.jobs.send_daily_digests import send_daily_digests_job
 from app.jobs.translate_pending_messages import translate_pending_messages_job
+from app.middleware.auth import AuthMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.seeds.curated_collections import seed_curated_collections
 from app.services.channel_join_queue import process_join_queue
@@ -156,6 +157,9 @@ app.add_middleware(
 
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Auth middleware (added after SecurityHeaders so it executes first in reverse order)
+app.add_middleware(AuthMiddleware)
 
 # Include routers
 app.include_router(auth.router, prefix="/api", tags=["auth"])

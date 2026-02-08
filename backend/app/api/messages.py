@@ -35,6 +35,7 @@ from app.services.message_export_service import (
 from app.services.message_media_service import get_media_stream
 from app.services.message_streaming_service import create_message_stream
 from app.services.message_translation_bulk_service import translate_messages_batch, translate_single_message
+from app.models.analysis import EscalationScore
 from app.services.message_utils import (
     apply_message_filters,
     get_single_message,
@@ -83,6 +84,8 @@ async def list_messages(
     media_types: Optional[list[str]] = Query(None),
     region: Optional[str] = Query(None, description="Filter by channel region"),
     topics: Optional[List[str]] = Query(None, description="Filter by channel topics"),
+    unique_only: bool = Query(False, description="Show only unique stories (one per duplicate group)"),
+    min_escalation: Optional[float] = Query(None, ge=0.0, le=1.0, description="Filter messages with escalation score >= this value"),
     sort: str = Query("latest", regex="^(latest|relevance)$"),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -107,6 +110,19 @@ async def list_messages(
     query = select(Message).options(selectinload(Message.channel))
     query = apply_message_filters(query, user.id, channel_id, channel_ids, start_date, end_date, media_types, region=region)
 
+    if unique_only:
+        query = query.where(
+            or_(
+                Message.duplicate_group_id.is_(None),
+                Message.is_duplicate.is_(False),
+            )
+        )
+
+    if min_escalation is not None:
+        query = query.join(
+            EscalationScore, EscalationScore.message_id == Message.id
+        ).where(EscalationScore.score >= min_escalation)
+
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
@@ -126,18 +142,61 @@ async def list_messages(
     result = await db.execute(query)
     messages = result.scalars().all()
 
+    # Compute duplicate counts for messages with duplicate_group_ids
+    group_ids = [m.duplicate_group_id for m in messages if m.duplicate_group_id]
+    dup_counts = {}
+    if group_ids:
+        count_result = await db.execute(
+            select(Message.duplicate_group_id, func.count(Message.id))
+            .where(Message.duplicate_group_id.in_(group_ids))
+            .group_by(Message.duplicate_group_id)
+        )
+        dup_counts = {row[0]: row[1] for row in count_result.all()}
+
+    # Load escalation scores for messages
+    message_ids = [m.id for m in messages]
+    escalation_map = {}
+    if message_ids:
+        esc_result = await db.execute(
+            select(EscalationScore).where(EscalationScore.message_id.in_(message_ids))
+        )
+        for esc in esc_result.scalars().all():
+            escalation_map[esc.message_id] = esc
+
     next_cursor = None
     if sort != "relevance" and messages:
         last_message = messages[-1]
         next_cursor = _encode_cursor(last_message.published_at, last_message.id)
 
+    def _msg_response(message):
+        resp = message_to_response(message, escalation=escalation_map.get(message.id))
+        if message.duplicate_group_id and message.duplicate_group_id in dup_counts:
+            resp.duplicate_count = dup_counts[message.duplicate_group_id]
+        return resp
+
     return MessageListResponse(
-        messages=[message_to_response(message) for message in messages],
+        messages=[_msg_response(message) for message in messages],
         total=total,
         page=offset // limit + 1 if not cursor else 1,
         page_size=limit,
         next_cursor=next_cursor,
     )
+
+
+async def _track_active_channels(channel_ids: Optional[list[UUID]]) -> None:
+    """Store active channel IDs in Redis with TTL for translation priority."""
+    if not channel_ids:
+        return
+    try:
+        from app.services.cache import get_redis_client
+        redis = get_redis_client()
+        if redis is None:
+            return
+        str_ids = [str(cid) for cid in channel_ids]
+        await redis.sadd("active_channels", *str_ids)
+        await redis.expire("active_channels", 600)  # 10 minute TTL
+    except Exception:
+        pass  # Non-critical, fail silently
 
 
 @router.get("/stream")
@@ -147,12 +206,15 @@ async def stream_messages(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     batch_size: int = Query(20, ge=1, le=100),
-    limit: int = Query(200, ge=1, le=1000),
+    limit: int = Query(200, ge=1, le=200),
     realtime: bool = Query(False),
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
 ):
     """Stream messages via SSE. Uses Redis Pub/Sub for realtime updates."""
+    # Track active channels for translation priority
+    await _track_active_channels(channel_ids)
+
     return StreamingResponse(
         create_message_stream(
             user_id=user.id,
@@ -333,7 +395,7 @@ async def export_messages_html(
     channel_ids: Optional[list[UUID]] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    limit: int = Query(200, ge=1, le=5000),
+    limit: int = Query(200, ge=1, le=200),
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
@@ -380,7 +442,7 @@ async def export_messages_pdf(
     channel_ids: Optional[list[UUID]] = Query(None),
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
-    limit: int = Query(200, ge=1, le=1000),
+    limit: int = Query(200, ge=1, le=200),
     media_types: Optional[list[str]] = Query(None),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),

@@ -20,7 +20,7 @@ router = APIRouter()
 async def list_notifications(
     is_read: Optional[bool] = None,
     limit: int = Query(20, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=10000),
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_db),
 ):

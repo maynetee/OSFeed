@@ -14,7 +14,7 @@ greenlet>=3.0.0
 aiosqlite>=0.20.0  # Kept for local development fallback
 
 # Authentication - JWT
-fastapi-users[sqlalchemy]>=13.0.0
+fastapi-users[sqlalchemy]>=15.0.2
 PyJWT>=2.8.0
 passlib[bcrypt]>=1.7.4
 
@@ -40,8 +40,11 @@ pytest-asyncio>=0.23.0
 
 # Email
 aiosmtplib>=3.0.0
-Jinja2>=3.1.0
+Jinja2>=3.1.6
 resend>=1.0.0  # Optional: for Resend email provider
+
+# Vector Database
+qdrant-client>=1.7.0
 
 # Payments
 stripe>=8.0.0
