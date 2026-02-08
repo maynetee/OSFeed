@@ -15,6 +15,9 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
   const { enabled = true, channelId, channelIds, onMessages, onTranslation, onAlert } = options
   const [isConnected, setIsConnected] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const retryCountRef = useRef(0)
+  const backoffRef = useRef(5000)
+  const authRetryRef = useRef(false)
 
   const connect = useCallback(() => {
     if (!enabled) return
@@ -45,10 +48,34 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
       .then(async (response) => {
         if (!response.ok) {
           setIsConnected(false)
+
+          // Handle 401: attempt token refresh once (guard against infinite loop)
+          if (response.status === 401 && !authRetryRef.current) {
+            authRetryRef.current = true
+            try {
+              const refreshResponse = await fetch(`${api.defaults.baseURL}/api/auth/refresh`, {
+                method: 'POST',
+                credentials: 'include',
+              })
+
+              if (refreshResponse.ok) {
+                authRetryRef.current = false
+                connect()
+              }
+              // If refresh fails, stop retrying
+            } catch (refreshErr) {
+              console.error('Token refresh failed:', refreshErr)
+            }
+          }
           return
         }
 
+        // Connection successful: reset retry state
+        retryCountRef.current = 0
+        backoffRef.current = 5000
+        authRetryRef.current = false
         setIsConnected(true)
+
         const reader = response.body?.getReader()
         if (!reader) return
 
@@ -58,7 +85,11 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
 
         while (true) {
           const { done, value } = await reader.read()
-          if (done) break
+          if (done) {
+            // Stream ended naturally, reconnect after 5s
+            setTimeout(connect, 5000)
+            break
+          }
 
           buffer += decoder.decode(value, { stream: true })
 
@@ -103,7 +134,14 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
         if (err.name !== 'AbortError') {
           console.error('SSE Error:', err)
           setIsConnected(false)
-          setTimeout(connect, 5000)
+
+          // Exponential backoff with max 10 retries
+          if (retryCountRef.current < 10) {
+            retryCountRef.current++
+            const delay = Math.min(backoffRef.current, 60000)
+            backoffRef.current = Math.min(backoffRef.current * 2, 60000)
+            setTimeout(connect, delay)
+          }
         }
       })
   }, [enabled, channelId, channelIds, onMessages, onTranslation, onAlert])

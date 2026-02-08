@@ -38,6 +38,7 @@ services:
       coolify:
         aliases:
           - qdrant  # Alias so other services can connect via 'qdrant' hostname
+          - osfeed-qdrant  # Additional alias for backend's QDRANT_URL (http://osfeed-qdrant:6333)
     deploy:
       resources:
         limits:
