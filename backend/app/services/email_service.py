@@ -1,16 +1,16 @@
 """Email service with template rendering and provider abstraction."""
 import logging
+import smtplib
 from abc import ABC, abstractmethod
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Optional
 
 import aiosmtplib
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import httpx
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from jinja2.exceptions import TemplateError
-import httpx
 
 from app.config import get_settings
 
@@ -314,6 +314,48 @@ class EmailService:
         return await provider.send(
             to=email,
             subject="Welcome to the OSFeed Newsletter!",
+            html=html,
+            text=text,
+        )
+
+    async def send_subscription_canceled(
+        self,
+        email: str,
+        plan: str,
+        effective_date: str,
+        access_until: str = None,
+        refund_amount: str = None,
+    ) -> bool:
+        """Send subscription cancellation confirmation email."""
+        settings = get_settings()
+        if not settings.email_enabled:
+            logger.info(f"Email disabled - would send cancellation to {_redact_email(email)}")
+            return False
+
+        provider = self._get_provider()
+        if not provider:
+            logger.warning("No email provider configured")
+            return False
+
+        context = {
+            "plan": plan,
+            "effective_date": effective_date,
+            "access_until": access_until,
+            "refund_amount": refund_amount,
+            "settings_link": f"{settings.frontend_url.rstrip('/')}/settings",
+            "app_name": "OSFeed",
+        }
+
+        html = template_renderer.render("subscription_canceled.html", **context)
+        text = template_renderer.render("subscription_canceled.txt", **context)
+
+        subject = "Your OSFeed subscription has been canceled"
+        if refund_amount:
+            subject = "Your OSFeed refund has been processed"
+
+        return await provider.send(
+            to=email,
+            subject=subject,
             html=html,
             text=text,
         )

@@ -1,4 +1,5 @@
 import stripe
+
 from app.config import get_settings
 
 
@@ -44,3 +45,32 @@ async def create_portal_session(customer_id: str, return_url: str):
         return_url=return_url,
     )
     return session
+
+
+async def get_subscription_details(subscription_id: str):
+    settings = get_settings()
+    stripe.api_key = settings.stripe_secret_key
+    return stripe.Subscription.retrieve(subscription_id)
+
+
+async def cancel_subscription(subscription_id: str, immediate: bool = False):
+    settings = get_settings()
+    stripe.api_key = settings.stripe_secret_key
+    if immediate:
+        return stripe.Subscription.delete(subscription_id)
+    else:
+        return stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
+
+
+async def create_refund(subscription_id: str):
+    settings = get_settings()
+    stripe.api_key = settings.stripe_secret_key
+    invoices = stripe.Invoice.list(subscription=subscription_id, limit=1)
+    if not invoices.data:
+        raise ValueError("No invoices found for this subscription")
+    invoice = invoices.data[0]
+    if not invoice.payment_intent:
+        raise ValueError("No payment found for refund")
+    refund = stripe.Refund.create(payment_intent=invoice.payment_intent)
+    stripe.Subscription.delete(subscription_id)
+    return refund

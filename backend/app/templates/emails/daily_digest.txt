@@ -19,4 +19,5 @@ View: {{ frontend_url }}/collections/{{ collection.id }}
 {% endfor %}
 ---
 You're receiving this because you enabled daily digests on {{ app_name }}.
+Unsubscribe: {{ unsubscribe_url }}
 Manage settings: {{ frontend_url }}/settings

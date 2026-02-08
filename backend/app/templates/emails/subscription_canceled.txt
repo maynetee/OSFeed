@@ -1,0 +1,18 @@
+{{ app_name }} - Subscription Canceled
+
+Your subscription has been canceled.
+
+Plan: {{ plan }}
+Cancellation date: {{ effective_date }}
+{% if access_until %}
+You'll continue to have access until {{ access_until }}.
+{% else %}
+Your access to premium features has ended.
+{% endif %}
+{% if refund_amount %}
+Refund initiated: {{ refund_amount }} will be returned to your payment method. This may take 5-10 business days.
+{% endif %}
+
+You can resubscribe at any time from your settings: {{ settings_link }}
+
+(c) {{ app_name }}. All rights reserved.

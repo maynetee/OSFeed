@@ -10,14 +10,31 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api import alerts, analysis, audit_logs, auth, channels, collections, contact_sales, digests, insights, messages, newsletter, notifications, stats, stripe, summaries
+from app.api import (
+    alerts,
+    analysis,
+    audit_logs,
+    auth,
+    channels,
+    collections,
+    contact_sales,
+    digests,
+    insights,
+    messages,
+    newsletter,
+    notifications,
+    stats,
+    stripe,
+    subscription,
+    summaries,
+)
 from app.config import get_settings
 from app.database import get_engine, init_db
 from app.jobs.alerts import evaluate_alerts_job
 from app.jobs.collect_messages import collect_messages_job
+from app.jobs.correlate_sources import correlate_sources_job
 from app.jobs.detect_patterns import detect_patterns_job
 from app.jobs.purge_audit_logs import purge_audit_logs_job
-from app.jobs.correlate_sources import correlate_sources_job
 from app.jobs.score_escalation import score_escalation_job
 from app.jobs.score_relevance import score_relevance_job
 from app.jobs.send_daily_digests import send_daily_digests_job
@@ -177,6 +194,7 @@ app.include_router(summaries.router, prefix="/api/summaries", tags=["summaries"]
 app.include_router(digests.router, prefix="/api/digests", tags=["digests"])
 app.include_router(insights.router, prefix="/api/insights", tags=["insights"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
+app.include_router(subscription.router, prefix="/api/subscription", tags=["subscription"])
 
 
 @app.get("/")

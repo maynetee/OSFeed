@@ -29,6 +29,7 @@ PUBLIC_ROUTES: list[str] = [
     "/api/contact-sales",
     "/api/newsletter",
     "/api/collections/curated",
+    "/api/digests/unsubscribe",
 ]
 
 

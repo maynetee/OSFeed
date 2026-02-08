@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { messagesApi, LANGUAGES, collectionsApi } from '@/lib/api/client'
+import { stripeApi } from '@/lib/api/stripe'
 import { digestsApi } from '@/lib/api/digests'
 
 const PREFS_KEY = 'osfeed_notification_prefs'
@@ -100,6 +101,28 @@ export function SettingsPage() {
     [updateDigest, digestData],
   )
 
+  // Subscription status
+  const { data: subscription, isLoading: subLoading } = useQuery({
+    queryKey: ['subscription-status'],
+    queryFn: () => stripeApi.getSubscriptionStatus().then((r) => r.data),
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: (immediate: boolean) => stripeApi.cancelSubscription(immediate),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-status'] })
+      alert(res.data.message)
+    },
+  })
+
+  const refundMutation = useMutation({
+    mutationFn: () => stripeApi.requestRefund(),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['subscription-status'] })
+      alert(res.data.message)
+    },
+  })
+
   const handleLanguageChange = async (value: string) => {
     setIsTranslating(true)
     i18n.changeLanguage(value)
@@ -119,6 +142,114 @@ export function SettingsPage() {
           <p className="text-sm text-foreground/60">{t('settings.subtitle')}</p>
           <h2 className="text-2xl font-semibold">{t('settings.title')}</h2>
         </div>
+
+        {/* Subscription Management */}
+        <Card>
+          <CardContent className="flex flex-col gap-4 py-6">
+            <div>
+              <p className="text-sm font-semibold">{t('settings.subscriptionTitle')}</p>
+              <p className="text-xs text-foreground/60">{t('settings.subscriptionDescription')}</p>
+            </div>
+
+            {subLoading ? (
+              <p className="text-xs text-foreground/40">{t('settings.subscriptionLoading')}</p>
+            ) : !subscription || subscription.status === 'none' || subscription.plan === 'none' ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-foreground/60">{t('settings.subscriptionNone')}</p>
+                <a
+                  href="/pricing"
+                  className="self-start text-sm font-medium text-primary hover:underline"
+                >
+                  {t('settings.subscriptionUpgrade')}
+                </a>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-foreground/60">{t('settings.subscriptionPlan')}:</span>
+                  <span className="font-medium capitalize">{subscription.plan}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-foreground/60">{t('settings.subscriptionStatus')}:</span>
+                  {subscription.status === 'active' && (
+                    <span className="rounded bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
+                      {t('settings.subscriptionActive')}
+                    </span>
+                  )}
+                  {subscription.status === 'cancel_at_period_end' && (
+                    <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600">
+                      {t('settings.subscriptionCanceling')}
+                    </span>
+                  )}
+                  {subscription.status === 'canceled' && (
+                    <span className="rounded bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-600">
+                      {t('settings.subscriptionCanceled')}
+                    </span>
+                  )}
+                </div>
+
+                {subscription.status === 'active' && subscription.period_end && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-foreground/60">{t('settings.subscriptionRenewal')}:</span>
+                    <span>{new Date(subscription.period_end).toLocaleDateString()}</span>
+                  </div>
+                )}
+
+                {subscription.status === 'cancel_at_period_end' && subscription.period_end && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-foreground/60">{t('settings.subscriptionAccessUntil')}:</span>
+                    <span>{new Date(subscription.period_end).toLocaleDateString()}</span>
+                  </div>
+                )}
+
+                {subscription.status === 'active' && (
+                  <div className="flex flex-col gap-2 pt-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(t('settings.cancelConfirmPeriodEnd'))) {
+                            cancelMutation.mutate(false)
+                          }
+                        }}
+                        disabled={cancelMutation.isPending}
+                        className="rounded border border-input px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
+                      >
+                        {t('settings.cancelAtPeriodEnd')}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(t('settings.cancelConfirmImmediate'))) {
+                            cancelMutation.mutate(true)
+                          }
+                        }}
+                        disabled={cancelMutation.isPending}
+                        className="rounded border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {t('settings.cancelImmediately')}
+                      </button>
+                    </div>
+                    {subscription.is_refund_eligible && (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => {
+                            if (window.confirm(t('settings.refundConfirm'))) {
+                              refundMutation.mutate()
+                            }
+                          }}
+                          disabled={refundMutation.isPending}
+                          className="self-start rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                        >
+                          {t('settings.requestRefund')}
+                        </button>
+                        <p className="text-xs text-foreground/40">{t('settings.refundEligible')}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardContent className="flex flex-col gap-4 py-6">

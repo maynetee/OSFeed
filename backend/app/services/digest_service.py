@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
+import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +21,16 @@ from app.services.email_service import email_service, template_renderer
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+
+def generate_unsubscribe_token(user_id: str) -> str:
+    """Generate a JWT token for one-click email unsubscribe (valid 30 days)."""
+    payload = {
+        "sub": user_id,
+        "purpose": "digest_unsubscribe",
+        "exp": datetime.now(timezone.utc) + timedelta(days=30),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
 async def summarize_collection_messages(messages_text: list[str], collection_name: str) -> str:
@@ -165,6 +176,9 @@ async def send_digest_email(user: User, content: dict) -> bool:
         logger.warning("No email provider configured for digest")
         return False
 
+    unsubscribe_token = generate_unsubscribe_token(str(user.id))
+    unsubscribe_url = f"{settings.frontend_url.rstrip('/')}/api/digests/unsubscribe?token={unsubscribe_token}"
+
     context = {
         "app_name": "OSFeed",
         "user_email": user.email,
@@ -172,6 +186,7 @@ async def send_digest_email(user: User, content: dict) -> bool:
         "generated_at": content["generated_at"],
         "period": content["period"],
         "frontend_url": settings.frontend_url.rstrip("/"),
+        "unsubscribe_url": unsubscribe_url,
     }
 
     html = template_renderer.render("daily_digest.html", **context)

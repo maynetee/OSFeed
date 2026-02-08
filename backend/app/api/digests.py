@@ -1,10 +1,13 @@
 import logging
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.users import current_active_user
+from app.config import get_settings
 from app.database import get_db
 from app.models.digest_preference import DigestPreference
 from app.models.user import User
@@ -98,3 +101,37 @@ async def send_digest_preview(
     except Exception as e:
         logger.error(f"Failed to send digest preview for user {user.id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate digest preview")
+
+
+@router.get("/unsubscribe", response_class=HTMLResponse)
+async def unsubscribe_digest(token: str, db: AsyncSession = Depends(get_db)):
+    """One-click unsubscribe from digest emails. No auth required."""
+    settings = get_settings()
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        if payload.get("purpose") != "digest_unsubscribe":
+            raise HTTPException(status_code=400, detail="Invalid token")
+        user_id = payload["sub"]
+    except jwt.ExpiredSignatureError:
+        return HTMLResponse(
+            content="<html><body><h1>Link Expired</h1>"
+            "<p>This unsubscribe link has expired. Please visit your settings page to manage digest preferences.</p>"
+            "</body></html>"
+        )
+    except (jwt.InvalidTokenError, KeyError):
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    result = await db.execute(
+        select(DigestPreference).where(DigestPreference.user_id == user_id)
+    )
+    pref = result.scalar_one_or_none()
+    if pref:
+        pref.enabled = False
+        await db.commit()
+
+    return HTMLResponse(
+        content="<html><body><h1>Unsubscribed</h1>"
+        "<p>You have been unsubscribed from OSFeed daily digests. "
+        "You can re-enable them anytime from your settings.</p>"
+        "</body></html>"
+    )
