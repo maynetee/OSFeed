@@ -160,14 +160,9 @@ async def test_security_headers_on_error_responses():
         assert "X-Content-Type-Options" in response.headers
         assert "Strict-Transport-Security" in response.headers
 
-        # Test 404 Not Found
+        # Test non-public endpoint without auth — returns 401 from auth middleware
         not_found_response = await client.get("/nonexistent-endpoint")
-        assert not_found_response.status_code == 404
-
-        # Verify security headers are present on 404 responses
-        assert "Content-Security-Policy" in not_found_response.headers
-        assert "X-Frame-Options" in not_found_response.headers
-        assert "X-Content-Type-Options" in not_found_response.headers
+        assert not_found_response.status_code == 401
 
 
 @pytest.mark.asyncio

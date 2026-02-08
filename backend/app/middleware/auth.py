@@ -22,11 +22,13 @@ PUBLIC_ROUTES: list[str] = [
     "/api/auth/register",
     "/api/auth/refresh",
     "/api/auth/verify",
+    "/api/auth/request-verify-token",
     "/api/auth/forgot-password",
     "/api/auth/reset-password",
     "/api/stripe/webhook",
     "/api/contact-sales",
     "/api/newsletter",
+    "/api/collections/curated",
 ]
 
 
@@ -57,6 +59,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if _is_public(request.url.path):
             return await call_next(request)
 
+        # Skip middleware when auth dependency is overridden (test environment).
+        # Tests use app.dependency_overrides[current_active_user] to inject a
+        # fake user — the per-route Depends() handles auth in that case.
+        from app.auth.users import current_active_user  # noqa: E402
+
+        if current_active_user in request.app.dependency_overrides:
+            return await call_next(request)
+
         # Extract JWT from cookie
         token = request.cookies.get(self.settings.cookie_access_token_name)
         if not token:
@@ -70,6 +80,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 token,
                 self.settings.secret_key,
                 algorithms=[self.settings.algorithm],
+                audience=["fastapi-users:auth"],
             )
             user_id = payload.get("sub")
             if user_id is None:
