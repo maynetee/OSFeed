@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { api } from '@/lib/api/client'
 import { Message, TranslationUpdate } from '@/lib/api/client'
+import { useUserStore } from '@/stores/user-store'
 
 interface UseMessageStreamOptions {
   enabled?: boolean
@@ -18,6 +19,10 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
   const retryCountRef = useRef(0)
   const backoffRef = useRef(5000)
   const authRetryRef = useRef(false)
+  const authFailedRef = useRef(false)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const user = useUserStore((s) => s.user)
 
   // Store callbacks in refs so they don't trigger reconnection on every render
   const onMessagesRef = useRef(onMessages)
@@ -27,8 +32,14 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
   onTranslationRef.current = onTranslation
   onAlertRef.current = onAlert
 
+  const scheduleReconnect = useCallback((delay: number, connectFn: () => void) => {
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
+    reconnectTimerRef.current = setTimeout(connectFn, delay)
+  }, [])
+
   const connect = useCallback(() => {
     if (!enabled) return
+    if (authFailedRef.current) return
 
     // Cleanup previous connection
     if (abortControllerRef.current) {
@@ -73,7 +84,9 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
             } catch (refreshErr) {
               console.error('Token refresh failed:', refreshErr)
             }
-            // Refresh failed or errored: abort and stop all retries
+            // Refresh failed or errored: mark auth as failed and stop all retries
+            authFailedRef.current = true
+            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current)
             if (abortControllerRef.current) {
               abortControllerRef.current.abort()
               abortControllerRef.current = null
@@ -99,7 +112,7 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
           const { done, value } = await reader.read()
           if (done) {
             // Stream ended naturally, reconnect after 5s
-            setTimeout(connect, 5000)
+            scheduleReconnect(5000, connect)
             break
           }
 
@@ -146,20 +159,49 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
           console.error('SSE Error:', err)
           setIsConnected(false)
 
+          // Don't retry if auth has failed
+          if (authFailedRef.current) return
+
           // Exponential backoff with max 10 retries
           if (retryCountRef.current < 10) {
             retryCountRef.current++
             const delay = Math.min(backoffRef.current, 60000)
             backoffRef.current = Math.min(backoffRef.current * 2, 60000)
-            setTimeout(connect, delay)
+            scheduleReconnect(delay, connect)
           }
         }
       })
-  }, [enabled, channelId, channelIds])
+  }, [enabled, channelId, channelIds, scheduleReconnect])
+
+  // Reset authFailed when enabled changes (e.g., re-login)
+  useEffect(() => {
+    authFailedRef.current = false
+    authRetryRef.current = false
+  }, [enabled])
+
+  // Sync with user store: stop everything on logout
+  useEffect(() => {
+    if (user === null) {
+      authFailedRef.current = true
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = null
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+        abortControllerRef.current = null
+      }
+      setIsConnected(false)
+    }
+  }, [user])
 
   useEffect(() => {
     connect()
     return () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = null
+      }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }

@@ -24,6 +24,25 @@ export const api = axios.create({
   withCredentials: true,
 })
 
+// Public endpoints that don't require authentication
+const PUBLIC_PREFIXES = [
+  '/api/auth/',
+  '/api/newsletter/',
+  '/api/contact-sales',
+  '/api/collections/curated',
+  '/api/digests/unsubscribe',
+  '/api/stripe/webhook',
+]
+
+// Request interceptor: block API calls when not authenticated (except public endpoints)
+api.interceptors.request.use((config) => {
+  const user = useUserStore.getState().user
+  if (!user && !PUBLIC_PREFIXES.some((prefix) => config.url?.startsWith(prefix))) {
+    return Promise.reject(new axios.CanceledError('Not authenticated'))
+  }
+  return config
+})
+
 // Refresh token queue - prevents concurrent refresh attempts
 let isRefreshing = false
 let failedQueue: Array<{

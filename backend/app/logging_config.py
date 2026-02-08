@@ -8,6 +8,17 @@ import structlog
 from app.config import get_settings
 
 
+class Suppress401Filter(logging.Filter):
+    """Filter that drops uvicorn access log entries with 401 status codes."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.args and isinstance(record.args, tuple) and len(record.args) >= 5:
+            status_code = record.args[4]
+            if isinstance(status_code, int) and status_code == 401:
+                return False
+        return True
+
+
 def configure_logging() -> None:
     """Configure structlog with JSON output for production, console for development."""
     settings = get_settings()
@@ -53,3 +64,7 @@ def configure_logging() -> None:
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
     root_logger.setLevel(log_level)
+
+    # Suppress 401 responses from uvicorn access log to reduce noise
+    uvicorn_access = logging.getLogger("uvicorn.access")
+    uvicorn_access.addFilter(Suppress401Filter())
