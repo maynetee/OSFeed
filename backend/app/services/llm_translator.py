@@ -24,25 +24,26 @@ Cost Optimization Strategy:
 
 import asyncio
 import hashlib
+import json
 import logging
 import re
 from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
 import httpx
 from deep_translator import GoogleTranslator
-from langdetect import detect, LangDetectException
+from langdetect import LangDetectException, detect
 from openai import AsyncOpenAI, OpenAIError
 from redis.exceptions import RedisError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.models.message import MessageTranslation
-
 from app.config import get_settings
+from app.models.message import MessageTranslation
 from app.services.cache import get_redis_client, increment_translation_cache_hit, increment_translation_cache_miss
 from app.services.usage import record_api_usage
 
@@ -61,6 +62,74 @@ SKIP_REGEXES = [
     re.compile(r"^\d+$"),
     re.compile(r"^[^\w\s]{1,10}$"),
 ]
+
+# OSINT glossary cache
+_osint_glossary: Optional[dict] = None
+_osint_terms_set: Optional[set] = None
+
+
+def _load_osint_glossary() -> tuple[dict, set]:
+    """Load the OSINT glossary and build a term lookup set."""
+    global _osint_glossary, _osint_terms_set
+    if _osint_glossary is not None:
+        return _osint_glossary, _osint_terms_set
+
+    glossary_path = Path(__file__).parent / "translation" / "osint_glossary.json"
+    try:
+        with open(glossary_path, "r", encoding="utf-8") as f:
+            _osint_glossary = json.load(f)
+        # Build flat set of all terms for quick lookup
+        _osint_terms_set = set()
+        for category in _osint_glossary.get("categories", {}).values():
+            for term in category.get("terms", {}):
+                _osint_terms_set.add(term.upper())
+                _osint_terms_set.add(term)
+        return _osint_glossary, _osint_terms_set
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Failed to load OSINT glossary: {e}")
+        _osint_glossary = {}
+        _osint_terms_set = set()
+        return _osint_glossary, _osint_terms_set
+
+
+def _detect_osint_terms(text: str) -> list[str]:
+    """Detect OSINT terms present in the text."""
+    _, terms_set = _load_osint_glossary()
+    if not terms_set:
+        return []
+
+    found = []
+    # Check for whole-word matches (case-insensitive for longer terms)
+    words = set(re.findall(r'\b[A-Za-z][\w-]*\b', text))
+    for word in words:
+        if word in terms_set or word.upper() in terms_set:
+            found.append(word)
+    return found
+
+
+def _build_osint_context(detected_terms: list[str]) -> str:
+    """Build glossary context string for detected OSINT terms."""
+    if not detected_terms:
+        return ""
+
+    glossary, _ = _load_osint_glossary()
+    context_parts = []
+
+    for category in glossary.get("categories", {}).values():
+        terms = category.get("terms", {})
+        for term_name, term_data in terms.items():
+            if term_name in detected_terms or term_name.upper() in [t.upper() for t in detected_terms]:
+                definition = term_data.get("definition", "")
+                if term_data.get("preserve", True):
+                    context_parts.append(f"- {term_name}: {definition} (PRESERVE as-is)")
+                else:
+                    translation = term_data.get("translation", term_name)
+                    context_parts.append(f"- {term_name}: {definition} (translate as '{translation}')")
+
+    if not context_parts:
+        return ""
+
+    return "\n\nOSINT GLOSSARY (use these translations):\n" + "\n".join(context_parts[:20])
 
 
 class LLMTranslator:
@@ -356,15 +425,29 @@ class LLMTranslator:
         translated_chunks = []
 
         for chunk in chunks:
+            # Detect OSINT terms and build context
+            detected_terms = _detect_osint_terms(chunk)
+            glossary_context = _build_osint_context(detected_terms)
+
+            system_prompt = (
+                "You are an expert OSINT intelligence translator specializing in military, "
+                "geopolitical, and conflict-related content from Telegram channels. "
+                "CRITICAL RULES:\n"
+                "1. Preserve ALL military acronyms exactly (NATO, HIMARS, BTG, etc.)\n"
+                "2. Preserve proper nouns, unit designations, and callsigns\n"
+                "3. Use standard NATO transliterations for Russian/Ukrainian terms\n"
+                "4. Keep dates, numbers, coordinates, and URLs unchanged\n"
+                "5. Maintain the original tone and urgency of the message\n"
+                "6. Return ONLY the translation, no explanations"
+                f"{glossary_context}"
+            )
+
             response = await client.chat.completions.create(
                 model=model,
                 messages=[
                     {
                         "role": "system",
-                        "content": (
-                            "OSINT translator. Keep names, dates, URLs, numbers. "
-                            "Return only the translation."
-                        ),
+                        "content": system_prompt,
                     },
                     {
                         "role": "user",
@@ -416,10 +499,17 @@ class LLMTranslator:
         """
         if not self.gemini_api_key:
             raise RuntimeError("Gemini API key is not configured")
+
+        detected_terms = _detect_osint_terms(text)
+        glossary_context = _build_osint_context(detected_terms)
+
         prompt = (
-            "OSINT translator. Keep names, dates, URLs, numbers. "
+            "You are an expert OSINT intelligence translator. "
+            "Preserve military acronyms, proper nouns, unit designations, dates, URLs, numbers. "
+            "Use standard NATO transliterations for Russian/Ukrainian terms. "
             f"Translate from {source_lang} to {target_lang}. "
-            "Return only the translation.\n\n"
+            "Return only the translation."
+            f"{glossary_context}\n\n"
             f"{text}"
         )
         url = (
@@ -1085,9 +1175,11 @@ class LLMTranslator:
                 {
                     "role": "system",
                     "content": (
-                        "OSINT translator. Translate each segment. "
-                        "Keep separator <<<MSG_SEP>>>. "
-                        "Preserve names, dates, URLs, numbers. Return only translations."
+                        "You are an expert OSINT intelligence translator. "
+                        "Translate each segment. Keep separator <<<MSG_SEP>>>. "
+                        "Preserve ALL military acronyms (NATO, HIMARS, BTG, etc.), "
+                        "proper nouns, unit designations, dates, URLs, numbers. "
+                        "Use standard NATO transliterations. Return only translations."
                     ),
                 },
                 {
@@ -1178,9 +1270,12 @@ class LLMTranslator:
 
         combined = BATCH_SEPARATOR.join(texts)
         prompt = (
-            "OSINT translator. Translate each segment. Keep separator <<<MSG_SEP>>>. "
+            "You are an expert OSINT intelligence translator. "
+            "Translate each segment. Keep separator <<<MSG_SEP>>>. "
+            "Preserve ALL military acronyms, proper nouns, unit designations, dates, URLs, numbers. "
+            "Use standard NATO transliterations. "
             f"Translate from {source_lang} to {target_lang}. "
-            "Preserve names, dates, URLs, numbers. Return only translations.\n\n"
+            "Return only translations.\n\n"
             f"{combined}"
         )
         url = (

@@ -117,3 +117,13 @@ logs/security/
 # Auto Claude generated files
 .auto-claude-security.json
 .auto-claude-status
+
+# ----- Documentation & Planning (local only) -----
+ACTION_PLAN.md
+OSFEED_FULL_AUDIT_REPORT.md
+Osfeed_Analyse_Strategique_Marketing.md
+TEAM_LEAD_PROMPTS.md
+audit_outputs/
+deep_research_chatgpt.md
+deep_research_gemini.md
+content/articles/

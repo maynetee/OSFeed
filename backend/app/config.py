@@ -120,6 +120,11 @@ class Settings(BaseSettings):
     enable_response_cache: bool = True
     response_cache_ttl: int = 30
 
+    # Deduplication
+    qdrant_url: str = ""
+    dedup_enabled: bool = True
+    dedup_similarity_threshold: float = 0.85
+
     # Translation concurrency
     translation_concurrency: int = 20  # Increased from 10 for better throughput
 

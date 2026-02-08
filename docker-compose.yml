@@ -106,8 +106,24 @@ services:
           cpus: '0.5'
           memory: 256M
 
+  osfeed-qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    expose:
+      - "6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - default
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
 volumes:
   telegram_data:
+  qdrant_data:
 
 networks:
   coolify:
