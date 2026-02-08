@@ -108,6 +108,7 @@ async def lifespan(app: FastAPI):
     redis_cache = None
     redis_lock_client = None
     scheduler_started = False
+    telegram_started = False
 
     # Startup: Initialize database
     await init_db()
@@ -118,9 +119,6 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as session:
         await seed_curated_collections(session)
     logger.info("Curated collections seeded")
-
-    await start_fetch_worker()
-    await start_update_handler()
 
     if settings.enable_response_cache and settings.redis_url:
         try:
@@ -201,6 +199,11 @@ async def lifespan(app: FastAPI):
             scheduler_started = True
             logger.info("Background jobs scheduled (collecting every 5 minutes, translating every 1 minute)")
 
+            # Start Telegram client and fetch worker only on the leader worker
+            await start_fetch_worker()
+            await start_update_handler()
+            telegram_started = True
+
             # Start lock renewal task if using Redis
             if redis_lock_client:
                 scheduler_lock_renew_task = asyncio.create_task(
@@ -243,9 +246,10 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Error releasing scheduler lock: {type(e).__name__}: {e}")
 
-    await stop_fetch_worker()
-    await stop_update_handler()
-    await cleanup_telegram_client()
+    if telegram_started:
+        await stop_fetch_worker()
+        await stop_update_handler()
+        await cleanup_telegram_client()
     await cleanup_rate_limiter()
     if redis_cache:
         await redis_cache.close()

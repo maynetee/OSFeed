@@ -67,12 +67,16 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
               })
 
               if (refreshResponse.ok) {
-                authRetryRef.current = false
                 connect()
+                return
               }
-              // If refresh fails, stop retrying
             } catch (refreshErr) {
               console.error('Token refresh failed:', refreshErr)
+            }
+            // Refresh failed or errored: abort and stop all retries
+            if (abortControllerRef.current) {
+              abortControllerRef.current.abort()
+              abortControllerRef.current = null
             }
           }
           return
