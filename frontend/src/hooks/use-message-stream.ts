@@ -19,6 +19,14 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
   const backoffRef = useRef(5000)
   const authRetryRef = useRef(false)
 
+  // Store callbacks in refs so they don't trigger reconnection on every render
+  const onMessagesRef = useRef(onMessages)
+  const onTranslationRef = useRef(onTranslation)
+  const onAlertRef = useRef(onAlert)
+  onMessagesRef.current = onMessages
+  onTranslationRef.current = onTranslation
+  onAlertRef.current = onAlert
+
   const connect = useCallback(() => {
     if (!enabled) return
 
@@ -109,20 +117,19 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
 
               // Handle translation events
               if (payload.type === 'message:translated') {
-                onTranslation?.(payload.data)
+                onTranslationRef.current?.(payload.data)
                 continue
               }
 
               // Handle alert events
               if (payload.type === 'alert:triggered') {
-                console.log('Alert received:', payload.data)
-                onAlert?.(payload.data)
+                onAlertRef.current?.(payload.data)
                 continue
               }
 
               // Handle message events (existing behavior)
               if (payload.messages && payload.messages.length > 0) {
-                onMessages?.(payload.messages, payload.type === 'realtime')
+                onMessagesRef.current?.(payload.messages, payload.type === 'realtime')
               }
             } catch (e) {
               console.error('Error parsing SSE data', e)
@@ -144,7 +151,7 @@ export function useMessageStream(options: UseMessageStreamOptions = {}) {
           }
         }
       })
-  }, [enabled, channelId, channelIds, onMessages, onTranslation, onAlert])
+  }, [enabled, channelId, channelIds])
 
   useEffect(() => {
     connect()
